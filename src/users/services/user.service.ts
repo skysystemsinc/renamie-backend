@@ -1,0 +1,72 @@
+import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import { UserRepository } from '../repositories/user.repository';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { User } from '../schemas/user.schema';
+
+@Injectable()
+export class UserService {
+  constructor(private readonly userRepository: UserRepository) {}
+
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const existingUser = await this.userRepository.findByEmail(
+      createUserDto.email,
+    );
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const userData = { ...createUserDto, password: hashedPassword };
+
+    return this.userRepository.create(userData);
+  }
+
+  async findAll(): Promise<User[]> {
+    return this.userRepository.findAll();
+  }
+
+  async findById(id: string): Promise<User> {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findByEmail(email);
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+    if (updateUserDto.password) {
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+
+    const updatedUser = await this.userRepository.update(id, updateUserDto);
+    if (!updatedUser) {
+      throw new NotFoundException('User not found');
+    }
+    return updatedUser;
+  }
+
+  async delete(id: string): Promise<void> {
+    const deletedUser = await this.userRepository.delete(id);
+    if (!deletedUser) {
+      throw new NotFoundException('User not found');
+    }
+  }
+
+  async updateRefreshToken(id: string, refreshToken: string): Promise<void> {
+    await this.userRepository.updateRefreshToken(id, refreshToken);
+  }
+
+  async updateLastLogin(id: string): Promise<void> {
+    await this.userRepository.updateLastLogin(id);
+  }
+
+  async validatePassword(user: User, password: string): Promise<boolean> {
+    return bcrypt.compare(password, user.password);
+  }
+}
