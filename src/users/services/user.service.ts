@@ -1,4 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRepository } from '../repositories/user.repository';
 import { CreateUserDto } from '../dto/create-user.dto';
@@ -68,5 +72,17 @@ export class UserService {
 
   async validatePassword(user: User, password: string): Promise<boolean> {
     return bcrypt.compare(password, user.password);
+  }
+
+  async setEmailVerificationHash(id: string, hash: string): Promise<void> {
+    await this.userRepository.setEmailVerificationHash(id, hash);
+  }
+
+  async findByVerificationHash(hash: string): Promise<User | null> {
+    return this.userRepository.findByVerificationHash(hash);
+  }
+
+  async verifyEmail(id: string): Promise<void> {
+    await this.userRepository.verifyEmail(id);
   }
 }

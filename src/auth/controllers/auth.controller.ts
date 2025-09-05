@@ -55,4 +55,11 @@ export class AuthController {
     await this.authService.logout(req.user._id);
     return ApiResponseDto.success('Logged out successfully');
   }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body('hash') hash: string) {
+    await this.authService.verifyEmail(hash);
+    return ApiResponseDto.success('Email verified successfully');
+  }
 }

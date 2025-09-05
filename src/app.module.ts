@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { MailerModule } from '@nestjs-modules/mailer';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppController } from './app.controller';
@@ -11,6 +12,7 @@ import { ProductsModule } from './products/products.module';
 import { HealthModule } from './health/health.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggerService } from './common/services/logger.service';
+import { MailService } from './common/services/mailer.service';
 import configuration from './config/configuration';
 
 @Module({
@@ -19,6 +21,20 @@ import configuration from './config/configuration';
       isGlobal: true,
       load: [configuration],
       envFilePath: '.env',
+    }),
+    MailerModule.forRoot({
+      transport: {
+        host: process.env.EMAIL_HOST,
+        // port: Number(process.env.EMAIL_PORT) || 2525,
+        secure: false, // true for 465, false for other ports
+        auth: {
+          user: process.env.EMAIL_USERNAME,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+        // tls: {
+        //   rejectUnauthorized: false, // For development only
+        // },
+      },
     }),
     DatabaseModule,
     UsersModule,
@@ -30,6 +46,7 @@ import configuration from './config/configuration';
   providers: [
     AppService,
     LoggerService,
+    MailService,
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,

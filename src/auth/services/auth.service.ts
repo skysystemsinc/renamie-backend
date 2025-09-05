@@ -6,6 +6,8 @@ import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { User, UserDocument } from '../../users/schemas/user.schema';
+import { randomBytes } from 'crypto';
+import { MailService } from '../../common/services/mailer.service';
 
 @Injectable()
 export class AuthService {
@@ -13,6 +15,7 @@ export class AuthService {
     private userService: UserService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private mailService: MailService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -46,7 +49,21 @@ export class AuthService {
     const { password, ...result } = (user as UserDocument).toObject();
 
     const tokens = await this.generateTokens(result);
-    await this.userService.updateRefreshToken((user as UserDocument)._id as string, tokens.refreshToken);
+    await this.userService.updateRefreshToken(
+      (user as UserDocument)._id as string,
+      tokens.refreshToken,
+    );
+
+    const verificationHash = randomBytes(32).toString('hex');
+    console.log('verificationHash', verificationHash);
+    await this.userService.setEmailVerificationHash(
+      (user as UserDocument)._id as string,
+      verificationHash,
+    );
+    // this.configService.get<string>('APP_URL') ||
+    const appUrl = 'http://localhost:8081';
+    const verifyUrl = `${appUrl}/api/v1/auth/verify-email?hash=${verificationHash}`;
+    await this.mailService.sendVerificationEmail(result.email, verifyUrl);
 
     return {
       user: result,
@@ -69,7 +86,10 @@ export class AuthService {
       }
 
       const tokens = await this.generateTokens(user);
-      await this.userService.updateRefreshToken((user as UserDocument)._id as string, tokens.refreshToken);
+      await this.userService.updateRefreshToken(
+        (user as UserDocument)._id as string,
+        tokens.refreshToken,
+      );
 
       return tokens;
     } catch {
@@ -82,9 +102,18 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  async verifyEmail(hash: string) {
+    const user = await this.userService.findByVerificationHash(hash);
+    if (!user) {
+      throw new UnauthorizedException('Invalid verification token');
+    }
+    await this.userService.verifyEmail((user as UserDocument)._id as string);
+    return { message: 'Email verified' };
+  }
+
   private async generateTokens(user: any) {
     const payload = { email: user.email, sub: user._id, role: user.role };
-    
+
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('jwt.secret'),
