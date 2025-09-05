@@ -15,6 +15,11 @@ export default () => {
       refreshSecret: process.env.JWT_REFRESH_SECRET || 'your-super-secret-refresh-key',
       refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
     },
+    stripe: {
+      secretKey: process.env.STRIPE_SECRET_KEY,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    },
     logLevel: process.env['LOG_LEVEL'] || 'info',
   };
 };
