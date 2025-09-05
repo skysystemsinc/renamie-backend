@@ -5,17 +5,40 @@ import { MailerService as NestMailerService } from '@nestjs-modules/mailer';
 export class MailService {
   constructor(private readonly mailer: NestMailerService) {}
 
-  async sendVerificationEmail(to: string, verificationUrl: string) {
-    console.log('to', to);
-    console.log('verificationUrl', verificationUrl);
-    const message = `Please verify your email by clicking the link: ${verificationUrl}`;
+  private async sendEmail(
+    to: string,
+    subject: string,
+    text: string,
+    html: string,
+  ) {
     await this.mailer.sendMail({
       to,
       from: process.env.EMAIL_FROM || 'no-reply@renamie.com',
-      subject: 'Verify your email address',
-      text: message,
-      // html: `<p>Please verify your email by clicking the link below:</p>
-      //        <p><a href="${verificationUrl}">Verify Email</a></p>`,
+      subject,
+      text,
+      html,
     });
+  }
+
+  async sendVerificationEmail(to: string, verificationUrl: string) {
+    const subject = 'Verify your email address - Renamie';
+    const text = `You have successfully registered your account. 
+    Please verify your email by clicking the link: ${verificationUrl}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">Welcome to Renamie!</h2>
+        <p>Thank you for registering with us.</p>
+        <p>Please verify your email by clicking the button below:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" 
+             style="background-color: #007bff; color: white; padding: 12px 24px; 
+                    text-decoration: none; border-radius: 5px; display: inline-block;">
+            Verify Email Address
+          </a>
+        </div>
+      </div>
+    `;
+    await this.sendEmail(to, subject, text, html);
   }
 }

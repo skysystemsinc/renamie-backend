@@ -8,6 +8,7 @@ import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { User, UserDocument } from '../../users/schemas/user.schema';
 import { randomBytes } from 'crypto';
 import { MailService } from '../../common/services/mailer.service';
+import { EmailVerifyDto } from '../dto/verify-email.dto';
 
 @Injectable()
 export class AuthService {
@@ -54,17 +55,16 @@ export class AuthService {
       tokens.refreshToken,
     );
 
-    const verificationHash = randomBytes(32).toString('hex');
+    const verificationHash = randomBytes(10).toString('hex');
     console.log('verificationHash', verificationHash);
     await this.userService.setEmailVerificationHash(
       (user as UserDocument)._id as string,
       verificationHash,
     );
-    // this.configService.get<string>('APP_URL') ||
-    const appUrl = 'http://localhost:8081';
-    const verifyUrl = `${appUrl}/api/v1/auth/verify-email?hash=${verificationHash}`;
+    const appUrl = process.env.Localhost;
+    const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
+    console.log('verifyUrl', verifyUrl);
     await this.mailService.sendVerificationEmail(result.email, verifyUrl);
-
     return {
       user: result,
       ...tokens,
@@ -102,15 +102,6 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  async verifyEmail(hash: string) {
-    const user = await this.userService.findByVerificationHash(hash);
-    if (!user) {
-      throw new UnauthorizedException('Invalid verification token');
-    }
-    await this.userService.verifyEmail((user as UserDocument)._id as string);
-    return { message: 'Email verified' };
-  }
-
   private async generateTokens(user: any) {
     const payload = { email: user.email, sub: user._id, role: user.role };
 
@@ -128,6 +119,19 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+    };
+  }
+
+ 
+  async verifyEmail(emailVerifyDto: EmailVerifyDto) {
+    const { hash } = emailVerifyDto;
+    const user = await this.userService.findByVerificationHash(hash);
+    if (!user) {
+      return { message: 'Invalid Hash' };
+    }
+    await this.userService.verifyEmail((user as UserDocument)._id as string);
+    return {
+      user,
     };
   }
 }

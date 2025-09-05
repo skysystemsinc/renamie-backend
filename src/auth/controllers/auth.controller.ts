@@ -21,6 +21,7 @@ import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { ApiBody } from '@nestjs/swagger';
+import { EmailVerifyDto } from '../dto/verify-email.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -58,8 +59,8 @@ export class AuthController {
 
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
-  async verifyEmail(@Body('hash') hash: string) {
-    await this.authService.verifyEmail(hash);
-    return ApiResponseDto.success('Email verified successfully');
+  async verifyEmail(@Body() emailVerifyDto: EmailVerifyDto) {
+    const result = await this.authService.verifyEmail(emailVerifyDto);
+    return ApiResponseDto.success('Email verified successfully!', result);
   }
 }

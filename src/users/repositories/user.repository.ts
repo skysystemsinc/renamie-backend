@@ -23,7 +23,7 @@ export class UserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.userModel.findOne({ email }).select("-refreshToken").exec();
+    return this.userModel.findOne({ email }).select('-refreshToken').exec();
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
@@ -47,7 +47,9 @@ export class UserRepository {
   }
 
   async setEmailVerificationHash(id: string, hash: string): Promise<void> {
-    await this.userModel.findByIdAndUpdate(id, { emailVerificationHash: hash }).exec();
+    await this.userModel
+      .findByIdAndUpdate(id, { emailVerificationHash: hash })
+      .exec();
   }
 
   async findByVerificationHash(hash: string): Promise<User | null> {

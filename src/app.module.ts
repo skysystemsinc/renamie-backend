@@ -25,15 +25,10 @@ import configuration from './config/configuration';
     MailerModule.forRoot({
       transport: {
         host: process.env.EMAIL_HOST,
-        // port: Number(process.env.EMAIL_PORT) || 2525,
-        secure: false, // true for 465, false for other ports
         auth: {
           user: process.env.EMAIL_USERNAME,
           pass: process.env.EMAIL_PASSWORD,
         },
-        // tls: {
-        //   rejectUnauthorized: false, // For development only
-        // },
       },
     }),
     DatabaseModule,
