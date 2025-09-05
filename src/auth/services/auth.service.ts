@@ -63,7 +63,7 @@ export class AuthService {
     );
     const appUrl = process.env.Localhost;
     const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
-    console.log('verifyUrl', verifyUrl);
+    // console.log('verifyUrl', verifyUrl);
     await this.mailService.sendVerificationEmail(result.email, verifyUrl);
     return {
       user: result,

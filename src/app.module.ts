@@ -9,11 +9,14 @@ import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
+import { PaymentsModule } from './payments/payments.module';
 import { HealthModule } from './health/health.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggerService } from './common/services/logger.service';
-import { MailService } from './common/services/mailer.service';
+import { PlansModule } from './plans/plans.module';
+import { SeedersModule } from './seeders/seeders.module';
 import configuration from './config/configuration';
+import { MailService } from './common/services/mailer.service';
 
 @Module({
   imports: [
@@ -35,7 +38,10 @@ import configuration from './config/configuration';
     UsersModule,
     AuthModule,
     ProductsModule,
+    PaymentsModule,
     HealthModule,
+    PlansModule,
+    SeedersModule,
   ],
   controllers: [AppController],
   providers: [
