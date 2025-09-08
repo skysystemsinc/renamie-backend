@@ -21,19 +21,26 @@ import { RefundPaymentDto } from '../dto/refund-payment.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { UserRole } from '../../users/schemas/user.schema';
+import { User, UserDocument, UserRole } from '../../users/schemas/user.schema';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import Stripe from 'stripe';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
+@ApiTags('Payments')
 @Controller('payments')
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) {}
+  constructor(private readonly paymentService: PaymentService) { }
 
+  @ApiOperation({ summary: 'Process a payment' })
   @Post('process')
   @UseGuards(JwtAuthGuard)
-  async processPayment(@Body() processPaymentDto: ProcessPaymentDto) {
-    const result = await this.paymentService.processPayment(processPaymentDto);
+  async processPayment(
+    @Body() processPaymentDto: ProcessPaymentDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const result = await this.paymentService.processPayment(processPaymentDto, userId);
     return ApiResponseDto.success('Payment processed successfully', result);
   }
 

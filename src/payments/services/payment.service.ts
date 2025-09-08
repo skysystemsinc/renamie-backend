@@ -7,6 +7,8 @@ import { UpdatePaymentDto } from '../dto/update-payment.dto';
 import { ProcessPaymentDto } from '../dto/process-payment.dto';
 import { RefundPaymentDto } from '../dto/refund-payment.dto';
 import { Payment, PaymentStatus, PaymentDocument } from '../schemas/payment.schema';
+import { UserService } from '../../users/services/user.service';
+import { PlanService } from '../../plans/services/plan/plan.service';
 
 @Injectable()
 export class PaymentService {
@@ -16,6 +18,8 @@ export class PaymentService {
   constructor(
     private readonly paymentRepository: PaymentRepository,
     private readonly configService: ConfigService,
+    private readonly userService: UserService,
+    private readonly planService: PlanService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -37,9 +41,19 @@ export class PaymentService {
     }
   }
 
-  async processPayment(processPaymentDto: ProcessPaymentDto): Promise<{ payment: PaymentDocument; clientSecret: string }> {
+  async processPayment(processPaymentDto: ProcessPaymentDto, userId: string): Promise<{ payment: PaymentDocument; clientSecret: string }> {
     try {
-      this.logger.log(`Processing payment for user ${processPaymentDto.userId}`);
+      this.logger.log(`Processing payment for user ${userId}`);
+
+      const user = await this.userService.findById(userId);
+      if(!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const plan = await this.planService.findById(processPaymentDto.planId);
+      if(!plan) {
+        throw new NotFoundException('Plan not found');
+      }
 
       // Create Stripe Payment Intent
       const paymentIntent = await this.stripe.paymentIntents.create({

@@ -1,43 +1,10 @@
-import { IsNotEmpty, IsString, IsNumber, IsOptional, IsEnum, IsEmail, Min, IsObject } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, IsOptional, IsEnum, IsEmail, Min, IsObject, IsMongoId } from 'class-validator';
 import { PaymentMethod } from '../schemas/payment.schema';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class ProcessPaymentDto {
-  @IsString()
+  @ApiProperty({ description: 'The ID of the plan to process payment for', example: '66d9a4000000000000000000' })
   @IsNotEmpty()
-  userId: string;
-
-  @IsNumber()
-  @Min(0.01)
-  amount: number;
-
-  @IsString()
-  @IsNotEmpty()
-  currency: string;
-
-  @IsEnum(PaymentMethod)
-  paymentMethod: PaymentMethod;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, any>;
-
-  @IsOptional()
-  @IsString()
-  orderId?: string;
-
-  @IsOptional()
-  @IsEmail()
-  customerEmail?: string;
-
-  @IsOptional()
-  @IsString()
-  customerName?: string;
-
-  @IsOptional()
-  @IsString()
-  paymentMethodId?: string; // Stripe payment method ID
+  @IsMongoId()
+  planId: string;
 }

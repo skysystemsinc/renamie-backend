@@ -14,6 +14,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggerService } from './common/services/logger.service';
 import { PlansModule } from './plans/plans.module';
 import { SeedersModule } from './seeders/seeders.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import configuration from './config/configuration';
 
 @Module({
@@ -31,6 +32,7 @@ import configuration from './config/configuration';
     HealthModule,
     PlansModule,
     SeedersModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [

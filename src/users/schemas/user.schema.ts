@@ -33,6 +33,9 @@ export class User {
 
   @Prop()
   refreshToken?: string;
+
+  @Prop()
+  stripeCustomerId?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
