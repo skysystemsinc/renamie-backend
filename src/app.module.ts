@@ -27,13 +27,18 @@ import { MailService } from './common/services/mailer.service';
     }),
     MailerModule.forRoot({
       transport: {
-        host: process.env.EMAIL_HOST,
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT),
         auth: {
-          user: process.env.EMAIL_USERNAME,
-          pass: process.env.EMAIL_PASSWORD,
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
         },
       },
+      defaults: {
+        from: `"No Reply" <${process.env.EMAIL_FROM}>`,
+      },
     }),
+
     DatabaseModule,
     UsersModule,
     AuthModule,

@@ -1,11 +1,14 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../../users/services/user.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
-import { User, UserDocument } from '../../users/schemas/user.schema';
+import { UserDocument } from '../../users/schemas/user.schema';
 import { randomBytes } from 'crypto';
 import { MailService } from '../../common/services/mailer.service';
 import { EmailVerifyDto } from '../dto/verify-email.dto';
@@ -35,7 +38,6 @@ export class AuthService {
     }
 
     await this.userService.updateLastLogin(user._id);
-
     const tokens = await this.generateTokens(user);
     await this.userService.updateRefreshToken(user._id, tokens.refreshToken);
 
@@ -48,22 +50,18 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const user = await this.userService.create(registerDto);
     const { password, ...result } = (user as UserDocument).toObject();
-
     const tokens = await this.generateTokens(result);
     await this.userService.updateRefreshToken(
       (user as UserDocument)._id as string,
       tokens.refreshToken,
     );
-
     const verificationHash = randomBytes(10).toString('hex');
-    console.log('verificationHash', verificationHash);
     await this.userService.setEmailVerificationHash(
       (user as UserDocument)._id as string,
       verificationHash,
     );
     const appUrl = process.env.Localhost;
     const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
-    // console.log('verifyUrl', verifyUrl);
     await this.mailService.sendVerificationEmail(result.email, verifyUrl);
     return {
       user: result,
@@ -122,7 +120,6 @@ export class AuthService {
     };
   }
 
- 
   async verifyEmail(emailVerifyDto: EmailVerifyDto) {
     const { hash } = emailVerifyDto;
     const user = await this.userService.findByVerificationHash(hash);
