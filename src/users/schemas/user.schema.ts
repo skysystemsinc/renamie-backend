@@ -36,6 +36,15 @@ export class User {
 
   @Prop()
   stripeCustomerId?: string;
+
+  @Prop()
+  emailVerificationHash?: string;
+
+  @Prop({ default: false })
+  emailVerified: boolean;
+
+  @Prop()
+  emailVerifiedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
