@@ -6,6 +6,7 @@ import { Plan } from '../../payments/schemas/plan.schema';
 export type SubscriptionDocument = Subscription & Document;
 
 export enum SubscriptionStatus {
+  PENDING = 'pending',
   ACTIVE = 'active',
   CANCELED = 'canceled',
   TRIALING = 'trialing',
@@ -20,17 +21,17 @@ export class Subscription {
   @Prop({ type: Types.ObjectId, ref: Plan.name, required: true })
   plan: Types.ObjectId;
 
-  @Prop({ required: true })
-  stripeSubscriptionId: string;
+  @Prop()
+  stripeSubscriptionId?: string;
 
   @Prop({ required: true, enum: SubscriptionStatus, default: SubscriptionStatus.TRIALING })
   status: SubscriptionStatus;
 
-  @Prop({ required: true })
-  startedAt: Date;
+  @Prop()
+  startedAt?: Date;
 
-  @Prop({ required: true })
-  expiresAt: Date;
+  @Prop()
+  expiresAt?: Date;
 
   @Prop()
   canceledAt?: Date;

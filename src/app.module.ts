@@ -16,6 +16,7 @@ import { PlansModule } from './plans/plans.module';
 import { SeedersModule } from './seeders/seeders.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import configuration from './config/configuration';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import configuration from './config/configuration';
     PlansModule,
     SeedersModule,
     SubscriptionsModule,
+    StripeModule,
   ],
   controllers: [AppController],
   providers: [

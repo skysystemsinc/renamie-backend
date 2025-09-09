@@ -59,21 +59,6 @@ export class PaymentController {
     return ApiResponseDto.success('Refund processed successfully', payment);
   }
 
-  @Post('webhook')
-  async handleWebhook(
-    @Headers('stripe-signature') signature: string,
-    @Req() req: RawBodyRequest<Request>,
-  ) {
-    try {
-      const event = JSON.parse(req.rawBody?.toString() || '{}');
-      await this.paymentService.handleStripeWebhook(event);
-      return { received: true };
-    } catch (error) {
-      console.error('Webhook error:', error);
-      return { received: false, error: error.message };
-    }
-  }
-
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.ADMIN)
