@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { MailerModule } from '@nestjs-modules/mailer';
 import { APP_FILTER, APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppController } from './app.controller';
@@ -15,6 +16,7 @@ import { LoggerService } from './common/services/logger.service';
 import { PlansModule } from './plans/plans.module';
 import { SeedersModule } from './seeders/seeders.module';
 import configuration from './config/configuration';
+import { MailService } from './common/services/mailer.service';
 
 @Module({
   imports: [
@@ -23,6 +25,20 @@ import configuration from './config/configuration';
       load: [configuration],
       envFilePath: '.env',
     }),
+    MailerModule.forRoot({
+      transport: {
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT),
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      },
+      defaults: {
+        from: `"No Reply" <${process.env.EMAIL_FROM}>`,
+      },
+    }),
+
     DatabaseModule,
     UsersModule,
     AuthModule,
@@ -36,6 +52,7 @@ import configuration from './config/configuration';
   providers: [
     AppService,
     LoggerService,
+    MailService,
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
