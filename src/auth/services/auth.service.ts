@@ -1,7 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../../users/services/user.service';
@@ -11,7 +8,11 @@ import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { UserDocument } from '../../users/schemas/user.schema';
 import { randomBytes } from 'crypto';
 import { MailService } from '../../common/services/mailer.service';
-import { EmailVerifyDto } from '../dto/verify-email.dto';
+import {
+  EmailVerifyDto,
+  resetPasswordDto,
+  updatePasswordDto,
+} from '../dto/verify-email.dto';
 import { SubscriptionService } from '../../subscriptions/services/subscription.service';
 
 @Injectable()
@@ -38,7 +39,6 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
     await this.userService.updateLastLogin(user._id);
     const subscription = await this.subscriptionService.findByUserId(user._id);
     const tokens = await this.generateTokens(user);
@@ -108,9 +108,9 @@ export class AuthService {
 
   private async generateTokens(user: any) {
     const subscription = await this.subscriptionService.findByUserId(user._id);
-    const payload = { 
-      email: user.email, 
-      sub: user._id, 
+    const payload = {
+      email: user.email,
+      sub: user._id,
       role: user.role,
       subscription: subscription || null,
     };
@@ -141,6 +141,42 @@ export class AuthService {
     await this.userService.verifyEmail((user as UserDocument)._id as string);
     return {
       user,
+    };
+  }
+
+  async resetPassword(resetPasswordDto: resetPasswordDto) {
+    const user = await this.userService.findByEmail(resetPasswordDto.email);
+    if (!user) {
+      throw new UnauthorizedException('Email not registered');
+    }
+    const id = (user as UserDocument)._id as string;
+    let userId = id.toString();
+    const appUrl = process.env.Localhost;
+    const verifyUrl = `${appUrl}/renamie.com/resetPassword/${userId}`;
+    await this.mailService.sendUpdateYourPassword(
+      resetPasswordDto.email,
+      verifyUrl,
+    );
+    return {
+      user: user,
+    };
+  }
+
+  async updatePassword(updatePasswordDto: updatePasswordDto) {
+    const user = await this.userService.findById(updatePasswordDto.userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    const updatedUser = await this.userService.update(
+      updatePasswordDto.userId,
+      {
+        password: updatePasswordDto.password,
+      },
+    );
+    // console.log('updated user', updatedUser);
+    return {
+      message: 'Password updated successfully!',
+      user: updatedUser,
     };
   }
 }
