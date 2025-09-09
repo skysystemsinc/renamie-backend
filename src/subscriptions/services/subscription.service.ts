@@ -57,4 +57,8 @@ export class SubscriptionService {
         return checkoutSession;
         // return this.paymentService.createPayment(createSubscriptionDto as CreatePaymentDto, userId);
     }
+
+    async findByUserId(userId: string) {
+        return this.subscriptionRepository.findByUserId(userId);
+    }
 }

@@ -12,6 +12,7 @@ import { UserDocument } from '../../users/schemas/user.schema';
 import { randomBytes } from 'crypto';
 import { MailService } from '../../common/services/mailer.service';
 import { EmailVerifyDto } from '../dto/verify-email.dto';
+import { SubscriptionService } from '../../subscriptions/services/subscription.service';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailService: MailService,
+    private subscriptionService: SubscriptionService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -38,11 +40,15 @@ export class AuthService {
     }
 
     await this.userService.updateLastLogin(user._id);
+    const subscription = await this.subscriptionService.findByUserId(user._id);
     const tokens = await this.generateTokens(user);
     await this.userService.updateRefreshToken(user._id, tokens.refreshToken);
 
     return {
-      user,
+      user: {
+        ...user,
+        subscription,
+      },
       ...tokens,
     };
   }
@@ -101,7 +107,13 @@ export class AuthService {
   }
 
   private async generateTokens(user: any) {
-    const payload = { email: user.email, sub: user._id, role: user.role };
+    const subscription = await this.subscriptionService.findByUserId(user._id);
+    const payload = { 
+      email: user.email, 
+      sub: user._id, 
+      role: user.role,
+      subscription: subscription || null,
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
