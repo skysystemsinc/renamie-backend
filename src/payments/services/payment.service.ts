@@ -6,7 +6,9 @@ import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { UpdatePaymentDto } from '../dto/update-payment.dto';
 import { ProcessPaymentDto } from '../dto/process-payment.dto';
 import { RefundPaymentDto } from '../dto/refund-payment.dto';
-import { Payment, PaymentStatus, PaymentDocument } from '../schemas/payment.schema';
+import { Payment, PaymentStatus, PaymentDocument, PaymentMethod } from '../schemas/payment.schema';
+import { UserService } from '../../users/services/user.service';
+import { PlanService } from '../../plans/services/plan/plan.service';
 
 @Injectable()
 export class PaymentService {
@@ -16,6 +18,8 @@ export class PaymentService {
   constructor(
     private readonly paymentRepository: PaymentRepository,
     private readonly configService: ConfigService,
+    private readonly userService: UserService,
+    private readonly planService: PlanService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -27,9 +31,9 @@ export class PaymentService {
     });
   }
 
-  async createPayment(createPaymentDto: CreatePaymentDto): Promise<PaymentDocument> {
+  async createPayment(createPaymentDto: CreatePaymentDto, userId: string): Promise<PaymentDocument> {
     try {
-      this.logger.log(`Creating payment for user ${createPaymentDto.userId}`);
+      this.logger.log(`Creating payment for user ${userId}`);
       return await this.paymentRepository.create(createPaymentDto);
     } catch (error) {
       this.logger.error(`Error creating payment: ${error.message}`);
@@ -37,44 +41,46 @@ export class PaymentService {
     }
   }
 
-  async processPayment(processPaymentDto: ProcessPaymentDto): Promise<{ payment: PaymentDocument; clientSecret: string }> {
+  async processPayment(processPaymentDto: ProcessPaymentDto, userId: string): Promise<{ payment: PaymentDocument; clientSecret: string }> {
     try {
-      this.logger.log(`Processing payment for user ${processPaymentDto.userId}`);
+      this.logger.log(`Processing payment for user ${userId}`);
+
+      const user = await this.userService.findById(userId);
+      if(!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const plan = await this.planService.findById(processPaymentDto.planId);
+      if(!plan) {
+        throw new NotFoundException('Plan not found');
+      }
 
       // Create Stripe Payment Intent
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: Math.round(processPaymentDto.amount * 100), // Convert to cents
-        currency: processPaymentDto.currency.toLowerCase(),
-        payment_method_types: [processPaymentDto.paymentMethod],
-        description: processPaymentDto.description,
+        amount: Math.round(plan.amount * 100), // Convert to cents
+        currency: plan.currency.toLowerCase() || 'usd',
+        payment_method_types: [PaymentMethod.CARD],
+        description: plan.name,
         metadata: {
-          userId: processPaymentDto.userId,
-          orderId: processPaymentDto.orderId || '',
-          ...processPaymentDto.metadata,
+          userId: userId,
         },
-        ...(processPaymentDto.paymentMethodId && {
-          payment_method: processPaymentDto.paymentMethodId,
-        }),
-        ...(processPaymentDto.customerEmail && {
-          receipt_email: processPaymentDto.customerEmail,
-        }),
       });
 
       // Create payment record in database
-      const paymentData: CreatePaymentDto = {
-        userId: processPaymentDto.userId,
-        amount: processPaymentDto.amount,
-        currency: processPaymentDto.currency,
-        paymentMethod: processPaymentDto.paymentMethod,
+      const paymentData: any = {
+        userId: userId,
+        amount: plan.amount,
+        currency: plan.currency,
+        paymentMethod: PaymentMethod.CARD,
         stripePaymentIntentId: paymentIntent.id,
-        description: processPaymentDto.description,
-        metadata: processPaymentDto.metadata,
-        orderId: processPaymentDto.orderId,
-        customerEmail: processPaymentDto.customerEmail,
-        customerName: processPaymentDto.customerName,
+        description: plan.name,
+        metadata: {},
+        orderId: '',
+        customerEmail: '',
+        customerName: '',
       };
 
-      const payment = await this.createPayment(paymentData);
+      const payment = await this.createPayment(paymentData, userId);
 
       return {
         payment,
@@ -242,50 +248,6 @@ export class PaymentService {
     const payment = await this.paymentRepository.delete(id);
     if (!payment) {
       throw new NotFoundException('Payment not found');
-    }
-  }
-
-  // Webhook handler for Stripe events
-  async handleStripeWebhook(event: Stripe.Event): Promise<void> {
-    this.logger.log(`Handling Stripe webhook: ${event.type}`);
-
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        await this.handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
-        break;
-      case 'payment_intent.payment_failed':
-        await this.handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
-        break;
-      case 'payment_intent.canceled':
-        await this.handlePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent);
-        break;
-      default:
-        this.logger.log(`Unhandled event type: ${event.type}`);
-    }
-  }
-
-  private async handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    const payment: PaymentDocument | null = await this.paymentRepository.findByStripePaymentIntentId(paymentIntent.id);
-    if (payment) {
-      await this.paymentRepository.updateStatus(payment.id.toString(), PaymentStatus.SUCCEEDED, {
-        stripeChargeId: paymentIntent.latest_charge as string,
-      });
-    }
-  }
-
-  private async handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    const payment: PaymentDocument | null = await this.paymentRepository.findByStripePaymentIntentId(paymentIntent.id);
-    if (payment) {
-      await this.paymentRepository.updateStatus(payment.id.toString(), PaymentStatus.FAILED, {
-        failureReason: paymentIntent.last_payment_error?.message || 'Payment failed',
-      });
-    }
-  }
-
-  private async handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    const payment: PaymentDocument | null = await this.paymentRepository.findByStripePaymentIntentId(paymentIntent.id);
-    if (payment) {
-      await this.paymentRepository.updateStatus(payment.id.toString(), PaymentStatus.CANCELED);
     }
   }
 }
