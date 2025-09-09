@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Subscription, SubscriptionDocument } from '../schemas/subscription.schema';
+import { Model, Types } from 'mongoose';
+import { Subscription, SubscriptionDocument, SubscriptionStatus } from '../schemas/subscription.schema';
 
 @Injectable()
 export class SubscriptionRepository {
   constructor(
     @InjectModel(Subscription.name) private subscriptionModel: Model<SubscriptionDocument>,
-  ) {}
+  ) { }
 
   async create(SubscriptionDocument: Partial<Subscription>): Promise<SubscriptionDocument> {
     const createdSubscription = new this.subscriptionModel(SubscriptionDocument);
@@ -24,5 +24,12 @@ export class SubscriptionRepository {
 
   async update(id: string, updateSubscriptionDto: Partial<Subscription>): Promise<SubscriptionDocument | null> {
     return this.subscriptionModel.findByIdAndUpdate(id, updateSubscriptionDto, { new: true }).exec();
+  }
+
+  async findByUserId(userId: string): Promise<SubscriptionDocument | null> {
+    return this.subscriptionModel.findOne({
+      user: new Types.ObjectId(userId),
+      status: SubscriptionStatus.ACTIVE
+    }).exec();
   }
 }
