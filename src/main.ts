@@ -32,9 +32,7 @@ async function createApp() {
   );
 
   // ⚡ Remove global prefix for Vercel (all routes root-mounted)
-  if (!process.env.VERCEL) {
-    app.setGlobalPrefix('api/v1');
-  }
+  app.setGlobalPrefix('api/v1');
 
   const config = new DocumentBuilder()
     .setTitle('Renamie API')
