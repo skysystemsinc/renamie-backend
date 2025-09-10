@@ -3,7 +3,8 @@
   "buildCommand": "npm run vercel-build",
   "functions": {
     "api/index.js": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "dist/**"
     }
   },
   "routes": [
@@ -14,6 +15,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "outputDirectory": ""
+  }
 }

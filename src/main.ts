@@ -15,13 +15,11 @@ async function createApp() {
 
   const configService = app.get(ConfigService);
 
-  // Enable CORS
   app.enableCors({
     origin: true,
     credentials: true,
   });
 
-  // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -33,7 +31,7 @@ async function createApp() {
     }),
   );
 
-  // Global prefix - adjust for Vercel deployment
+  // ⚡ Remove global prefix for Vercel (all routes root-mounted)
   if (!process.env.VERCEL) {
     app.setGlobalPrefix('api/v1');
   }
@@ -50,34 +48,21 @@ async function createApp() {
   return { app, configService };
 }
 
-/**
- * ✅ Normal bootstrap for local development
- */
-async function bootstrap() {
-  const { app, configService } = await createApp();
-  const port = configService.get<number>('port') || 8081;
-
-  await app.listen(port);
-
-  const logger = app.get(LoggerService);
-  logger.log(`Application is running on: http://localhost:${port}`, 'Bootstrap');
-  logger.log(
-    `Environment: ${configService.get<string>('nodeEnv')}`,
-    'Bootstrap',
-  );
-}
-
-// Always export the handler (for Vercel)
 export default async function handler(req: any, res: any) {
   if (!server) {
     const { app } = await createApp();
-    await app.init();
+    await app.init(); // don’t call `listen` in Vercel
     server = app.getHttpAdapter().getInstance();
   }
   return server(req, res);
 }
 
-// Only run bootstrap when not on Vercel
+// ✅ Only run local bootstrap when not on Vercel
 if (!process.env.VERCEL) {
-  bootstrap();
+  (async () => {
+    const { app, configService } = await createApp();
+    const port = configService.get<number>('port') || 8081;
+    await app.listen(port);
+    console.log(`App running locally on http://localhost:${port}`);
+  })();
 }
