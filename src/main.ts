@@ -5,14 +5,15 @@ import { AppModule } from './app.module';
 import { LoggerService } from './common/services/logger.service';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-async function bootstrap() {
+let server: any;
+
+async function createApp() {
   const app = await NestFactory.create(AppModule, {
     logger: new LoggerService(),
     rawBody: true,
   });
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('port') || 8081;
 
   // Enable CORS
   app.enableCors({
@@ -45,10 +46,37 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
 
+  return { app, configService };
+}
+
+/**
+ * ✅ Normal bootstrap for local development
+ */
+async function bootstrap() {
+  const { app, configService } = await createApp();
+  const port = configService.get<number>('port') || 8081;
+
   await app.listen(port);
 
   const logger = app.get(LoggerService);
   logger.log(`Application is running on: http://localhost:${port}`, 'Bootstrap');
-  logger.log(`Environment: ${configService.get<string>('nodeEnv')}`, 'Bootstrap');
+  logger.log(
+    `Environment: ${configService.get<string>('nodeEnv')}`,
+    'Bootstrap',
+  );
 }
-bootstrap();
+
+// Always export the handler (for Vercel)
+export default async function handler(req: any, res: any) {
+  if (!server) {
+    const { app } = await createApp();
+    await app.init();
+    server = app.getHttpAdapter().getInstance();
+  }
+  return server(req, res);
+}
+
+// Only run bootstrap when not on Vercel
+if (!process.env.VERCEL) {
+  bootstrap();
+}
