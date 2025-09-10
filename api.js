@@ -1,15 +1,18 @@
-// Vercel API handler for all routes
-// This file will be copied to dist/api/[...path].js during build
+// Vercel API handler - main entry point
+// This file will be copied to dist/api.js during build
 
 let cachedHandler = null;
 
 // Use require for runtime import to avoid TypeScript compilation issues
 module.exports = async function handler(req, res) {
   try {
+    console.log(`Vercel handler called: ${req.method} ${req.url}`);
+    console.log('Headers:', req.headers);
+    
     // Cache the handler to avoid re-importing on every request
     if (!cachedHandler) {
       console.log('Loading main handler...');
-      const mainModule = require('../main.js');
+      const mainModule = require('./main');
       cachedHandler = mainModule.default || mainModule;
       console.log('Main handler loaded successfully');
     }
