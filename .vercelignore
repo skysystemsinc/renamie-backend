@@ -129,3 +129,6 @@ tsconfig.json
 tsconfig.build.json
 nest-cli.json
 eslint.config.mjs
+
+# Keep scripts directory for build process
+!scripts/

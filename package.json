@@ -8,7 +8,7 @@
   "scripts": {
     "build": "nest build",
     "build:vercel": "nest build && npm run copy:api",
-    "copy:api": "mkdir -p api && cp -r dist/* api/",
+    "copy:api": "node scripts/copy-dist.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
