@@ -8,7 +8,7 @@
   "scripts": {
     "build": "nest build",
     "build:vercel": "nest build && npm run copy:api",
-    "copy:api": "node -e \"const fs=require('fs');const path=require('path');const destDir='dist/api';fs.mkdirSync(destDir,{recursive:true});fs.copyFileSync('api/index.js',path.join(destDir,'index.js'));\"",
+    "copy:api": "node -e \"const fs=require('fs'); const path=require('path'); const destDir='dist/api'; fs.mkdirSync(destDir,{recursive:true}); fs.copyFileSync('api/index.js', path.join(destDir,'index.js'));\"",
     "vercel-build": "npm run build:vercel",
     "start": "nest start",
     "start:dev": "nest start --watch",
