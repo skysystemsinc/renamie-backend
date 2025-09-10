@@ -38,7 +38,6 @@ async function createApp() {
     app.setGlobalPrefix('api/v1');
   }
 
-  // Swagger setup
   const config = new DocumentBuilder()
     .setTitle('Renamie API')
     .setDescription('The Renamie API description')
@@ -46,7 +45,7 @@ async function createApp() {
     .addTag('renamie')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+  SwaggerModule.setup('docs', app, documentFactory);
 
   return { app, configService };
 }
