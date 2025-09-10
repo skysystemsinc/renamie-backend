@@ -33,8 +33,9 @@ async function createApp() {
     }),
   );
 
-  // Global prefix
-  app.setGlobalPrefix('api/v1');
+  // Global prefix - adjust for Vercel deployment
+  const globalPrefix = process.env.VERCEL ? 'v1' : 'api/v1';
+  app.setGlobalPrefix(globalPrefix);
 
   // Swagger setup
   const config = new DocumentBuilder()
@@ -44,7 +45,8 @@ async function createApp() {
     .addTag('renamie')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+  const swaggerPath = process.env.VERCEL ? 'docs' : 'api';
+  SwaggerModule.setup(swaggerPath, app, documentFactory);
 
   return { app, configService };
 }
