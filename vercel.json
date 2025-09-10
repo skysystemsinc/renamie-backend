@@ -13,6 +13,14 @@
   ],
   "routes": [
     {
+      "src": "/v1/(.*)",
+      "dest": "dist/api/index.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "dist/api/index.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "dist/api/index.js"
     }

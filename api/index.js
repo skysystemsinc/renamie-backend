@@ -7,6 +7,9 @@ let cachedHandler = null;
 // Use require for runtime import to avoid TypeScript compilation issues
 module.exports = async function handler(req, res) {
   try {
+    console.log(`Vercel handler called: ${req.method} ${req.url}`);
+    console.log('Headers:', req.headers);
+    
     // Cache the handler to avoid re-importing on every request
     if (!cachedHandler) {
       console.log('Loading main handler...');
