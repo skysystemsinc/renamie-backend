@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
     if (!cachedHandler) {
       console.log('Loading main handler...');
       // IMPORTANT: point to dist/main.js relative to dist/api/index.js
-      const mainModule = require('../main.js'); 
+      const mainModule = require('../main'); 
       cachedHandler = mainModule.default || mainModule;
       console.log('Main handler loaded successfully');
     }
