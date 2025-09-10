@@ -6,9 +6,9 @@ let app;
 
 async function createApp() {
   if (!app) {
-    // Import the compiled modules
-    const { AppModule } = require('../dist/app.module');
-    const { LoggerService } = require('../dist/common/services/logger.service');
+    // Import the compiled modules (now in the same directory after build)
+    const { AppModule } = require('./app.module');
+    const { LoggerService } = require('./common/services/logger.service');
     
     app = await NestFactory.create(AppModule, {
       logger: new LoggerService(),
