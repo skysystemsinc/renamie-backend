@@ -9,7 +9,7 @@ let server: any;
 
 async function createApp() {
   const app = await NestFactory.create(AppModule, {
-    logger: new LoggerService(),
+    // logger: new LoggerService(),
     rawBody: true,
   });
 
@@ -41,8 +41,18 @@ async function createApp() {
     .addTag('renamie')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, documentFactory);
 
+  app.getHttpAdapter().get('/docs-json', (req, res) => {
+    res.json(documentFactory);
+  });
+
+  // serve Swagger UI at /docs
+  SwaggerModule.setup('docs', app, documentFactory, {
+    swaggerOptions: {
+      url: '/docs-json', // 👈 tells Swagger UI where to get JSON
+    },
+    customSiteTitle: 'Renamie API Docs',
+  });
   return { app, configService };
 }
 
