@@ -19,6 +19,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import configuration from './config/configuration';
 import { StripeModule } from './stripe/stripe.module';
 import { MailService } from './common/services/mailer.service';
+import { S3Module } from './s3/s3.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { MailService } from './common/services/mailer.service';
     SeedersModule,
     SubscriptionsModule,
     StripeModule,
+    S3Module,
   ],
   controllers: [AppController],
   providers: [
