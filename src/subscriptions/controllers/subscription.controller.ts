@@ -9,17 +9,19 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 @Controller('subscription')
 @UseGuards(JwtAuthGuard)
 export class SubscriptionController {
-    constructor(private readonly subscriptionService: SubscriptionService) {}
-
-    @Post()
-    @UseGuards(JwtAuthGuard)
-    @ApiBody({ type: CreateSubscriptionDto })
-    @ApiOperation({ summary: 'Create a new subscription' })
-    @ApiBearerAuth('JWT-auth')
-    async create(
-        @Body() createSubscriptionDto: CreateSubscriptionDto,
-        @CurrentUser('id') userId: string
-    ) {
-        return this.subscriptionService.createSubscription(createSubscriptionDto, userId);
-    }
+  constructor(private readonly subscriptionService: SubscriptionService) {}
+  @Post()
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: CreateSubscriptionDto })
+  @ApiOperation({ summary: 'Create a new subscription' })
+  @ApiBearerAuth('JWT-auth')
+  async create(
+    @Body() createSubscriptionDto: CreateSubscriptionDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.subscriptionService.createSubscription(
+      createSubscriptionDto,
+      userId,
+    );
+  }
 }
