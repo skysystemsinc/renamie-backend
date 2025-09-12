@@ -66,7 +66,7 @@ export class AuthService {
       (user as UserDocument)._id as string,
       verificationHash,
     );
-    const appUrl = process.env.Localhost;
+    const appUrl = process.env.FRONTEND_URL_VERCEL;
     const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
     await this.mailService.sendVerificationEmail(result.email, verifyUrl);
     return {
@@ -139,6 +139,7 @@ export class AuthService {
       return { message: 'Invalid Hash' };
     }
     await this.userService.verifyEmail((user as UserDocument)._id as string);
+
     return {
       user,
     };
@@ -151,19 +152,18 @@ export class AuthService {
     }
     const id = (user as UserDocument)._id as string;
     let userId = id.toString();
-    const appUrl = process.env.Localhost;
+    const appUrl = process.env.FRONTEND_URL_VERCEL;
     const verifyUrl = `${appUrl}/renamie.com/resetPassword/${userId}`;
     await this.mailService.sendUpdateYourPassword(
       resetPasswordDto.email,
       verifyUrl,
     );
-    return {
-      user: user,
-    };
+    return user;
   }
 
   async updatePassword(updatePasswordDto: updatePasswordDto) {
     const user = await this.userService.findById(updatePasswordDto.userId);
+    // console.log('user',user)
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -173,7 +173,6 @@ export class AuthService {
         password: updatePasswordDto.password,
       },
     );
-    // console.log('updated user', updatedUser);
     return {
       message: 'Password updated successfully!',
       user: updatedUser,
