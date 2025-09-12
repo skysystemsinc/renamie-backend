@@ -135,6 +135,7 @@ export class AuthService {
   async verifyEmail(emailVerifyDto: EmailVerifyDto) {
     const { hash } = emailVerifyDto;
     const user = await this.userService.findByVerificationHash(hash);
+    console.log('user', user);
     if (!user) {
       return { message: 'Invalid Hash' };
     }
