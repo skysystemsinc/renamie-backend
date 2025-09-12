@@ -67,7 +67,7 @@ export class AuthService {
       verificationHash,
     );
     const appUrl = process.env.FRONTEND_URL;
-    const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
+    const verifyUrl = `${appUrl}renamie.com/verify/${verificationHash}`;
     await this.mailService.sendVerificationEmail(result.email, verifyUrl);
     return {
       user: result,
@@ -153,7 +153,7 @@ export class AuthService {
     const id = (user as UserDocument)._id as string;
     let userId = id.toString();
     const appUrl = process.env.FRONTEND_URL;
-    const verifyUrl = `${appUrl}/renamie.com/resetPassword/${userId}`;
+    const verifyUrl = `${appUrl}renamie.com/resetPassword/${userId}`;
     await this.mailService.sendUpdateYourPassword(
       resetPasswordDto.email,
       verifyUrl,
