@@ -34,7 +34,6 @@ export class FirebaseService {
           databaseURL: databaseURL,
         });
       } catch (initError) {
-        console.error('❌ Failed to initialize Firebase Admin SDK:', initError);
         throw new Error('Firebase Admin SDK initialization failed.');
       }
     } else {
@@ -49,7 +48,6 @@ export class FirebaseService {
   }
 
   async createUser(userId: string, data: FirebaseUserDto): Promise<void> {
-    // console.log(`Attempting to store user: ${userId} with data:`, data);
     try {
       await this.db.ref(`users/${userId}`).set(data);
       console.log(`✅ User stored in Firebase at users/${userId}`);

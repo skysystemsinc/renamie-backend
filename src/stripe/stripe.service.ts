@@ -19,6 +19,7 @@ export class StripeService {
   constructor(
     private readonly configService: ConfigService,
     private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly firebaseService: FirebaseService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -283,8 +284,25 @@ export class StripeService {
       `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
     );
 
-    // TODO: Send welcome email to user
-    // TODO: Grant access to premium features
+    // Save subscription in Firebase
+    try {
+      const db = this.firebaseService.getDb();
+      const userId = metadata?.userId || updatedSubscription.user._id;
+
+      await db.ref(`users/${userId}/subscription`).set({
+        _id: updatedSubscription.id,
+        plan: updatedSubscription.plan,
+        userId: userId,
+        status: updatedSubscription.status,
+        stripeSubscriptionId: updatedSubscription.stripeSubscriptionId,
+      });
+
+      this.logger.log(`✅ Subscription stored in Firebase for user ${userId}`);
+    } catch (err) {
+      this.logger.error(
+        `Failed to save subscription in Firebase: ${err.message}`,
+      );
+    }
   }
 
   private async handleSubscriptionUpdated(
@@ -304,6 +322,7 @@ export class StripeService {
     this.logger.log(
       `Subscription deleted: ${subscription.id} for customer ${subscription.customer}`,
     );
+
     // TODO: Revoke premium access
     // TODO: Update user subscription status to inactive
     // TODO: Send cancellation confirmation email
@@ -317,6 +336,7 @@ export class StripeService {
     this.logger.log(
       `Invoice payment succeeded: ${invoice.id} for customer ${invoice.customer}`,
     );
+
     // TODO: Update subscription renewal date
     // TODO: Send payment confirmation email
     // TODO: Extend subscription period
