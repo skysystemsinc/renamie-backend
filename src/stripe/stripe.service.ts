@@ -19,7 +19,6 @@ export class StripeService {
   constructor(
     private readonly configService: ConfigService,
     private readonly subscriptionRepository: SubscriptionRepository,
-    private readonly firebaseService: FirebaseService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -100,10 +99,7 @@ export class StripeService {
     customerId: string,
     priceId: string,
     subscriptionId: string,
-    userId: string,
   ): Promise<Stripe.Checkout.Session> {
-    console.log('customer id', customerId);
-    console.log('user id', userId);
     try {
       this.logger.log(
         `Creating Stripe checkout session for customer ${customerId}`,
@@ -123,7 +119,13 @@ export class StripeService {
           customerId: customerId,
           priceId: priceId,
           description: 'Subscription for Plan',
-          userId: userId,
+        },
+        subscription_data: {
+          metadata: {
+            subscriptionId,
+            customerId,
+            priceId,
+          },
         },
       });
     } catch (error) {
@@ -226,10 +228,10 @@ export class StripeService {
       return;
     }
 
-    await this.subscriptionRepository.update(existingSubscription.id, {
-      stripeSubscriptionId: checkoutSession.subscription as string,
-      status: SubscriptionStatus.PENDING,
-    });
+    // await this.subscriptionRepository.update(existingSubscription.id, {
+    //   stripeSubscriptionId: checkoutSession.subscription as string,
+    //   status: SubscriptionStatus.PENDING,
+    // });
   }
 
   // Subscription event handlers
@@ -240,17 +242,17 @@ export class StripeService {
       `Subscription created: ${subscription.id} for customer ${subscription.customer}`,
     );
 
+    const metadata = subscription.metadata;
+    console.log('Subscription Metadata:', metadata);
     let existingSubscription: SubscriptionDocument | null =
-      await this.subscriptionRepository.findByStripeSubscriptionId(
-        subscription.id,
-      );
+      await this.subscriptionRepository.findById(metadata.subscriptionId);
 
-    if (!existingSubscription && subscription.metadata?.subscriptionId) {
+    if (!existingSubscription && metadata?.subscriptionId) {
       existingSubscription = await this.subscriptionRepository.findById(
-        subscription.metadata.subscriptionId,
+        metadata.subscriptionId,
       );
       this.logger.log(
-        `Fallback found subscription by metadata: ${subscription.metadata.subscriptionId}`,
+        `Fallback found subscription by metadata: ${metadata.subscriptionId}`,
       );
     }
 
@@ -270,9 +272,6 @@ export class StripeService {
         ),
       },
     );
-
-    console.log('updated subscription', updatedSubscription);
-
     if (!updatedSubscription) {
       this.logger.log(
         `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
@@ -280,29 +279,12 @@ export class StripeService {
       return;
     }
 
-    // Save subscription in Firebase
-    try {
-      const db = this.firebaseService.getDb();
-      const userId =
-        subscription.metadata?.userId || (existingSubscription.user as any)._id;
-
-      await db.ref(`users/${userId}/subscription`).set({
-        _id: updatedSubscription.id,
-        plan: updatedSubscription.plan.toString(),
-        status: updatedSubscription.status,
-        stripeSubscriptionId: updatedSubscription.stripeSubscriptionId,
-      });
-
-      this.logger.log(`Subscription saved in Firebase for user ${userId}`);
-    } catch (err) {
-      this.logger.error(
-        `Failed to save subscription in Firebase: ${err.message}`,
-      );
-    }
-
     this.logger.log(
       `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
     );
+
+    // TODO: Send welcome email to user
+    // TODO: Grant access to premium features
   }
 
   private async handleSubscriptionUpdated(
@@ -322,6 +304,10 @@ export class StripeService {
     this.logger.log(
       `Subscription deleted: ${subscription.id} for customer ${subscription.customer}`,
     );
+    // TODO: Revoke premium access
+    // TODO: Update user subscription status to inactive
+    // TODO: Send cancellation confirmation email
+    // TODO: Schedule data retention period
   }
 
   // Invoice event handlers
