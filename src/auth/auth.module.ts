@@ -9,6 +9,7 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
 import { MailService } from '../common/services/mailer.service';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Module({
   imports: [
@@ -27,7 +28,13 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy, MailService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    LocalStrategy,
+    MailService,
+    FirebaseService,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

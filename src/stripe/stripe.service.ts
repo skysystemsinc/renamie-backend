@@ -3,15 +3,24 @@ import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { UserDocument } from '../users/schemas/user.schema';
 import { SubscriptionRepository } from '../subscriptions/repositories/subscription.repository';
-import { Subscription, SubscriptionDocument, SubscriptionStatus } from '../subscriptions/schemas/subscription.schema';
+import {
+  Subscription,
+  SubscriptionDocument,
+  SubscriptionStatus,
+} from '../subscriptions/schemas/subscription.schema';
 import { Request } from 'express';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
 export class StripeService {
   private readonly logger = new Logger(StripeService.name);
   private stripe: Stripe;
 
-  constructor(private readonly configService: ConfigService, private readonly subscriptionRepository: SubscriptionRepository) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly firebaseService: FirebaseService,
+  ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
       throw new Error('STRIPE_SECRET_KEY is not configured');
@@ -25,7 +34,10 @@ export class StripeService {
     });
   }
 
-  async createStripeCustomer(user: UserDocument, planName?: string): Promise<string> {
+  async createStripeCustomer(
+    user: UserDocument,
+    planName?: string,
+  ): Promise<string> {
     try {
       this.logger.log(`Creating Stripe customer for user ${user.email}`);
 
@@ -33,11 +45,13 @@ export class StripeService {
         email: user.email,
         name: `${user.firstName} ${user.lastName}`,
         metadata: {
-          userId: user.id
+          userId: user.id,
         },
       });
 
-      this.logger.log(`Created Stripe customer ${customer.id} for user ${user.email}`);
+      this.logger.log(
+        `Created Stripe customer ${customer.id} for user ${user.email}`,
+      );
       return customer.id;
     } catch (error) {
       this.logger.error(`Error creating Stripe customer: ${error.message}`);
@@ -48,14 +62,19 @@ export class StripeService {
   async getStripeCustomer(customerId: string): Promise<Stripe.Customer> {
     try {
       this.logger.log(`Retrieving Stripe customer ${customerId}`);
-      return await this.stripe.customers.retrieve(customerId) as Stripe.Customer;
+      return (await this.stripe.customers.retrieve(
+        customerId,
+      )) as Stripe.Customer;
     } catch (error) {
       this.logger.error(`Error retrieving Stripe customer: ${error.message}`);
       throw new Error(`Failed to retrieve Stripe customer: ${error.message}`);
     }
   }
 
-  async updateStripeCustomer(customerId: string, updateData: Stripe.CustomerUpdateParams): Promise<Stripe.Customer> {
+  async updateStripeCustomer(
+    customerId: string,
+    updateData: Stripe.CustomerUpdateParams,
+  ): Promise<Stripe.Customer> {
     try {
       this.logger.log(`Updating Stripe customer ${customerId}`);
       return await this.stripe.customers.update(customerId, updateData);
@@ -65,7 +84,9 @@ export class StripeService {
     }
   }
 
-  async deleteStripeCustomer(customerId: string): Promise<Stripe.DeletedCustomer> {
+  async deleteStripeCustomer(
+    customerId: string,
+  ): Promise<Stripe.DeletedCustomer> {
     try {
       this.logger.log(`Deleting Stripe customer ${customerId}`);
       return await this.stripe.customers.del(customerId);
@@ -75,9 +96,18 @@ export class StripeService {
     }
   }
 
-  async createCheckoutSession(customerId: string, priceId: string, subscriptionId: string): Promise<Stripe.Checkout.Session> {
+  async createCheckoutSession(
+    customerId: string,
+    priceId: string,
+    subscriptionId: string,
+    userId: string,
+  ): Promise<Stripe.Checkout.Session> {
+    console.log('customer id', customerId);
+    console.log('user id', userId);
     try {
-      this.logger.log(`Creating Stripe checkout session for customer ${customerId}`);
+      this.logger.log(
+        `Creating Stripe checkout session for customer ${customerId}`,
+      );
 
       return await this.stripe.checkout.sessions.create({
         customer: customerId,
@@ -93,6 +123,7 @@ export class StripeService {
           customerId: customerId,
           priceId: priceId,
           description: 'Subscription for Plan',
+          userId: userId,
         },
       });
     } catch (error) {
@@ -104,57 +135,72 @@ export class StripeService {
   // Webhook handler for Stripe events
   async handleStripeWebhook(req: RawBodyRequest<Request>): Promise<void> {
     this.logger.log(`Handling Stripe webhook`);
-    const sig = req.headers["stripe-signature"] as string;
-    const webhookSecret = this.configService.get<string>("STRIPE_WEBHOOK_SECRET");
+    const sig = req.headers['stripe-signature'] as string;
+    const webhookSecret = this.configService.get<string>(
+      'STRIPE_WEBHOOK_SECRET',
+    );
     const rawBody = req.rawBody as Buffer;
-    
+
     if (!rawBody || !sig || !webhookSecret) {
       this.logger.error('Missing required webhook data');
       throw new Error('Missing required webhook data');
     }
-    
-    let event: Stripe.Event;
-    event = this.stripe.webhooks.constructEvent(
-      rawBody,
-      sig,
-      webhookSecret
-    );
-    
-    switch (event.type) {
 
+    let event: Stripe.Event;
+    event = this.stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+
+    switch (event.type) {
       // Checkout session events
       case 'checkout.session.completed':
-        await this.handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        await this.handleCheckoutSessionCompleted(
+          event.data.object as Stripe.Checkout.Session,
+        );
         break;
 
       // Subscription events
       case 'customer.subscription.created':
-        await this.handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionCreated(
+          event.data.object as Stripe.Subscription,
+        );
         break;
       case 'customer.subscription.updated':
-        await this.handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionUpdated(
+          event.data.object as Stripe.Subscription,
+        );
         break;
       case 'customer.subscription.deleted':
-        await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        await this.handleSubscriptionDeleted(
+          event.data.object as Stripe.Subscription,
+        );
         break;
 
       // Invoice events
       case 'invoice.payment_succeeded':
-        await this.handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice);
+        await this.handleInvoicePaymentSucceeded(
+          event.data.object as Stripe.Invoice,
+        );
         break;
       case 'invoice.payment_failed':
-        await this.handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+        await this.handleInvoicePaymentFailed(
+          event.data.object as Stripe.Invoice,
+        );
         break;
 
       // Payment intent events (keeping existing ones)
       case 'payment_intent.succeeded':
-        await this.handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentSucceeded(
+          event.data.object as Stripe.PaymentIntent,
+        );
         break;
       case 'payment_intent.payment_failed':
-        await this.handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentFailed(
+          event.data.object as Stripe.PaymentIntent,
+        );
         break;
       case 'payment_intent.canceled':
-        await this.handlePaymentIntentCanceled(event.data.object as Stripe.PaymentIntent);
+        await this.handlePaymentIntentCanceled(
+          event.data.object as Stripe.PaymentIntent,
+        );
         break;
 
       default:
@@ -163,13 +209,20 @@ export class StripeService {
   }
 
   // Checkout session event handlers
-  private async handleCheckoutSessionCompleted(checkoutSession: Stripe.Checkout.Session): Promise<void> {
-    this.logger.log(`Checkout session completed: ${checkoutSession.id} for customer ${checkoutSession.customer}`);
+  private async handleCheckoutSessionCompleted(
+    checkoutSession: Stripe.Checkout.Session,
+  ): Promise<void> {
+    this.logger.log(
+      `Checkout session completed: ${checkoutSession.id} for customer ${checkoutSession.customer}`,
+    );
     const metadata: any = checkoutSession.metadata;
 
-    const existingSubscription: SubscriptionDocument | null = await this.subscriptionRepository.findById(metadata.subscriptionId);
+    const existingSubscription: SubscriptionDocument | null =
+      await this.subscriptionRepository.findById(metadata.subscriptionId);
     if (!existingSubscription) {
-      this.logger.log(`Subscription not found: ${metadata.subscriptionId} for customer ${checkoutSession.customer}`);
+      this.logger.log(
+        `Subscription not found: ${metadata.subscriptionId} for customer ${checkoutSession.customer}`,
+      );
       return;
     }
 
@@ -180,64 +233,116 @@ export class StripeService {
   }
 
   // Subscription event handlers
-  private async handleSubscriptionCreated(subscription: Stripe.Subscription): Promise<void> {
-    this.logger.log(`Subscription created: ${subscription.id} for customer ${subscription.customer}`);
+  private async handleSubscriptionCreated(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    this.logger.log(
+      `Subscription created: ${subscription.id} for customer ${subscription.customer}`,
+    );
 
-    let existingSubscription: SubscriptionDocument | null = await this.subscriptionRepository.findByStripeSubscriptionId(subscription.id);
-    
+    let existingSubscription: SubscriptionDocument | null =
+      await this.subscriptionRepository.findByStripeSubscriptionId(
+        subscription.id,
+      );
+
     if (!existingSubscription && subscription.metadata?.subscriptionId) {
-      existingSubscription = await this.subscriptionRepository.findById(subscription.metadata.subscriptionId);
-      this.logger.log(`Fallback found subscription by metadata: ${subscription.metadata.subscriptionId}`);
+      existingSubscription = await this.subscriptionRepository.findById(
+        subscription.metadata.subscriptionId,
+      );
+      this.logger.log(
+        `Fallback found subscription by metadata: ${subscription.metadata.subscriptionId}`,
+      );
     }
-  
+
     if (!existingSubscription) {
       this.logger.log(`Subscription not found in DB: ${subscription.id}`);
       return;
     }
 
     // Update user subscription status in database
-    const updatedSubscription = await this.subscriptionRepository.update(existingSubscription.id, {
-      status: SubscriptionStatus.ACTIVE,
-      startedAt: new Date(subscription.start_date * 1000),
-      expiresAt: new Date(subscription.items.data[0].current_period_end * 1000),
-    });
+    const updatedSubscription = await this.subscriptionRepository.update(
+      existingSubscription.id,
+      {
+        status: SubscriptionStatus.ACTIVE,
+        startedAt: new Date(subscription.start_date * 1000),
+        expiresAt: new Date(
+          subscription.items.data[0].current_period_end * 1000,
+        ),
+      },
+    );
+
+    console.log('updated subscription', updatedSubscription);
+
     if (!updatedSubscription) {
-      this.logger.log(`Subscription not updated: ${subscription.id} for customer ${subscription.customer}`);
+      this.logger.log(
+        `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
+      );
       return;
     }
 
-    this.logger.log(`Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`);
+    // Save subscription in Firebase
+    try {
+      const db = this.firebaseService.getDb();
+      const userId =
+        subscription.metadata?.userId || (existingSubscription.user as any)._id;
 
-    // TODO: Send welcome email to user
-    // TODO: Grant access to premium features
+      await db.ref(`users/${userId}/subscription`).set({
+        _id: updatedSubscription.id,
+        plan: updatedSubscription.plan.toString(),
+        status: updatedSubscription.status,
+        stripeSubscriptionId: updatedSubscription.stripeSubscriptionId,
+      });
+
+      this.logger.log(`Subscription saved in Firebase for user ${userId}`);
+    } catch (err) {
+      this.logger.error(
+        `Failed to save subscription in Firebase: ${err.message}`,
+      );
+    }
+
+    this.logger.log(
+      `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
+    );
   }
 
-  private async handleSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
-    this.logger.log(`Subscription updated: ${subscription.id} for customer ${subscription.customer}`);
+  private async handleSubscriptionUpdated(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    this.logger.log(
+      `Subscription updated: ${subscription.id} for customer ${subscription.customer}`,
+    );
     // TODO: Update subscription details in database
     // TODO: Handle plan changes (upgrade/downgrade)
     // TODO: Update user access permissions
   }
 
-  private async handleSubscriptionDeleted(subscription: Stripe.Subscription): Promise<void> {
-    this.logger.log(`Subscription deleted: ${subscription.id} for customer ${subscription.customer}`);
-    // TODO: Revoke premium access
-    // TODO: Update user subscription status to inactive
-    // TODO: Send cancellation confirmation email
-    // TODO: Schedule data retention period
+  private async handleSubscriptionDeleted(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    this.logger.log(
+      `Subscription deleted: ${subscription.id} for customer ${subscription.customer}`,
+    );
   }
 
   // Invoice event handlers
-  private async handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
-    this.logger.log(`Invoice payment succeeded: ${invoice.id} for customer ${invoice.customer}`);
+  private async handleInvoicePaymentSucceeded(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
+    this.logger.log(
+      `Invoice payment succeeded: ${invoice.id} for customer ${invoice.customer}`,
+    );
     // TODO: Update subscription renewal date
     // TODO: Send payment confirmation email
     // TODO: Extend subscription period
     // TODO: Log successful payment for analytics
   }
 
-  private async handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
-    this.logger.log(`Invoice payment failed: ${invoice.id} for customer ${invoice.customer}`);
+  private async handleInvoicePaymentFailed(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
+    this.logger.log(
+      `Invoice payment failed: ${invoice.id} for customer ${invoice.customer}`,
+    );
     // TODO: Send payment failure notification email
     // TODO: Update subscription status to past_due
     // TODO: Implement retry logic for failed payments
@@ -245,17 +350,23 @@ export class StripeService {
   }
 
   // Payment intent event handlers (existing)
-  private async handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  private async handlePaymentIntentSucceeded(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
     this.logger.log(`Payment intent succeeded: ${paymentIntent.id}`);
     // TODO: Handle one-time payment success
   }
 
-  private async handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  private async handlePaymentIntentFailed(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
     this.logger.log(`Payment intent failed: ${paymentIntent.id}`);
     // TODO: Handle one-time payment failure
   }
 
-  private async handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  private async handlePaymentIntentCanceled(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
     this.logger.log(`Payment intent canceled: ${paymentIntent.id}`);
     // TODO: Handle one-time payment cancellation
   }

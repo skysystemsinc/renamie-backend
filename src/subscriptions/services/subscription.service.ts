@@ -52,7 +52,9 @@ export class SubscriptionService {
         const checkoutSession = await this.stripeService.createCheckoutSession(
             customer,
             plan.stripePriceId,
-            subscription.id
+            subscription.id,
+            userId
+            
         );
         return checkoutSession;
         // return this.paymentService.createPayment(createSubscriptionDto as CreatePaymentDto, userId);
