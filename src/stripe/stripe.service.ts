@@ -4,12 +4,12 @@ import Stripe from 'stripe';
 import { UserDocument } from '../users/schemas/user.schema';
 import { SubscriptionRepository } from '../subscriptions/repositories/subscription.repository';
 import {
-  Subscription,
   SubscriptionDocument,
   SubscriptionStatus,
 } from '../subscriptions/schemas/subscription.schema';
 import { Request } from 'express';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class StripeService {
@@ -110,8 +110,8 @@ export class StripeService {
         customer: customerId,
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
-        success_url: `${this.configService.get('FRONTEND_URL')}dashboard?success`,
-        cancel_url: `${this.configService.get('FRONTEND_URL')}dashboard?cancel`,
+        success_url: `${this.configService.get('FRONTEND_URL')}dashboard/pricing?success`,
+        cancel_url: `${this.configService.get('FRONTEND_URL')}dashboard/pricing?cancel`,
         // consent_collection: {
         //   terms_of_service: 'required',
         // },
@@ -244,7 +244,7 @@ export class StripeService {
     );
 
     const metadata = subscription.metadata;
-    console.log('Subscription Metadata:', metadata);
+    // console.log('Subscription Metadata:', metadata);
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
 
@@ -287,14 +287,25 @@ export class StripeService {
     // Save subscription in Firebase
     try {
       const db = this.firebaseService.getDb();
-      const userId = metadata?.userId || updatedSubscription.user._id;
+      const userId: string =
+        updatedSubscription.user instanceof Types.ObjectId
+          ? updatedSubscription.user.toString()
+          : String(updatedSubscription.user);
+      const subscriptionId: string =
+        updatedSubscription._id instanceof Types.ObjectId
+          ? updatedSubscription._id.toString()
+          : String(updatedSubscription._id);
+
+      const planId: string =
+        updatedSubscription.plan instanceof Types.ObjectId
+          ? updatedSubscription.plan.toString()
+          : String(updatedSubscription.plan);
 
       await db.ref(`users/${userId}/subscription`).set({
-        _id: updatedSubscription.id,
-        plan: updatedSubscription.plan,
+        _id: subscriptionId,
+        planId: planId,
         userId: userId,
         status: updatedSubscription.status,
-        stripeSubscriptionId: updatedSubscription.stripeSubscriptionId,
       });
 
       this.logger.log(`✅ Subscription stored in Firebase for user ${userId}`);
