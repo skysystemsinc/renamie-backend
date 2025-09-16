@@ -4,11 +4,12 @@ import Stripe from 'stripe';
 import { UserDocument } from '../users/schemas/user.schema';
 import { SubscriptionRepository } from '../subscriptions/repositories/subscription.repository';
 import {
-  Subscription,
   SubscriptionDocument,
   SubscriptionStatus,
 } from '../subscriptions/schemas/subscription.schema';
 import { Request } from 'express';
+import { FirebaseService } from 'src/firebase/firebase.service';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class StripeService {
@@ -18,6 +19,7 @@ export class StripeService {
   constructor(
     private readonly configService: ConfigService,
     private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly firebaseService: FirebaseService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -108,8 +110,8 @@ export class StripeService {
         customer: customerId,
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
-        success_url: `${this.configService.get('FRONTEND_URL')}dashboard?success`,
-        cancel_url: `${this.configService.get('FRONTEND_URL')}dashboard?cancel`,
+        success_url: `${this.configService.get('FRONTEND_URL')}dashboard/pricing?success`,
+        cancel_url: `${this.configService.get('FRONTEND_URL')}dashboard/pricing?cancel`,
         // consent_collection: {
         //   terms_of_service: 'required',
         // },
@@ -242,7 +244,7 @@ export class StripeService {
     );
 
     const metadata = subscription.metadata;
-    console.log('Subscription Metadata:', metadata);
+    // console.log('Subscription Metadata:', metadata);
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
 
@@ -282,8 +284,36 @@ export class StripeService {
       `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
     );
 
-    // TODO: Send welcome email to user
-    // TODO: Grant access to premium features
+    // Save subscription in Firebase
+    try {
+      const db = this.firebaseService.getDb();
+      const userId: string =
+        updatedSubscription.user instanceof Types.ObjectId
+          ? updatedSubscription.user.toString()
+          : String(updatedSubscription.user);
+      const subscriptionId: string =
+        updatedSubscription._id instanceof Types.ObjectId
+          ? updatedSubscription._id.toString()
+          : String(updatedSubscription._id);
+
+      const planId: string =
+        updatedSubscription.plan instanceof Types.ObjectId
+          ? updatedSubscription.plan.toString()
+          : String(updatedSubscription.plan);
+
+      await db.ref(`users/${userId}/subscription`).set({
+        _id: subscriptionId,
+        planId: planId,
+        userId: userId,
+        status: updatedSubscription.status,
+      });
+
+      this.logger.log(`✅ Subscription stored in Firebase for user ${userId}`);
+    } catch (err) {
+      this.logger.error(
+        `Failed to save subscription in Firebase: ${err.message}`,
+      );
+    }
   }
 
   private async handleSubscriptionUpdated(
@@ -303,6 +333,7 @@ export class StripeService {
     this.logger.log(
       `Subscription deleted: ${subscription.id} for customer ${subscription.customer}`,
     );
+
     // TODO: Revoke premium access
     // TODO: Update user subscription status to inactive
     // TODO: Send cancellation confirmation email
@@ -316,6 +347,7 @@ export class StripeService {
     this.logger.log(
       `Invoice payment succeeded: ${invoice.id} for customer ${invoice.customer}`,
     );
+
     // TODO: Update subscription renewal date
     // TODO: Send payment confirmation email
     // TODO: Extend subscription period

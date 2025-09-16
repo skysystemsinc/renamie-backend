@@ -14,6 +14,7 @@ import {
   updatePasswordDto,
 } from '../dto/verify-email.dto';
 import { SubscriptionService } from '../../subscriptions/services/subscription.service';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +24,7 @@ export class AuthService {
     private configService: ConfigService,
     private mailService: MailService,
     private subscriptionService: SubscriptionService,
+    private firebaseService: FirebaseService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -56,11 +58,22 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const user = await this.userService.create(registerDto);
     const { password, ...result } = (user as UserDocument).toObject();
+    console.log('resutl', result);
     const tokens = await this.generateTokens(result);
     await this.userService.updateRefreshToken(
       (user as UserDocument)._id as string,
       tokens.refreshToken,
     );
+
+    await this.firebaseService.createUser(result._id.toString(), {
+      id: result._id.toString(),
+      email: result.email,
+      firstName: result.firstName,
+      lastName: result.lastName,
+      role: result.role,
+      createdAt: new Date().toISOString(),
+    });
+
     const verificationHash = randomBytes(10).toString('hex');
     await this.userService.setEmailVerificationHash(
       (user as UserDocument)._id as string,
@@ -135,6 +148,7 @@ export class AuthService {
   async verifyEmail(emailVerifyDto: EmailVerifyDto) {
     const { hash } = emailVerifyDto;
     const user = await this.userService.findByVerificationHash(hash);
+    console.log('user', user);
     if (!user) {
       return { message: 'Invalid Hash' };
     }

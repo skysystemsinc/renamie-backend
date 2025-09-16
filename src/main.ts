@@ -15,6 +15,8 @@ async function createApp() {
 
   const configService = app.get(ConfigService);
 
+  
+
   app.enableCors({
     origin: true,
     credentials: true,
@@ -59,7 +61,7 @@ async function createApp() {
 export default async function handler(req: any, res: any) {
   if (!server) {
     const { app } = await createApp();
-    await app.init(); // don’t call `listen` in Vercel
+    await app.init(); 
     server = app.getHttpAdapter().getInstance();
   }
   return server(req, res);
