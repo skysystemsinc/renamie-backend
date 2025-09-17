@@ -1,4 +1,12 @@
-import { Controller, Post, UseGuards, Body, Put, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  UseGuards,
+  Body,
+  Put,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -44,5 +52,14 @@ export class FolderController {
     );
     // console.log('folder update',folderUpdatet)
     return ApiResponseDto.success('Folder updated successfully', folderUpdatet);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: CreateFoldersDto })
+  @ApiBearerAuth('JWT-auth')
+  async delete(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    const folderUpdatet = await this.folderService.deleteFolder(userId, id);
+    return ApiResponseDto.success('Folder deleted successfully', folderUpdatet);
   }
 }
