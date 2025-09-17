@@ -23,4 +23,12 @@ export class FolderRepository {
       userId: new Types.ObjectId(userId),
     });
   }
+
+  async update(id: string, name: string): Promise<FolderDocument | null> {
+    return this.folderModel.findByIdAndUpdate(id, { name }).exec();
+  }
+
+  async findById(id: string): Promise<FolderDocument | null> {
+    return this.folderModel.findById(id).exec();
+  }
 }
