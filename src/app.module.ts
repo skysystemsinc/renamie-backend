@@ -20,6 +20,7 @@ import configuration from './config/configuration';
 import { StripeModule } from './stripe/stripe.module';
 import { MailService } from './common/services/mailer.service';
 import { S3Module } from './s3/s3.module';
+import { FoldersModule } from './folder/folders.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { S3Module } from './s3/s3.module';
     SubscriptionsModule,
     StripeModule,
     S3Module,
+    FoldersModule
   ],
   controllers: [AppController],
   providers: [
