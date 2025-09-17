@@ -31,4 +31,8 @@ export class FolderRepository {
   async findById(id: string): Promise<FolderDocument | null> {
     return this.folderModel.findById(id).exec();
   }
+
+  async delete(id: string): Promise<FolderDocument | null> {
+    return this.folderModel.findByIdAndDelete(id).exec();
+  }
 }

@@ -69,4 +69,24 @@ export class FolderService {
 
     return this.folderRepository.update(id, createFoldersDto.name);
   }
+
+  async deleteFolder(userId: string, id: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const folder = await this.folderRepository.findById(id);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    if (folder.userId.toString() !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this folder',
+      );
+    }
+
+    return this.folderRepository.delete(id);
+  }
 }
