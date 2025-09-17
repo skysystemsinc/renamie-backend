@@ -6,6 +6,7 @@ import {
   Put,
   Param,
   Delete,
+  Get,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -59,7 +60,16 @@ export class FolderController {
   @ApiBody({ type: CreateFoldersDto })
   @ApiBearerAuth('JWT-auth')
   async delete(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    const folderUpdatet = await this.folderService.deleteFolder(userId, id);
-    return ApiResponseDto.success('Folder deleted successfully', folderUpdatet);
+    const folderUpdated = await this.folderService.deleteFolder(userId, id);
+    return ApiResponseDto.success('Folder deleted successfully', folderUpdated);
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: CreateFoldersDto })
+  @ApiBearerAuth('JWT-auth')
+  async getAll(@CurrentUser('id') userId: string) {
+    const folders = await this.folderService.getALLFolders(userId);
+    return ApiResponseDto.success('Folders fetched successfully', folders);
   }
 }

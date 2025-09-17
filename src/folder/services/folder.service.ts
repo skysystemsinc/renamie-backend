@@ -89,4 +89,13 @@ export class FolderService {
 
     return this.folderRepository.delete(id);
   }
+
+  async getALLFolders(userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return await this.folderRepository.findAllByUserId(userId);
+  }
 }
