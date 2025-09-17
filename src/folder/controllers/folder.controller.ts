@@ -46,13 +46,13 @@ export class FolderController {
     @Body() createFoldersDto: CreateFoldersDto,
     @CurrentUser('id') userId: string,
   ) {
-    const folderUpdatet = await this.folderService.updateFolder(
+    const folderUpdated = await this.folderService.updateFolder(
       createFoldersDto,
       userId,
       id,
     );
     // console.log('folder update',folderUpdatet)
-    return ApiResponseDto.success('Folder updated successfully', folderUpdatet);
+    return ApiResponseDto.success('Folder updated successfully', folderUpdated);
   }
 
   @Delete(':id')
@@ -60,8 +60,8 @@ export class FolderController {
   @ApiBody({ type: CreateFoldersDto })
   @ApiBearerAuth('JWT-auth')
   async delete(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    const folderUpdated = await this.folderService.deleteFolder(userId, id);
-    return ApiResponseDto.success('Folder deleted successfully', folderUpdated);
+    const folderDeleted = await this.folderService.deleteFolder(userId, id);
+    return ApiResponseDto.success('Folder deleted successfully', folderDeleted);
   }
 
   @Get()
