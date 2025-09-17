@@ -1,4 +1,4 @@
-import { Controller, Post, UseGuards, Body } from '@nestjs/common';
+import { Controller, Post, UseGuards, Body, Put, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -26,5 +26,23 @@ export class FolderController {
       userId,
     );
     return ApiResponseDto.success('Folder created successfully', folder);
+  }
+
+  @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: CreateFoldersDto })
+  @ApiBearerAuth('JWT-auth')
+  async update(
+    @Param('id') id: string,
+    @Body() createFoldersDto: CreateFoldersDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const folderUpdatet = await this.folderService.updateFolder(
+      createFoldersDto,
+      userId,
+      id,
+    );
+    // console.log('folder update',folderUpdatet)
+    return ApiResponseDto.success('Folder updated successfully', folderUpdatet);
   }
 }
