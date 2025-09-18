@@ -25,7 +25,9 @@ export class FolderRepository {
   }
 
   async update(id: string, name: string): Promise<FolderDocument | null> {
-    return this.folderModel.findByIdAndUpdate(id, { name }).exec();
+    return this.folderModel
+      .findByIdAndUpdate(id, { name }, { new: true })
+      .exec();
   }
 
   async findById(id: string): Promise<FolderDocument | null> {
