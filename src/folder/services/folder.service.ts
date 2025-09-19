@@ -98,4 +98,12 @@ export class FolderService {
 
     return await this.folderRepository.findAllByUserId(userId);
   }
+
+  async getFolderDetail(userId: string, id: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return await this.folderRepository.findById(id);
+  }
 }

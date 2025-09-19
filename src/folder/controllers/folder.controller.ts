@@ -57,7 +57,6 @@ export class FolderController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  @ApiBody({ type: CreateFoldersDto })
   @ApiBearerAuth('JWT-auth')
   async delete(@Param('id') id: string, @CurrentUser('id') userId: string) {
     const folderDeleted = await this.folderService.deleteFolder(userId, id);
@@ -66,10 +65,20 @@ export class FolderController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiBody({ type: CreateFoldersDto })
   @ApiBearerAuth('JWT-auth')
   async getAll(@CurrentUser('id') userId: string) {
     const folders = await this.folderService.getALLFolders(userId);
     return ApiResponseDto.success('Folders fetched successfully', folders);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async get(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    const folderDetail = await this.folderService.getFolderDetail(userId, id);
+    return ApiResponseDto.success(
+      'Folder detail fetched successfully',
+      folderDetail,
+    );
   }
 }
