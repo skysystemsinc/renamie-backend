@@ -12,10 +12,17 @@ import {
   HttpException,
   HttpStatus,
   BadRequestException,
+  UploadedFiles,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { ApiTags, ApiOperation, ApiResponse, ApiConsumes, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+  ApiParam,
+} from '@nestjs/swagger';
 import { S3Service } from '../common/services/s3.service';
 import {
   UploadFileDto,
@@ -25,11 +32,15 @@ import {
   CopyFileDto,
   GenerateUniqueKeyDto,
 } from './dto/upload.dto';
+import { FolderService } from 'src/folder/services/folder.service';
 
 @ApiTags('S3 File Operations')
 @Controller('s3')
 export class S3Controller {
-  constructor(private readonly s3Service: S3Service) {}
+  constructor(
+    private readonly s3Service: S3Service,
+    private readonly folderService: FolderService,
+  ) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -40,11 +51,11 @@ export class S3Controller {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-
     try {
-      // Auto-generate key from filename
-      const key = this.s3Service.generateUniqueKey(file.originalname, 'uploads/');
-
+      const key = this.s3Service.generateUniqueKey(
+        file.originalname,
+        'uploads/',
+      );
       const result = await this.s3Service.uploadFile(key, file.buffer, {
         acl: 'private',
         contentType: file.mimetype,
@@ -59,20 +70,78 @@ export class S3Controller {
         data: result,
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post('upload-files/:folderId')
+  @UseInterceptors(FilesInterceptor('files'))
+  @ApiOperation({ summary: 'Upload multiple files to S3' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, description: 'Files uploaded successfully' })
+  async uploadFiles(
+    @Param('folderId') folderId: string,
+    @UploadedFiles() files: Array<Express.Multer.File>,
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files uploaded');
+    }
+
+    try {
+      const uploadResults = await Promise.all(
+        files.map(async (file) => {
+          const key = this.s3Service.generateUniqueKey(
+            file.originalname,
+            'uploads/',
+          );
+
+          const s3UploadResult = await this.s3Service.uploadFile(
+            key,
+            file.buffer,
+            {
+              acl: 'private',
+              contentType: file.mimetype,
+              metadata: {
+                originalName: file.originalname,
+                uploadedAt: new Date().toISOString(),
+              },
+            },
+          );
+          return {
+            url: s3UploadResult?.key,
+            name: file?.originalname,
+            size: file?.size,
+            mimetype: file?.mimetype,
+          };
+        }),
       );
+      const dbFiles = uploadResults.map((result) => ({
+        name: result.name,
+        mimeType: result.mimetype,
+        size: result.size,
+        url: result.url,
+        createdAt: new Date(),
+      }));
+
+      if (uploadResults?.length > 0) {
+        const updatedFolder = await this.folderService.saveFilestoFolder(
+          folderId,
+          dbFiles,
+        );
+        return {
+          message: 'Files uploaded successfully',
+          data: updatedFolder,
+        };
+      }
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Get('download/:key')
   @ApiOperation({ summary: 'Download a file from S3' })
   @ApiParam({ name: 'key', description: 'File key/path in S3 bucket' })
-  async downloadFile(
-    @Param('key') key: string,
-    @Res() res: Response,
-  ) {
+  async downloadFile(@Param('key') key: string, @Res() res: Response) {
     try {
       // Check if file exists first
       const exists = await this.s3Service.fileExists(key);
@@ -82,7 +151,7 @@ export class S3Controller {
 
       // Get file metadata for content type
       const metadata = await this.s3Service.getFileMetadata(key);
-      
+
       // Download file as stream
       const stream = await this.s3Service.downloadFile(key);
 
@@ -95,16 +164,16 @@ export class S3Controller {
       // Pipe the stream to response
       stream.pipe(res);
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Get('presigned-upload-url')
   @ApiOperation({ summary: 'Generate pre-signed URL for file upload' })
-  @ApiResponse({ status: 200, description: 'Pre-signed URL generated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Pre-signed URL generated successfully',
+  })
   async getPresignedUploadUrl(@Query() query: PresignedUrlDto) {
     try {
       const url = await this.s3Service.getPresignedUploadUrl(query.key, {
@@ -122,16 +191,16 @@ export class S3Controller {
         },
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Get('presigned-download-url')
   @ApiOperation({ summary: 'Generate pre-signed URL for file download' })
-  @ApiResponse({ status: 200, description: 'Pre-signed URL generated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Pre-signed URL generated successfully',
+  })
   async getPresignedDownloadUrl(@Query() query: PresignedUrlDto) {
     try {
       const url = await this.s3Service.getPresignedDownloadUrl(query.key, {
@@ -147,10 +216,7 @@ export class S3Controller {
         },
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -167,10 +233,7 @@ export class S3Controller {
         data: { key },
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -190,17 +253,17 @@ export class S3Controller {
         },
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Get('metadata/:key')
   @ApiOperation({ summary: 'Get file metadata from S3' })
   @ApiParam({ name: 'key', description: 'File key/path in S3 bucket' })
-  @ApiResponse({ status: 200, description: 'File metadata retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'File metadata retrieved successfully',
+  })
   async getFileMetadata(@Param('key') key: string) {
     try {
       const metadata = await this.s3Service.getFileMetadata(key);
@@ -210,10 +273,7 @@ export class S3Controller {
         data: metadata,
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -222,17 +282,17 @@ export class S3Controller {
   @ApiResponse({ status: 200, description: 'Files listed successfully' })
   async listFiles(@Query() query: ListFilesDto) {
     try {
-      const result = await this.s3Service.listFiles(query.prefix, query.maxKeys);
+      const result = await this.s3Service.listFiles(
+        query.prefix,
+        query.maxKeys,
+      );
 
       return {
         message: 'Files listed successfully',
         data: result,
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -251,17 +311,17 @@ export class S3Controller {
         },
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Get('public-url/:key')
   @ApiOperation({ summary: 'Get public URL for a file' })
   @ApiParam({ name: 'key', description: 'File key/path in S3 bucket' })
-  @ApiResponse({ status: 200, description: 'Public URL generated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Public URL generated successfully',
+  })
   async getPublicUrl(@Param('key') key: string) {
     try {
       const url = this.s3Service.getPublicUrl(key);
@@ -274,16 +334,16 @@ export class S3Controller {
         },
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Post('generate-key')
   @ApiOperation({ summary: 'Generate a unique file key' })
-  @ApiResponse({ status: 200, description: 'Unique key generated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Unique key generated successfully',
+  })
   async generateUniqueKey(@Body() generateKeyDto: GenerateUniqueKeyDto) {
     try {
       const key = this.s3Service.generateUniqueKey(
@@ -299,10 +359,7 @@ export class S3Controller {
         },
       };
     } catch (error) {
-      throw new HttpException(
-        error.message,
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

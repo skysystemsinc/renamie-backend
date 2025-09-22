@@ -106,4 +106,19 @@ export class FolderService {
     }
     return await this.folderRepository.findById(id);
   }
+
+  async saveFilestoFolder(folderId: string, files: any[]) {
+    try {
+      const folder = await this.folderRepository.findById(folderId);
+      if (!folder) {
+        throw new NotFoundException('Folder not found');
+      }
+      // console.log('folder exist', folder);
+      folder.files.push(...files);
+      await folder.save();
+      return folder;
+    } catch (error) {
+      throw new Error(`Failed to save files: ${error.message}`);
+    }
+  }
 }
