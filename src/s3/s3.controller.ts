@@ -131,6 +131,7 @@ export class S3Controller {
         return {
           message: 'Files uploaded successfully',
           data: updatedFolder,
+          dbFiles: dbFiles,
         };
       }
     } catch (error) {

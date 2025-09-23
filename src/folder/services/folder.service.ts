@@ -121,4 +121,12 @@ export class FolderService {
       throw new Error(`Failed to save files: ${error.message}`);
     }
   }
+
+   async getFiles(userId: string, id: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return await this.folderRepository.findById(id);
+  }
 }
