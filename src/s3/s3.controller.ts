@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import pdf from 'pdf-parse';
 import {
   ApiTags,
   ApiOperation,
@@ -33,6 +34,8 @@ import {
   GenerateUniqueKeyDto,
 } from './dto/upload.dto';
 import { FolderService } from 'src/folder/services/folder.service';
+import { ExtractedInvoiceDataDto } from 'src/common/dto/llm.dto';
+import { LLMService } from 'src/common/services/llm.service';
 
 @ApiTags('S3 File Operations')
 @Controller('s3')
@@ -40,6 +43,7 @@ export class S3Controller {
   constructor(
     private readonly s3Service: S3Service,
     private readonly folderService: FolderService,
+    private readonly iLMService: LLMService,
   ) {}
 
   @Post('upload')
@@ -86,7 +90,6 @@ export class S3Controller {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
     }
-
     try {
       const uploadResults = await Promise.all(
         files.map(async (file) => {
@@ -94,7 +97,7 @@ export class S3Controller {
             file.originalname,
             'uploads/',
           );
-
+          console.log('key', key);
           const s3UploadResult = await this.s3Service.uploadFile(
             key,
             file.buffer,
@@ -107,6 +110,7 @@ export class S3Controller {
               },
             },
           );
+          console.log('s3UploadResult', s3UploadResult);
           return {
             url: s3UploadResult?.key,
             name: file?.originalname,
@@ -361,6 +365,45 @@ export class S3Controller {
       };
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // testing
+
+  @Post('extract-data/:fileKey')
+  @ApiOperation({
+    summary:
+      'Extract structured data from an S3 PDF using an LLM (e.g., Gemini/GPT).',
+  })
+  @ApiParam({
+    name: 'fileKey',
+    description: 'File key/path in S3 bucket for the PDF',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Structured data extracted successfully.',
+    type: ExtractedInvoiceDataDto,
+  })
+  async extractInvoiceData(@Param('fileKey') fileKey: string) {
+    try {
+      const extractedData: ExtractedInvoiceDataDto =
+        await this.iLMService.extractInvoiceData(
+          fileKey,
+          ExtractedInvoiceDataDto,
+        );
+      // console.log('extractedData', extractedData);
+      return {
+        message: 'Invoice data extracted successfully using LLM',
+        data: extractedData,
+        fileKey: fileKey,
+      };
+    } catch (error) {
+      console.error('LLM Extraction Error:', error);
+
+      throw new HttpException(
+        'Failed to process file for LLM extraction: ' + error.message,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }
