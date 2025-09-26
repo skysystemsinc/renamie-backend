@@ -7,9 +7,9 @@ import { AuthService } from './services/auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
-import { MailService } from '../common/services/mailer.service';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { SendgridService } from 'src/common/services/sendgrid';
 
 @Module({
   imports: [
@@ -32,8 +32,8 @@ import { FirebaseService } from 'src/firebase/firebase.service';
     AuthService,
     JwtStrategy,
     LocalStrategy,
-    MailService,
     FirebaseService,
+    SendgridService,
   ],
   exports: [AuthService],
 })
