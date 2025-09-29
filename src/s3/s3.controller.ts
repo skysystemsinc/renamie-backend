@@ -36,6 +36,7 @@ import {
 import { FolderService } from 'src/folder/services/folder.service';
 import { ExtractedInvoiceDataDto } from 'src/common/dto/llm.dto';
 import { LLMService } from 'src/common/services/llm.service';
+import { TextractService } from 'src/common/services/textract.service';
 
 @ApiTags('S3 File Operations')
 @Controller('s3')
@@ -44,6 +45,7 @@ export class S3Controller {
     private readonly s3Service: S3Service,
     private readonly folderService: FolderService,
     private readonly iLMService: LLMService,
+    private readonly textractService: TextractService,
   ) {}
 
   @Post('upload')
@@ -405,5 +407,31 @@ export class S3Controller {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  // testing textract
+  @Post('aws/:fileKey')
+  @ApiOperation({
+    summary:
+      'Extract Invoice ID and Date from an S3 document using AWS Textract (Synchronous-style polling).',
+  })
+  @ApiParam({
+    name: 'fileKey',
+    description: 'File key/path in S3 bucket for the document',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Invoice data extracted successfully.',
+  })
+  async extractData(@Param('fileKey') fileKey: string) {
+
+    const jobId = await this.textractService.startAnalysis( fileKey);
+    const newKey = await this.textractService.handleResult(jobId, fileKey);
+
+    return {
+      success: true,
+      originalKey: fileKey,
+      renamedKey: newKey,
+    };
   }
 }
