@@ -62,11 +62,6 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const user = await this.userService.create(registerDto);
     const { password, ...result } = (user as UserDocument).toObject();
-    const tokens = await this.generateTokens(result);
-    await this.userService.updateRefreshToken(
-      (user as UserDocument)._id as string,
-      tokens.refreshToken,
-    );
 
     await this.firebaseService.createUser(result._id.toString(), {
       id: result._id.toString(),
@@ -84,10 +79,13 @@ export class AuthService {
     );
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}renamie.com/verify/${verificationHash}`;
-    await this.sendgridService.sendVerificationEmail(result.email, verifyUrl);
+    await this.sendgridService.sendVerificationEmail(
+      result.email,
+      result.firstName,
+      verifyUrl,
+    );
     return {
       user: result,
-      ...tokens,
     };
   }
 
@@ -167,16 +165,17 @@ export class AuthService {
     let userId = id.toString();
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}renamie.com/resetPassword/${userId}`;
-    await this.sendgridService.sendUpdateYourPassword(
-      resetPasswordDto.email,
-      verifyUrl,
+    await this.sendgridService.sendResetPasswordEmail(
+      user?.email,
+      user?.firstName,
+      verifyUrl 
     );
+    
     return user;
   }
 
   async updatePassword(updatePasswordDto: updatePasswordDto) {
     const user = await this.userService.findById(updatePasswordDto.userId);
-    // console.log('user',user)
     if (!user) {
       throw new UnauthorizedException('User not found');
     }

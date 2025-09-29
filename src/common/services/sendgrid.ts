@@ -1,7 +1,12 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// import * as SendGrid from '@sendgrid/mail';
 import { default as SendGrid } from '@sendgrid/mail';
+import { emailConstant } from 'src/utils/constant';
+
+interface EmailVerifyType {
+  userName: string;
+  verificationLink: string;
+}
 
 @Injectable()
 export class SendgridService {
@@ -10,77 +15,69 @@ export class SendgridService {
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
     if (!apiKey) {
-      throw new InternalServerErrorException(' SENDGRID_API_KEY is missing');
+      throw new InternalServerErrorException('SENDGRID_API_KEY is missing');
     }
-    console.log('api key', apiKey);
+    this.fromEmail =
+      process.env.SENDGRID_EMAIL_FROM || 'allie.renamie@gmail.com';
     SendGrid.setApiKey(apiKey);
   }
 
-  async sendMail(
+  async sendTemplateMail(
     to: string,
-    subject: string,
-    text: string,
-    html: string,
+    templateId: string,
+    dynamicData: EmailVerifyType,
   ): Promise<void> {
-    const msg: SendGrid.MailDataRequired = {
-      to,
-      from: process.env.SENDGRID_EMAIL_FROM || 'allie.renamie@gmail.com',
-      subject,
-      text,
-      html,
-    };
-
     try {
-      await SendGrid.send(msg);
-      console.log(`Email successfully sent to ${to} via SendGrid.`);
+      const msg: SendGrid.MailDataRequired = {
+        to: to,
+        from: this.fromEmail,
+        templateId,
+        dynamicTemplateData: dynamicData,
+      };
+      const result = await SendGrid.send(msg);
+      const response = result[0];
+      // console.log(
+      //   `Email accepted by SendGrid (Status: ${response.statusCode}) for recipient ${to} using template ${templateId}.`,
+      // );
     } catch (error) {
-      console.error('SendGrid Error:', error.response?.body || error.message);
+      const errorDetails = error.response?.body?.errors || error.message;
+      console.error(
+        'Error sending email. Details:',
+        JSON.stringify(errorDetails),
+      );
       throw new InternalServerErrorException(
-        'Failed to send email via SendGrid.',
+        'Failed to send email via SendGrid. Check logs for API details.',
       );
     }
   }
 
-  async sendVerificationEmail(to: string, verificationUrl: string) {
-    const subject = 'Verify your email address - Renamie';
-    const text = `You have successfully registered your account. 
-    Please verify your email by clicking the link: ${verificationUrl}`;
-
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Welcome to Renamie!</h2>
-        <p>Thank you for registering with us.</p>
-        <p>Please verify your email by clicking the button below:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${verificationUrl}" 
-             style="background-color: #007bff; color: white; padding: 12px 24px; 
-                    text-decoration: none; border-radius: 5px; display: inline-block;">
-            Verify Email Address
-          </a>
-        </div>
-      </div>
-    `;
-    await this.sendMail(to, subject, text, html);
+  async sendVerificationEmail(
+    to: string,
+    userName: string,
+    verificationUrl: string,
+  ) {
+    try {
+      await this.sendTemplateMail(to, emailConstant.emailTemplateId, {
+        userName: userName,
+        verificationLink: verificationUrl,
+      });
+      // console.log(`Verification email successfully sent to ${to}.`);
+    } catch (error) {
+      console.error(`Failed to send verification email to ${to}.`);
+      throw error;
+    }
   }
 
-  async sendUpdateYourPassword(to: string, verificationUrl: string) {
-    const subject = 'Reset your password - Renamie';
-    const text = `We received a request to reset your password. 
-  Please set a new password by clicking the link: ${verificationUrl}`;
-    const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #333;">Reset your password</h2>
-      <p>Hello,</p>
-      <p>We received a request to reset your password. You can securely set a new one by clicking below:</p>
-      <div style="text-align: center; margin: 30px 0;">
-        <a href="${verificationUrl}" 
-           style="background-color: #007bff; color: white; padding: 12px 24px; 
-                  text-decoration: none; border-radius: 5px; display: inline-block;">
-          Reset Password
-        </a>
-      </div>
-    </div>
-  `;
-    await this.sendMail(to, subject, text, html);
+  async sendResetPasswordEmail(to: string, userName: string, resetUrl: string) {
+    try {
+      await this.sendTemplateMail(to, emailConstant.resetPassTempId, {
+        userName: userName,
+        verificationLink: resetUrl,
+      });
+      // console.log(`Password reset email successfully sent to ${to}.`);
+    } catch (error) {
+      console.error(`Failed to send password reset email to ${to}.`);
+      throw error;
+    }
   }
 }
