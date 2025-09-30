@@ -121,8 +121,10 @@ export class StripeService {
           priceId: priceId,
           description: 'Subscription for Plan',
         },
+
         subscription_data: {
           metadata: {
+            trial_period_days: 15,
             subscriptionId,
             customerId,
             priceId,
@@ -242,9 +244,7 @@ export class StripeService {
     this.logger.log(
       `Subscription created: ${subscription.id} for customer ${subscription.customer}`,
     );
-
     const metadata = subscription.metadata;
-    // console.log('Subscription Metadata:', metadata);
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
 
@@ -262,57 +262,67 @@ export class StripeService {
       return;
     }
 
-    // Update user subscription status in database
-    const updatedSubscription = await this.subscriptionRepository.update(
-      existingSubscription.id,
-      {
-        status: SubscriptionStatus.ACTIVE,
-        startedAt: new Date(subscription.start_date * 1000),
-        expiresAt: new Date(
-          subscription.items.data[0].current_period_end * 1000,
-        ),
-      },
-    );
-    if (!updatedSubscription) {
-      this.logger.log(
-        `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
+    const startedAt = existingSubscription?.createdAt;
+    if (startedAt) {
+      const trailDays = Number(metadata?.trial_period_days);
+      const trialExpiresAt = new Date(startedAt);
+      trialExpiresAt.setDate(startedAt.getDate() + trailDays);
+      // console.log('Trial expires:', trialExpiresAt.toISOString());
+      const updatedSubscription = await this.subscriptionRepository.update(
+        existingSubscription.id,
+        {
+          status: SubscriptionStatus.PENDING,
+          createdAt: new Date(subscription.start_date * 1000),
+          expiresAt: new Date(
+            subscription.items.data[0].current_period_end * 1000,
+          ),
+          trialExpiresAt: trialExpiresAt,
+        },
       );
-      return;
-    }
 
-    this.logger.log(
-      `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
-    );
+      if (!updatedSubscription) {
+        this.logger.log(
+          `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
+        );
+        return;
+      }
 
-    // Save subscription in Firebase
-    try {
-      const db = this.firebaseService.getDb();
-      const userId: string =
-        updatedSubscription.user instanceof Types.ObjectId
-          ? updatedSubscription.user.toString()
-          : String(updatedSubscription.user);
-      const subscriptionId: string =
-        updatedSubscription._id instanceof Types.ObjectId
-          ? updatedSubscription._id.toString()
-          : String(updatedSubscription._id);
+      //    this.logger.log(
+      //   `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
+      // );
 
-      const planId: string =
-        updatedSubscription.plan instanceof Types.ObjectId
-          ? updatedSubscription.plan.toString()
-          : String(updatedSubscription.plan);
+      // Save subscription in Firebase
+      try {
+        const db = this.firebaseService.getDb();
+        const userId: string =
+          updatedSubscription.user instanceof Types.ObjectId
+            ? updatedSubscription.user.toString()
+            : String(updatedSubscription.user);
+        const subscriptionId: string =
+          updatedSubscription._id instanceof Types.ObjectId
+            ? updatedSubscription._id.toString()
+            : String(updatedSubscription._id);
 
-      await db.ref(`users/${userId}/subscription`).set({
-        _id: subscriptionId,
-        planId: planId,
-        userId: userId,
-        status: updatedSubscription.status,
-      });
+        const planId: string =
+          updatedSubscription.plan instanceof Types.ObjectId
+            ? updatedSubscription.plan.toString()
+            : String(updatedSubscription.plan);
 
-      this.logger.log(`✅ Subscription stored in Firebase for user ${userId}`);
-    } catch (err) {
-      this.logger.error(
-        `Failed to save subscription in Firebase: ${err.message}`,
-      );
+        await db.ref(`users/${userId}/subscription`).set({
+          _id: subscriptionId,
+          plan: planId,
+          userId: userId,
+          status: updatedSubscription.status,
+        });
+
+        this.logger.log(
+          `✅ Subscription stored in Firebase for user ${userId}`,
+        );
+      } catch (err) {
+        this.logger.error(
+          `Failed to save subscription in   Firebase: ${err.message}`,
+        );
+      }
     }
   }
 
@@ -325,6 +335,32 @@ export class StripeService {
     // TODO: Update subscription details in database
     // TODO: Handle plan changes (upgrade/downgrade)
     // TODO: Update user access permissions
+
+    const metadata = subscription.metadata;
+    // console.log('Subscription Metadata updated:', metadata);
+    let existingSubscription: SubscriptionDocument | null =
+      await this.subscriptionRepository.findById(metadata.subscriptionId);
+    console.log('exis subs in update', existingSubscription);
+    if (!existingSubscription) {
+      this.logger.log(`Subscription not found in DB: ${subscription.id}`);
+      return;
+    }
+
+    const updatedSubscription = await this.subscriptionRepository.update(
+      existingSubscription.id,
+      {
+        status: SubscriptionStatus.ACTIVE,
+      },
+    );
+    if (!updatedSubscription) {
+      this.logger.log(
+        `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
+      );
+      return;
+    }
+    this.logger.log(
+      `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
+    );
   }
 
   private async handleSubscriptionDeleted(

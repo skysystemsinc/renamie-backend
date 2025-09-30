@@ -24,12 +24,18 @@ export class Subscription {
   @Prop()
   stripeSubscriptionId?: string;
 
-  @Prop({ required: true, enum: SubscriptionStatus, default: SubscriptionStatus.TRIALING })
+  @Prop({
+    required: true,
+    enum: SubscriptionStatus,
+    default: SubscriptionStatus.TRIALING,
+  })
   status: SubscriptionStatus;
 
-  @Prop()
-  startedAt?: Date;
+  // @Prop()
+  // startedAt?: Date;
 
+  @Prop()
+  createdAt?: Date;
   @Prop()
   expiresAt?: Date;
 
@@ -38,6 +44,9 @@ export class Subscription {
 
   @Prop({ type: MongooseSchema.Types.Mixed })
   metadata?: Record<string, any>;
+
+  @Prop()
+  trialExpiresAt?: Date;
 }
 
 export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);
