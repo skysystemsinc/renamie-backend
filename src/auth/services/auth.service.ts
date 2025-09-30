@@ -7,7 +7,6 @@ import { RegisterDto } from '../dto/register.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { UserDocument } from '../../users/schemas/user.schema';
 import { randomBytes } from 'crypto';
-import { MailService } from '../../common/services/mailer.service';
 import {
   EmailVerifyDto,
   resetPasswordDto,
@@ -15,6 +14,7 @@ import {
 } from '../dto/verify-email.dto';
 import { SubscriptionService } from '../../subscriptions/services/subscription.service';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { SendgridService } from 'src/common/services/sendgrid';
 
 @Injectable()
 export class AuthService {
@@ -22,7 +22,8 @@ export class AuthService {
     private userService: UserService,
     private jwtService: JwtService,
     private configService: ConfigService,
-    private mailService: MailService,
+    // private mailService: MailService,
+    private sendgridService: SendgridService,
     private subscriptionService: SubscriptionService,
     private firebaseService: FirebaseService,
   ) {}
@@ -41,6 +42,9 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    if (user && !user?.emailVerified) {
+      throw new UnauthorizedException('Please verify your email.');
+    }
     await this.userService.updateLastLogin(user._id);
     const subscription = await this.subscriptionService.findByUserId(user._id);
     const tokens = await this.generateTokens(user);
@@ -58,12 +62,6 @@ export class AuthService {
   async register(registerDto: RegisterDto) {
     const user = await this.userService.create(registerDto);
     const { password, ...result } = (user as UserDocument).toObject();
-    console.log('resutl', result);
-    const tokens = await this.generateTokens(result);
-    await this.userService.updateRefreshToken(
-      (user as UserDocument)._id as string,
-      tokens.refreshToken,
-    );
 
     await this.firebaseService.createUser(result._id.toString(), {
       id: result._id.toString(),
@@ -81,10 +79,13 @@ export class AuthService {
     );
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}renamie.com/verify/${verificationHash}`;
-    await this.mailService.sendVerificationEmail(result.email, verifyUrl);
+    await this.sendgridService.sendVerificationEmail(
+      result.email,
+      result.firstName,
+      verifyUrl,
+    );
     return {
       user: result,
-      ...tokens,
     };
   }
 
@@ -148,15 +149,11 @@ export class AuthService {
   async verifyEmail(emailVerifyDto: EmailVerifyDto) {
     const { hash } = emailVerifyDto;
     const user = await this.userService.findByVerificationHash(hash);
-    console.log('user', user);
     if (!user) {
       return { message: 'Invalid Hash' };
     }
     await this.userService.verifyEmail((user as UserDocument)._id as string);
-
-    return {
-      user,
-    };
+    return user;
   }
 
   async resetPassword(resetPasswordDto: resetPasswordDto) {
@@ -168,16 +165,17 @@ export class AuthService {
     let userId = id.toString();
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}renamie.com/resetPassword/${userId}`;
-    await this.mailService.sendUpdateYourPassword(
-      resetPasswordDto.email,
-      verifyUrl,
+    await this.sendgridService.sendResetPasswordEmail(
+      user?.email,
+      user?.firstName,
+      verifyUrl 
     );
+    
     return user;
   }
 
   async updatePassword(updatePasswordDto: updatePasswordDto) {
     const user = await this.userService.findById(updatePasswordDto.userId);
-    // console.log('user',user)
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
