@@ -423,15 +423,11 @@ export class S3Controller {
     status: 200,
     description: 'Invoice data extracted successfully.',
   })
-  async extractData(@Param('fileKey') fileKey: string) {
-
-    const jobId = await this.textractService.startAnalysis( fileKey);
-    const newKey = await this.textractService.handleResult(jobId, fileKey);
-
-    return {
-      success: true,
-      originalKey: fileKey,
-      renamedKey: newKey,
-    };
+  async extractInvoice(@Param('fileKey') fileKey: string) {
+    const jobId = await this.textractService.startInvoiceAnalysis(
+      fileKey,
+    );
+    const results = await this.textractService.getInvoiceAnalysis(jobId);
+    return results;
   }
 }

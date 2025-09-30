@@ -1,109 +1,92 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   TextractClient,
-  StartDocumentAnalysisCommand,
-  GetDocumentAnalysisCommand,
-  Block,
-  GetDocumentAnalysisCommandOutput,
+  StartExpenseAnalysisCommand,
+  GetExpenseAnalysisCommand,
+  StartExpenseAnalysisCommandOutput,
+  GetExpenseAnalysisCommandOutput,
 } from '@aws-sdk/client-textract';
 
 @Injectable()
 export class TextractService {
   private readonly logger = new Logger(TextractService.name);
-  private textractClient = new TextractClient({
-    region: process.env.AWS_REGION,
-  });
+  private readonly client: TextractClient;
 
-  async startAnalysis(key: string): Promise<string> {
-    const command = new StartDocumentAnalysisCommand({
-      DocumentLocation: { S3Object: { Bucket: process.env.bucket, Name: key } },
-      FeatureTypes: ['FORMS'],
+  constructor() {
+    this.client = new TextractClient({
+      // region: process.env.AWS_REGION,
+      // region: process.env.AWS_REGION,
+      // credentials: {
+      //   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      //   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      // }
     });
-
-    const response = await this.textractClient.send(command);
-    if (!response.JobId) {
-      throw new Error('Failed to start Textract job');
-    }
-
-    this.logger.log(`Started Textract job: ${response.JobId}`);
-    return response.JobId;
   }
 
-  async handleResult(jobId: string, key: string): Promise<string> {
-    let jobStatus = 'IN_PROGRESS';
-    let response: GetDocumentAnalysisCommandOutput | undefined;
+  async startInvoiceAnalysis(key: string): Promise<string> {
+    try {
+      const command = new StartExpenseAnalysisCommand({
+        DocumentLocation: {
+          S3Object: { Bucket: process.env.AWS_S3_BUCKET_NAME, Name: key },
+        },
+      });
 
-    while (jobStatus === 'IN_PROGRESS') {
-      const command = new GetDocumentAnalysisCommand({ JobId: jobId });
-      response = await this.textractClient.send(command);
+      const response: StartExpenseAnalysisCommandOutput =
+        await this.client.send(command);
 
-      jobStatus = response.JobStatus ?? 'FAILED';
-      this.logger.log(`Textract job ${jobId} status: ${jobStatus}`);
-
-      if (jobStatus === 'IN_PROGRESS') {
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+      if (!response.JobId) {
+        throw new Error('Textract did not return a JobId');
       }
+
+      this.logger.log(
+        `Started Textract expense analysis: JobId=${response.JobId}`,
+      );
+      return response.JobId;
+    } catch (err) {
+      this.logger.error('Failed to start expense analysis', err.stack || err);
+      throw err;
     }
-
-    if (jobStatus !== 'SUCCEEDED' || !response?.Blocks) {
-      throw new Error(`Textract job ${jobId} failed with status ${jobStatus}`);
-    }
-
-    const { invoice, date } = this.extractInvoiceData(response.Blocks);
-
-    const extension = key.split('.').pop();
-    const newKey = `uploads/${invoice}_${date}.${extension}`;
-
-    this.logger.log(`Renamed file: ${key} → ${newKey}`);
-    return newKey;
   }
 
-  private extractInvoiceData(blocks: Block[] = []): {
-    invoice: string;
-    date: string;
-  } {
-    let invoice = 'unknown_invoice';
-    let date = 'unknown_date';
+  async getInvoiceAnalysis(
+    jobId: string,
+  ): Promise<GetExpenseAnalysisCommandOutput[]> {
+    const results: GetExpenseAnalysisCommandOutput[] = [];
 
-    for (const block of blocks) {
-      if (
-        block.BlockType === 'KEY_VALUE_SET' &&
-        block.EntityTypes?.includes('KEY')
-      ) {
-        const keyText = block.Text?.toLowerCase() || '';
-        const valueBlockId = block.Relationships?.find(
-          (r) => r.Type === 'VALUE',
-        )?.Ids?.[0];
-        const valueBlock = blocks.find((b) => b.Id === valueBlockId);
+    try {
+      let finished = false;
+      let nextToken: string | undefined = undefined;
 
-        const valueText = valueBlock?.Text?.trim();
+      while (!finished) {
+        const command = new GetExpenseAnalysisCommand({
+          JobId: jobId,
+          NextToken: nextToken,
+        });
 
-        if (keyText.includes('invoice') && valueText) {
-          invoice = valueText;
-        }
+        const response = await this.client.send(command);
+        if (response.JobStatus === 'SUCCEEDED') {
+          results.push(response);
+          // nextToken = response.NextToken;
 
-        if (keyText.includes('date') && valueText) {
-          date = valueText;
+          if (!nextToken) {
+            finished = true;
+          }
+        } else if (response.JobStatus === 'FAILED') {
+          throw new Error(`Textract job failed for JobId=${jobId}`);
+        } else {
+          this.logger.debug(`Job ${jobId} still in progress... waiting 5s`);
+          await new Promise((r) => setTimeout(r, 5000));
         }
       }
+
+      this.logger.log(`Completed Textract job: JobId=${jobId}`);
+      return results;
+    } catch (err) {
+      this.logger.error(
+        `Error fetching expense analysis for JobId=${jobId}`,
+        err.stack || err,
+      );
+      throw err;
     }
-
-    if (invoice === 'unknown_invoice' || date === 'unknown_date') {
-      for (const block of blocks) {
-        if (block.BlockType === 'LINE' && block.Text) {
-          const text = block.Text.toLowerCase();
-
-          if (invoice === 'unknown_invoice' && text.includes('invoice')) {
-            invoice = block.Text.split(':').pop()?.trim() || invoice;
-          }
-
-          if (date === 'unknown_date' && text.includes('date')) {
-            date = block.Text.split(':').pop()?.trim() || date;
-          }
-        }
-      }
-    }
-
-    return { invoice, date };
   }
 }
