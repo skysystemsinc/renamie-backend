@@ -80,4 +80,21 @@ export class SendgridService {
       throw error;
     }
   }
+
+  async sendPasswordChangedEmail(
+    to: string,
+    userName: string,
+    loginUrl: string,
+  ) {
+    try {
+      await this.sendTemplateMail(to, emailConstant.changedPasswordTempId, {
+        userName: userName,
+        verificationLink: loginUrl,
+      });
+      
+    } catch (error) {
+      console.error(`Failed to send changed password email to ${to}.`);
+      throw error;
+    }
+  }
 }

@@ -168,9 +168,9 @@ export class AuthService {
     await this.sendgridService.sendResetPasswordEmail(
       user?.email,
       user?.firstName,
-      verifyUrl 
+      verifyUrl,
     );
-    
+
     return user;
   }
 
@@ -185,9 +185,19 @@ export class AuthService {
         password: updatePasswordDto.password,
       },
     );
-    return {
-      message: 'Password updated successfully!',
-      user: updatedUser,
-    };
+    const appUrl = process.env.FRONTEND_URL;
+    const loginUrl = `${appUrl}login`;
+    if (updatedUser) {
+      await this.sendgridService.sendPasswordChangedEmail(
+        updatedUser?.email,
+        updatedUser?.firstName,
+        loginUrl,
+      );
+
+      return {
+        message: 'Password updated successfully!',
+        user: updatedUser,
+      };
+    }
   }
 }
