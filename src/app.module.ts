@@ -21,9 +21,11 @@ import { StripeModule } from './stripe/stripe.module';
 import { S3Module } from './s3/s3.module';
 import { FoldersModule } from './folder/folders.module';
 import { SendgridService } from './common/services/sendgrid';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],

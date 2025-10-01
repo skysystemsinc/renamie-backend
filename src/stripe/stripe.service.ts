@@ -340,7 +340,7 @@ export class StripeService {
     // console.log('Subscription Metadata updated:', metadata);
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
-    console.log('exis subs in update', existingSubscription);
+    // console.log('exis subs in update', existingSubscription);
     if (!existingSubscription) {
       this.logger.log(`Subscription not found in DB: ${subscription.id}`);
       return;
