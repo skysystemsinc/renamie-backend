@@ -123,8 +123,8 @@ export class StripeService {
         },
 
         subscription_data: {
+          trial_period_days: 15,
           metadata: {
-            trial_period_days: 15,
             subscriptionId,
             customerId,
             priceId,
@@ -241,6 +241,7 @@ export class StripeService {
   private async handleSubscriptionCreated(
     subscription: Stripe.Subscription,
   ): Promise<void> {
+    console.log('susb', subscription);
     this.logger.log(
       `Subscription created: ${subscription.id} for customer ${subscription.customer}`,
     );
@@ -262,36 +263,112 @@ export class StripeService {
       return;
     }
 
-    const startedAt = existingSubscription?.createdAt;
-    if (startedAt) {
-      const trailDays = Number(metadata?.trial_period_days);
-      const trialExpiresAt = new Date(startedAt);
-      trialExpiresAt.setDate(startedAt.getDate() + trailDays);
-      // console.log('Trial expires:', trialExpiresAt.toISOString());
+    if (
+      existingSubscription &&
+      subscription?.status === SubscriptionStatus.TRIALING
+    ) {
+      if (subscription?.trial_start) {
+        const trailStartDate = new Date(subscription?.trial_start * 1000);
+        console.log('start AT', trailStartDate);
+        const trialExpiresAt = new Date(trailStartDate);
+        trialExpiresAt.setDate(trailStartDate.getDate() + 15);
+        console.log('trialExpiresAt', trialExpiresAt);
+
+        const updatedSubscription = await this.subscriptionRepository.update(
+          existingSubscription.id,
+          {
+            status: SubscriptionStatus.TRIALING,
+            startedAt: new Date(subscription.start_date * 1000),
+            expiresAt: new Date(
+              subscription.items.data[0].current_period_end * 1000,
+            ),
+            trialExpiresAt: trialExpiresAt,
+          },
+        );
+
+        if (!updatedSubscription) {
+          this.logger.log(
+            `Subscription not updated at trailing: ${subscription.id} for customer ${subscription.customer}`,
+          );
+          return;
+        }
+
+        this.logger.log(
+          `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
+        );
+
+        //   // Save subscription in Firebase
+        try {
+          const db = this.firebaseService.getDb();
+          const userId: string =
+            updatedSubscription.user instanceof Types.ObjectId
+              ? updatedSubscription.user.toString()
+              : String(updatedSubscription.user);
+          const subscriptionId: string =
+            updatedSubscription._id instanceof Types.ObjectId
+              ? updatedSubscription._id.toString()
+              : String(updatedSubscription._id);
+
+          const planId: string =
+            updatedSubscription.plan instanceof Types.ObjectId
+              ? updatedSubscription.plan.toString()
+              : String(updatedSubscription.plan);
+
+          await db.ref(`users/${userId}/subscription`).set({
+            _id: subscriptionId,
+            plan: planId,
+            userId: userId,
+            status: subscription?.status,
+          });
+
+          this.logger.log(
+            `✅ Subscription stored in Firebase for user ${userId}`,
+          );
+        } catch (err) {
+          this.logger.error(
+            `Failed to save subscription in   Firebase: ${err.message}`,
+          );
+        }
+      }
+    }
+  }
+
+  private async handleSubscriptionUpdated(
+    subscription: Stripe.Subscription,
+  ): Promise<void> {
+    console.log('subs in updated', subscription);
+    this.logger.log(
+      `Subscription updated: ${subscription.id} for customer ${subscription.customer}`,
+    );
+    // TODO: Update subscription details in database
+    // TODO: Handle plan changes (upgrade/downgrade)
+    // TODO: Update user access permissions
+    if (subscription?.status === SubscriptionStatus.ACTIVE) {
+      const metadata = subscription.metadata;
+      // console.log('Subscription Metadata updated:', metadata);
+      let existingSubscription: SubscriptionDocument | null =
+        await this.subscriptionRepository.findById(metadata.subscriptionId);
+      // console.log('exis subs in update', existingSubscription);
+      if (!existingSubscription) {
+        this.logger.log(`Subscription not found in DB: ${subscription.id}`);
+        return;
+      }
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
         {
-          status: SubscriptionStatus.PENDING,
-          createdAt: new Date(subscription.start_date * 1000),
-          expiresAt: new Date(
-            subscription.items.data[0].current_period_end * 1000,
-          ),
-          trialExpiresAt: trialExpiresAt,
+          status: SubscriptionStatus.ACTIVE,
         },
       );
-
       if (!updatedSubscription) {
         this.logger.log(
           `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
         );
         return;
       }
+      this.logger.log(
+        `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
+      );
 
-      //    this.logger.log(
-      //   `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
-      // );
-
-      // Save subscription in Firebase
       try {
         const db = this.firebaseService.getDb();
         const userId: string =
@@ -312,7 +389,7 @@ export class StripeService {
           _id: subscriptionId,
           plan: planId,
           userId: userId,
-          status: updatedSubscription.status,
+          status: SubscriptionStatus.ACTIVE,
         });
 
         this.logger.log(
@@ -324,43 +401,6 @@ export class StripeService {
         );
       }
     }
-  }
-
-  private async handleSubscriptionUpdated(
-    subscription: Stripe.Subscription,
-  ): Promise<void> {
-    this.logger.log(
-      `Subscription updated: ${subscription.id} for customer ${subscription.customer}`,
-    );
-    // TODO: Update subscription details in database
-    // TODO: Handle plan changes (upgrade/downgrade)
-    // TODO: Update user access permissions
-
-    const metadata = subscription.metadata;
-    // console.log('Subscription Metadata updated:', metadata);
-    let existingSubscription: SubscriptionDocument | null =
-      await this.subscriptionRepository.findById(metadata.subscriptionId);
-    // console.log('exis subs in update', existingSubscription);
-    if (!existingSubscription) {
-      this.logger.log(`Subscription not found in DB: ${subscription.id}`);
-      return;
-    }
-
-    const updatedSubscription = await this.subscriptionRepository.update(
-      existingSubscription.id,
-      {
-        status: SubscriptionStatus.ACTIVE,
-      },
-    );
-    if (!updatedSubscription) {
-      this.logger.log(
-        `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
-      );
-      return;
-    }
-    this.logger.log(
-      `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
-    );
   }
 
   private async handleSubscriptionDeleted(
@@ -423,4 +463,7 @@ export class StripeService {
     this.logger.log(`Payment intent canceled: ${paymentIntent.id}`);
     // TODO: Handle one-time payment cancellation
   }
+
+  // async retriveStripeSubscription(
+  // )
 }

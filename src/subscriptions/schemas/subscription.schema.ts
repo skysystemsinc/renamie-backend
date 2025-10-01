@@ -31,11 +31,9 @@ export class Subscription {
   })
   status: SubscriptionStatus;
 
-  // @Prop()
-  // startedAt?: Date;
-
   @Prop()
-  createdAt?: Date;
+  startedAt?: Date;
+
   @Prop()
   expiresAt?: Date;
 
