@@ -1,8 +1,19 @@
-import { Controller, Get, Post, UseGuards, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  UseGuards,
+  Body,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { SubscriptionService } from '../services/subscription.service';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { CreateSubscriptionDto } from '../dto/create-subscription.dto';
+import {
+  CancelSubscriptionDto,
+  CreateSubscriptionDto,
+} from '../dto/create-subscription.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
 @ApiTags('Subscriptions')
@@ -23,5 +34,20 @@ export class SubscriptionController {
       createSubscriptionDto,
       userId,
     );
+  }
+
+  // // cencel susbcription
+  @Delete('cancel/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Cancel a subscription' })
+  @ApiBearerAuth('JWT-auth')
+  async cancel(@Param('id') id: string) {
+    console.log('subscriptionId', id);
+    const updatedSubs = await this.subscriptionService.cancelSubscription(id);
+    return {
+      success: true,
+      message: 'Subscription cancel_at_period_end updated successfully',
+      data: updatedSubs,
+    };
   }
 }

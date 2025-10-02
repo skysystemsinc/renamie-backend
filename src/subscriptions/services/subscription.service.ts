@@ -1,22 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Types } from 'mongoose';
 import { SubscriptionRepository } from '../repositories/subscription.repository';
 import { CreateSubscriptionDto } from '../dto/create-subscription.dto';
 import { PaymentService } from '../../payments/services/payment.service';
-import { CreatePaymentDto } from 'src/payments/dto/create-payment.dto';
 import { PlanService } from 'src/plans/services/plan/plan.service';
 import { UserService } from 'src/users/services/user.service';
 import { StripeService } from 'src/stripe/stripe.service';
 import { UserDocument } from 'src/users/schemas/user.schema';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
-import {
-  Subscription,
-  SubscriptionDocument,
-  SubscriptionStatus,
-} from '../schemas/subscription.schema';
+import { SubscriptionStatus } from '../schemas/subscription.schema';
+import Stripe from 'stripe';
 
 @Injectable()
 export class SubscriptionService {
+  private stripe: Stripe;
   constructor(
     private readonly subscriptionRepository: SubscriptionRepository,
     private readonly paymentService: PaymentService,
@@ -72,5 +73,22 @@ export class SubscriptionService {
 
   async findByUserId(userId: string) {
     return this.subscriptionRepository.findByUserId(userId);
+  }
+
+  // cencel susbcription
+  async cancelSubscription(id: string) {
+    const subscription = await this.subscriptionRepository.findById(id);
+    if (!subscription) {
+      throw new NotFoundException('subscription not found');
+    }
+    if (!subscription.stripeSubscriptionId) {
+      throw new BadRequestException(
+        'Stripe subscription id missing in DB record',
+      );
+    }
+    const stripeSubscriptionId = subscription?.stripeSubscriptionId;
+    return await this.stripeService.updateStripeSubscription(
+      stripeSubscriptionId,
+    );
   }
 }
