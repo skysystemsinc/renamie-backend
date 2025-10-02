@@ -18,9 +18,9 @@ import { SeedersModule } from './seeders/seeders.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import configuration from './config/configuration';
 import { StripeModule } from './stripe/stripe.module';
-import { MailService } from './common/services/mailer.service';
 import { S3Module } from './s3/s3.module';
 import { FoldersModule } from './folder/folders.module';
+import { SendgridService } from './common/services/sendgrid';
 
 @Module({
   imports: [
@@ -29,20 +29,6 @@ import { FoldersModule } from './folder/folders.module';
       load: [configuration],
       envFilePath: '.env',
     }),
-    MailerModule.forRoot({
-      transport: {
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT),
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      },
-      defaults: {
-        from: `"No Reply" <${process.env.EMAIL_FROM}>`,
-      },
-    }),
-
     DatabaseModule,
     UsersModule,
     AuthModule,
@@ -54,13 +40,13 @@ import { FoldersModule } from './folder/folders.module';
     SubscriptionsModule,
     StripeModule,
     S3Module,
-    FoldersModule
+    FoldersModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     LoggerService,
-    MailService,
+    SendgridService,
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
