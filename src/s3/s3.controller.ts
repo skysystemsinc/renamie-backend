@@ -427,6 +427,7 @@ export class S3Controller {
     const jobId = await this.textractService.startInvoiceAnalysis(
       fileKey,
     );
+    
     const results = await this.textractService.getInvoiceAnalysis(jobId);
     return results;
   }
