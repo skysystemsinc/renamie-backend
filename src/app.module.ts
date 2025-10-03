@@ -21,6 +21,7 @@ import { StripeModule } from './stripe/stripe.module';
 import { S3Module } from './s3/s3.module';
 import { FoldersModule } from './folder/folders.module';
 import { SendgridService } from './common/services/sendgrid';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { SendgridService } from './common/services/sendgrid';
     StripeModule,
     S3Module,
     FoldersModule,
+    TasksModule
   ],
   controllers: [AppController],
   providers: [
