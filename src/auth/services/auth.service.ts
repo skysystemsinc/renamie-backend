@@ -42,9 +42,9 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    if (user && !user?.emailVerified) {
-      throw new UnauthorizedException('Please verify your email.');
-    }
+    // if (user && !user?.emailVerified) {
+    //   throw new UnauthorizedException('Please verify your email.');
+    // }
     await this.userService.updateLastLogin(user._id);
     const subscription = await this.subscriptionService.findByUserId(user._id);
     const tokens = await this.generateTokens(user);
