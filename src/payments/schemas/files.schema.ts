@@ -1,21 +1,42 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+// import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+// import { Document, Types } from 'mongoose';
 
-export type FilesDocument = Files & Document;
+// export type FilesDocument = Files & Document;
 
-@Schema({ timestamps: true })
-export class Files {
-  @Prop({ required: true })
-  name: string;
+// export enum FileStatus {
+//   PENDING = 'pending',
+//   COMPLETED = 'completed',
+//   PROCESSING = 'processing',
+//   FAILED = 'failed',
+// }
 
-  @Prop({ required: true })
-  mimeType: string;
+// @Schema({ timestamps: true })
+// export class Files {
+//   @Prop({ required: true })
+//   name: string;
 
-  @Prop({ required: true })
-  size: number;
+//   @Prop({ required: true })
+//   mimeType: string;
 
-  @Prop({ required: true })
-  url: string;
-}
+//   @Prop({ required: true })
+//   size: number;
 
-export const FilesSchema = SchemaFactory.createForClass(Files);
+//   @Prop({ required: true })
+//   url: string;
+
+//   @Prop({
+//     required: true,
+//     enum: FileStatus,
+//     default: FileStatus.PENDING,
+//   })
+//   status: FileStatus;
+
+//   // @Prop({
+//   //   required: true,
+//   //   enum: FileStatus,
+//   //   default: FileStatus.PENDING,
+//   // })
+//   // MetaData: MetaData[];
+// }
+
+// export const FilesSchema = SchemaFactory.createForClass(Files);
