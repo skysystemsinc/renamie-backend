@@ -8,12 +8,14 @@ import { CreateFoldersDto } from '../dto/create-folder.dto';
 import { UserService } from 'src/users/services/user.service';
 import { FolderRepository } from '../repositories/folder.repository';
 import { Types } from 'mongoose';
+import { S3Service } from 'src/common/services/s3.service';
 
 @Injectable()
 export class FolderService {
   constructor(
     private readonly userService: UserService,
     private readonly folderRepository: FolderRepository,
+    private readonly s3Service: S3Service,
   ) {}
 
   async createFolder(createFoldersDto: CreateFoldersDto, userId: string) {
@@ -113,7 +115,6 @@ export class FolderService {
       if (!folder) {
         throw new NotFoundException('Folder not found');
       }
-      // console.log('folder exist', folder);
       folder.files.push(...files);
       await folder.save();
       return folder;
@@ -122,11 +123,32 @@ export class FolderService {
     }
   }
 
-   async getFiles(userId: string, id: string) {
+  async getFiles(userId: string, id: string) {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     return await this.folderRepository.findById(id);
+  }
+
+  // rename file
+  async renameFileInFolder(fileId: string, newName: string) {
+    const fileRecord = await this.folderRepository.findFileById(fileId);
+    if (!fileRecord) throw new NotFoundException('File not found');
+    const oldKey = fileRecord.url;
+    const fileExtension = oldKey.substring(oldKey.lastIndexOf('.'));
+    const newKey = this.s3Service.generateUniqueKey(
+      `${newName}${fileExtension.toLowerCase()}`,
+    );
+    await this.s3Service.copyFile(oldKey, newKey);
+    await this.s3Service.deleteFile(oldKey);
+    await this.folderRepository.updateFileData(fileId, {
+      newName: `${newName}${fileExtension}`,
+      url: newKey,
+      rename_at: new Date(),
+    });
+
+    const updatedFile = await this.folderRepository.findFileById(fileId);
+    return updatedFile;
   }
 }

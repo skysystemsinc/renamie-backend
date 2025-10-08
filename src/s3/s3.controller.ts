@@ -37,6 +37,7 @@ import { FolderService } from 'src/folder/services/folder.service';
 import { ExtractedInvoiceDataDto } from 'src/common/dto/llm.dto';
 import { LLMService } from 'src/common/services/llm.service';
 import { TextractService } from 'src/common/services/textract.service';
+import { FileStatus } from 'src/folder/schema/files.schema';
 
 @ApiTags('S3 File Operations')
 @Controller('s3')
@@ -99,7 +100,6 @@ export class S3Controller {
             file.originalname,
             'uploads/',
           );
-          console.log('key', key);
           const s3UploadResult = await this.s3Service.uploadFile(
             key,
             file.buffer,
@@ -112,7 +112,6 @@ export class S3Controller {
               },
             },
           );
-          console.log('s3UploadResult', s3UploadResult);
           return {
             url: s3UploadResult?.key,
             name: file?.originalname,
@@ -127,6 +126,7 @@ export class S3Controller {
         size: result.size,
         url: result.url,
         createdAt: new Date(),
+        status: FileStatus.PENDING,
       }));
 
       if (uploadResults?.length > 0) {
@@ -136,7 +136,7 @@ export class S3Controller {
         );
         return {
           message: 'Files uploaded successfully',
-          data: updatedFolder,
+          // data: updatedFolder,
           dbFiles: dbFiles,
         };
       }
@@ -251,7 +251,6 @@ export class S3Controller {
   async fileExists(@Param('key') key: string) {
     try {
       const exists = await this.s3Service.fileExists(key);
-
       return {
         message: 'File existence checked',
         data: {
@@ -309,7 +308,6 @@ export class S3Controller {
   async copyFile(@Body() copyDto: CopyFileDto) {
     try {
       await this.s3Service.copyFile(copyDto.sourceKey, copyDto.destinationKey);
-
       return {
         message: 'File copied successfully',
         data: {
@@ -424,10 +422,8 @@ export class S3Controller {
     description: 'Invoice data extracted successfully.',
   })
   async extractInvoice(@Param('fileKey') fileKey: string) {
-    const jobId = await this.textractService.startInvoiceAnalysis(
-      fileKey,
-    );
-    
+    const jobId = await this.textractService.startInvoiceAnalysis(fileKey);
+
     const results = await this.textractService.getInvoiceAnalysis(jobId);
     return results;
   }

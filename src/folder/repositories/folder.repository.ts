@@ -41,4 +41,31 @@ export class FolderRepository {
   async findAllByUserId(userId: string): Promise<FolderDocument[]> {
     return this.folderModel.find({ userId: new Types.ObjectId(userId) }).exec();
   }
+
+  //  find file
+  async findFileById(fileId: string): Promise<any | null> {
+    const folder = await this.folderModel.findOne(
+      { 'files._id': new Types.ObjectId(fileId) },
+      { 'files.$': 1 },
+    );
+    if (!folder || !folder.files || folder.files.length === 0) return null;
+    return folder.files[0];
+  }
+
+  // update file data
+  async updateFileData(
+    fileId: string,
+    updates: { newName?: string; url?: string; rename_at?: Date },
+  ): Promise<void> {
+    await this.folderModel.updateOne(
+      { 'files._id': new Types.ObjectId(fileId) },
+      {
+        $set: {
+          ...(updates.newName && { 'files.$.newName': updates.newName }),
+          ...(updates.url && { 'files.$.url': updates.url }),
+          ...(updates.rename_at && { 'files.$.rename_at': updates.rename_at }),
+        },
+      },
+    );
+  }
 }
