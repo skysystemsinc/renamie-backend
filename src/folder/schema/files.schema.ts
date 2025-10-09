@@ -16,6 +16,9 @@ export class Files {
   @Prop({ required: true })
   name: string;
 
+  @Prop()
+  newName: string;
+  
   @Prop({ required: true })
   mimeType: string;
 
@@ -34,6 +37,9 @@ export class Files {
 
   @Prop({ type: [MetadataSchema], default: [] })
   metadata: Metadata[];
+
+  @Prop({ type: Date, default: null })
+  rename_at: Date | null;
 }
 
 export const FilesSchema = SchemaFactory.createForClass(Files);

@@ -10,3 +10,13 @@ export class CreateFoldersDto {
   })
   name: string;
 }
+
+export class RenameFileDto {
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty({
+    description: 'New name for the folder',
+    example: 'Updated Folder Name',
+  })
+  newName: string;
+}

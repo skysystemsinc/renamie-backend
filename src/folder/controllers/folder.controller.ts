@@ -12,7 +12,7 @@ import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CreateFoldersDto } from '../dto/create-folder.dto';
+import { CreateFoldersDto, RenameFileDto } from '../dto/create-folder.dto';
 import { FolderService } from '../services/folder.service';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 import { FileQueueService } from 'src/queue/services/file.queue.service';
@@ -85,5 +85,23 @@ export class FolderController {
       folderDetail,
     );
   }
+
+  // rename file API
+  @Post('file-rename/:id')
+@UseGuards(JwtAuthGuard)
+@ApiBody({ type: RenameFileDto })
+@ApiOperation({ summary: 'Rename a file in S3 and DB' })
+@ApiBearerAuth('JWT-auth')
+async renameFile(
+  @Param('id') fileId: string,
+  @Body() renameFileDto: RenameFileDto,
+  @CurrentUser('id') userId: string,
+) {
+  const result = await this.folderService.renameFileInFolder(
+    fileId,
+    renameFileDto.newName,
+  );
+  return ApiResponseDto.success('File renamed successfully', result);
+}
 
 }
