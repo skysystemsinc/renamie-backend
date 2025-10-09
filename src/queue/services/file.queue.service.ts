@@ -6,17 +6,18 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Folder, FolderDocument } from 'src/folder/schema/folder.schema';
 import { FileStatus } from 'src/folder/schema/files.schema';
-
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @Injectable()
 export class FileQueueService implements OnModuleInit {
   constructor(
     @InjectQueue('file') private fileQueue: Queue,
     @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
+    private readonly firebaseService: FirebaseService,
   ) {}
 
   async onModuleInit() {
-    console.log('start')
+    console.log('start');
     await this.getFiles();
   }
 
@@ -34,8 +35,8 @@ export class FileQueueService implements OnModuleInit {
         },
       },
     ]);
+    const db = this.firebaseService.getDb();
 
-    console.log('All pending files:', pendingFiles);
     for (const file of pendingFiles) {
       // console.log('file', file);
       await this.fileQueue.add('processFile', {
@@ -48,6 +49,10 @@ export class FileQueueService implements OnModuleInit {
         { _id: file.folderId, 'files._id': file.fileId },
         { $set: { 'files.$.status': FileStatus.PROCESSING } },
       );
+
+      db.ref(`folders/${file.folderId}/files/${file.fileId}`).update({
+        status: FileStatus.PROCESSING,
+      });
     }
   }
 }

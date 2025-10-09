@@ -16,7 +16,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import pdf from 'pdf-parse';
 import {
   ApiTags,
   ApiOperation,
@@ -38,6 +37,7 @@ import { ExtractedInvoiceDataDto } from 'src/common/dto/llm.dto';
 import { LLMService } from 'src/common/services/llm.service';
 import { TextractService } from 'src/common/services/textract.service';
 import { FileStatus } from 'src/folder/schema/files.schema';
+import { FirebaseService } from 'src/firebase/firebase.service';
 
 @ApiTags('S3 File Operations')
 @Controller('s3')
@@ -47,6 +47,7 @@ export class S3Controller {
     private readonly folderService: FolderService,
     private readonly iLMService: LLMService,
     private readonly textractService: TextractService,
+    private readonly firebaseService: FirebaseService,
   ) {}
 
   @Post('upload')
@@ -96,6 +97,7 @@ export class S3Controller {
     try {
       const uploadResults = await Promise.all(
         files.map(async (file) => {
+          // console.log('file', file);
           const key = this.s3Service.generateUniqueKey(
             file.originalname,
             'uploads/',
@@ -130,14 +132,20 @@ export class S3Controller {
       }));
 
       if (uploadResults?.length > 0) {
-        const updatedFolder = await this.folderService.saveFilestoFolder(
+        const updatedFiles = await this.folderService.saveFilestoFolder(
           folderId,
           dbFiles,
         );
+        const db = this.firebaseService.getDb();
+        updatedFiles?.forEach((file) => {
+          db.ref(`folders/${folderId}/files/${file._id}`).set({
+            name: file.name,
+            status: file.status,
+          });
+        });
         return {
           message: 'Files uploaded successfully',
-          // data: updatedFolder,
-          dbFiles: dbFiles,
+          data: updatedFiles,
         };
       }
     } catch (error) {
