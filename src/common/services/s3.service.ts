@@ -46,9 +46,12 @@ export class S3Service {
 
   constructor(private configService: ConfigService) {
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
-    const secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY');
+    const secretAccessKey = this.configService.get<string>(
+      'AWS_SECRET_ACCESS_KEY',
+    );
     const region = this.configService.get<string>('AWS_REGION');
-    this.bucketName = this.configService.get<string>('AWS_S3_BUCKET_NAME') || '';
+    this.bucketName =
+      this.configService.get<string>('AWS_S3_BUCKET_NAME') || '';
 
     console.log(`accessKeyId: ${accessKeyId}`);
     console.log(`secretAccessKey: ${secretAccessKey}`);
@@ -81,12 +84,7 @@ export class S3Service {
     options: S3UploadOptions = {},
   ): Promise<S3UploadResult> {
     try {
-      const {
-        acl = 'private',
-        contentType,
-        metadata,
-        cacheControl,
-      } = options;
+      const { acl = 'private', contentType, metadata, cacheControl } = options;
 
       const command = new PutObjectCommand({
         Bucket: this.bucketName,
@@ -100,9 +98,10 @@ export class S3Service {
 
       const result = await this.s3Client.send(command);
 
-      const location = acl === 'public-read' 
-        ? `https://${this.bucketName}.s3.amazonaws.com/${key}`
-        : undefined;
+      const location =
+        acl === 'public-read'
+          ? `https://${this.bucketName}.s3.amazonaws.com/${key}`
+          : undefined;
 
       this.logger.log(`File uploaded successfully: ${key}`);
 
@@ -179,7 +178,10 @@ export class S3Service {
       await this.s3Client.send(command);
       return true;
     } catch (error) {
-      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+      if (
+        error.name === 'NotFound' ||
+        error.$metadata?.httpStatusCode === 404
+      ) {
         return false;
       }
       this.logger.error(`Error checking file existence ${key}:`, error);
@@ -209,7 +211,10 @@ export class S3Service {
       };
     } catch (error) {
       this.logger.error(`Failed to get file metadata ${key}:`, error);
-      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+      if (
+        error.name === 'NotFound' ||
+        error.$metadata?.httpStatusCode === 404
+      ) {
         throw new Error(`File not found: ${key}`);
       }
       throw new Error(`Failed to get file metadata: ${error.message}`);
@@ -230,12 +235,13 @@ export class S3Service {
       const result = await this.s3Client.send(command);
 
       return {
-        files: result.Contents?.map(obj => ({
-          key: obj.Key,
-          size: obj.Size,
-          lastModified: obj.LastModified,
-          etag: obj.ETag,
-        })) || [],
+        files:
+          result.Contents?.map((obj) => ({
+            key: obj.Key,
+            size: obj.Size,
+            lastModified: obj.LastModified,
+            etag: obj.ETag,
+          })) || [],
         isTruncated: result.IsTruncated,
         nextContinuationToken: result.NextContinuationToken,
       };
@@ -274,8 +280,13 @@ export class S3Service {
 
       return url;
     } catch (error) {
-      this.logger.error(`Failed to generate pre-signed upload URL for ${key}:`, error);
-      throw new Error(`Failed to generate pre-signed upload URL: ${error.message}`);
+      this.logger.error(
+        `Failed to generate pre-signed upload URL for ${key}:`,
+        error,
+      );
+      throw new Error(
+        `Failed to generate pre-signed upload URL: ${error.message}`,
+      );
     }
   }
 
@@ -292,6 +303,7 @@ export class S3Service {
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
         Key: key,
+        ResponseContentDisposition: `attachment; filename="${key.split('/').pop()}"`,
       });
 
       const url = await getSignedUrl(this.s3Client, command, {
@@ -302,11 +314,16 @@ export class S3Service {
 
       return url;
     } catch (error) {
-      this.logger.error(`Failed to generate pre-signed download URL for ${key}:`, error);
+      this.logger.error(
+        `Failed to generate pre-signed download URL for ${key}:`,
+        error,
+      );
       if (error.name === 'NoSuchKey') {
         throw new Error(`File not found: ${key}`);
       }
-      throw new Error(`Failed to generate pre-signed download URL: ${error.message}`);
+      throw new Error(
+        `Failed to generate pre-signed download URL: ${error.message}`,
+      );
     }
   }
 
@@ -325,7 +342,10 @@ export class S3Service {
 
       this.logger.log(`File copied from ${sourceKey} to ${destinationKey}`);
     } catch (error) {
-      this.logger.error(`Failed to copy file from ${sourceKey} to ${destinationKey}:`, error);
+      this.logger.error(
+        `Failed to copy file from ${sourceKey} to ${destinationKey}:`,
+        error,
+      );
       throw new Error(`Failed to copy file: ${error.message}`);
     }
   }
@@ -345,9 +365,9 @@ export class S3Service {
     const random = Math.random().toString(36).substring(2, 8);
     const extension = originalName.split('.').pop();
     const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-    
+
     const key = `${prefix || ''}${nameWithoutExt}_${timestamp}_${random}.${extension}`;
-    
+
     return key.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 }

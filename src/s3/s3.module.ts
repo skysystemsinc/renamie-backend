@@ -3,12 +3,14 @@ import { ConfigModule } from '@nestjs/config';
 import { S3Service } from '../common/services/s3.service';
 import { S3Controller } from './s3.controller';
 import { FoldersModule } from 'src/folder/folders.module';
+import { LLMService } from 'src/common/services/llm.service';
+import { TextractService } from 'src/common/services/textract.service';
 
 @Global()
 @Module({
   imports: [ConfigModule, FoldersModule],
   controllers: [S3Controller],
-  providers: [S3Service],
-  exports: [S3Service],
+  providers: [S3Service, TextractService, LLMService],
+  exports: [S3Service, TextractService, LLMService],
 })
 export class S3Module {}

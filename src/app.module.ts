@@ -22,6 +22,7 @@ import { S3Module } from './s3/s3.module';
 import { FoldersModule } from './folder/folders.module';
 import { SendgridService } from './common/services/sendgrid';
 import { TasksModule } from './tasks/tasks.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -42,7 +43,8 @@ import { TasksModule } from './tasks/tasks.module';
     StripeModule,
     S3Module,
     FoldersModule,
-    TasksModule
+    TasksModule,
+    QueueModule,
   ],
   controllers: [AppController],
   providers: [

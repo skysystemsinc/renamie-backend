@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Folder, FolderDocument } from 'src/payments/schemas/folder.schema';
+import { Folder, FolderDocument } from '../schema/folder.schema';
 
 @Injectable()
 export class FolderRepository {

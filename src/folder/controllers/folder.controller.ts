@@ -15,11 +15,15 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateFoldersDto } from '../dto/create-folder.dto';
 import { FolderService } from '../services/folder.service';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
+import { FileQueueService } from 'src/queue/services/file.queue.service';
 
 @ApiTags('folder')
 @Controller('folder')
 export class FolderController {
-  constructor(private readonly folderService: FolderService) {}
+  constructor(
+    private readonly folderService: FolderService,
+    private readonly fileQueueService: FileQueueService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -81,4 +85,5 @@ export class FolderController {
       folderDetail,
     );
   }
+
 }

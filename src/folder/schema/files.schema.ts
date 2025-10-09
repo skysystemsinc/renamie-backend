@@ -1,0 +1,39 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
+import { Metadata, MetadataSchema } from './metadata.schema';
+
+export type FilesDocument = Files & Document;
+
+export enum FileStatus {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  PROCESSING = 'processing',
+  FAILED = 'failed',
+}
+
+@Schema({ timestamps: true })
+export class Files {
+  @Prop({ required: true })
+  name: string;
+
+  @Prop({ required: true })
+  mimeType: string;
+
+  @Prop({ required: true })
+  size: number;
+
+  @Prop({ required: true })
+  url: string;
+
+  @Prop({
+    required: true,
+    enum: FileStatus,
+    default: FileStatus.PENDING,
+  })
+  status: FileStatus;
+
+  @Prop({ type: [MetadataSchema], default: [] })
+  metadata: Metadata[];
+}
+
+export const FilesSchema = SchemaFactory.createForClass(Files);
