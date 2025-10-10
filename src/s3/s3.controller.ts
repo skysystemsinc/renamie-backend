@@ -95,6 +95,8 @@ export class S3Controller {
       throw new BadRequestException('No files uploaded');
     }
     try {
+      const batchId = `batch_${Math.floor(Math.random() * 1000)}`;
+      // console.log('btach id', batchId);
       const uploadResults = await Promise.all(
         files.map(async (file) => {
           // console.log('file', file);
@@ -102,6 +104,7 @@ export class S3Controller {
             file.originalname,
             'uploads/',
           );
+          // console.log('key',key);
           const s3UploadResult = await this.s3Service.uploadFile(
             key,
             file.buffer,
@@ -122,6 +125,7 @@ export class S3Controller {
           };
         }),
       );
+
       const dbFiles = uploadResults.map((result) => ({
         name: result.name,
         mimeType: result.mimetype,
@@ -129,8 +133,8 @@ export class S3Controller {
         url: result.url,
         createdAt: new Date(),
         status: FileStatus.PENDING,
+        batchId: batchId,
       }));
-
       if (uploadResults?.length > 0) {
         const updatedFiles = await this.folderService.saveFilestoFolder(
           folderId,

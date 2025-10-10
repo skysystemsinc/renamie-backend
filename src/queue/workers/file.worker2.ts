@@ -41,7 +41,9 @@ export class FileProcessor2 extends WorkerHost {
       }));
 
       const db = this.firebaseService.getDb();
-
+      db.ref(`folders/${folderId}/files/${fileId}`).set({
+        metadata: mappedMetadata,
+      });
       await this.folderModel.updateOne(
         { _id: folderId, 'files._id': fileId },
         {

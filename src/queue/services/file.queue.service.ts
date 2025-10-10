@@ -32,9 +32,11 @@ export class FileQueueService implements OnModuleInit {
           name: '$files.name',
           status: '$files.status',
           url: '$files.url',
+          batchId: '$files.batchId',
         },
       },
     ]);
+    // console.log('pendingFiles',pendingFiles);
     const db = this.firebaseService.getDb();
 
     for (const file of pendingFiles) {
@@ -43,6 +45,7 @@ export class FileQueueService implements OnModuleInit {
         fileUrl: file.url,
         folderId: file.folderId.toString(),
         fileId: file.fileId.toString(),
+        batchId: file.batchId,
       });
 
       await this.folderModel.updateOne(
