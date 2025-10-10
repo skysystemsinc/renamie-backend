@@ -115,9 +115,13 @@ export class FolderService {
       if (!folder) {
         throw new NotFoundException('Folder not found');
       }
-      folder.files.push(...files);
+      const newFiles = files.map((file) => ({
+        ...file,
+        _id: new Types.ObjectId(),
+      }));
+      folder.files.push(...newFiles);
       await folder.save();
-      return folder;
+      return newFiles;
     } catch (error) {
       throw new Error(`Failed to save files: ${error.message}`);
     }
