@@ -30,6 +30,7 @@ export interface S3UploadResult {
 
 export interface S3DownloadOptions {
   expiresIn?: number; // in seconds
+  mode?: string;
 }
 
 export interface S3PresignedUrlOptions {
@@ -298,12 +299,16 @@ export class S3Service {
     options: S3DownloadOptions = {},
   ): Promise<string> {
     try {
-      const { expiresIn = 3600 } = options; // 1 hour default
+      const { expiresIn = 3600, mode } = options; // 1 hour default
+      const contentDisposition =
+        mode === 'view'
+          ? `inline; filename="${key.split('/').pop()}"`
+          : `attachment; filename="${key.split('/').pop()}"`;
 
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
         Key: key,
-        ResponseContentDisposition: `attachment; filename="${key.split('/').pop()}"`,
+        ResponseContentDisposition: contentDisposition,
       });
 
       const url = await getSignedUrl(this.s3Client, command, {
@@ -366,7 +371,7 @@ export class S3Service {
     const extension = originalName.split('.').pop();
     const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
     // const key = `${prefix || ''}${nameWithoutExt}_${timestamp}_${random}.${extension}`;
-    const key = `${prefix || ''}${nameWithoutExt}.${extension}`;
+    const key = `${prefix || ''}${nameWithoutExt}_${random}.${extension}`;
     return key.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 }

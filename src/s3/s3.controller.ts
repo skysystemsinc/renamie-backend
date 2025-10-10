@@ -224,6 +224,7 @@ export class S3Controller {
     }
   }
 
+  // download url
   @Get('presigned-download-url')
   @ApiOperation({ summary: 'Generate pre-signed URL for file download' })
   @ApiResponse({
@@ -234,6 +235,7 @@ export class S3Controller {
     try {
       const url = await this.s3Service.getPresignedDownloadUrl(query.key, {
         expiresIn: query.expiresIn,
+        mode: query.mode, 
       });
 
       return {

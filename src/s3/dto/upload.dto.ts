@@ -31,6 +31,15 @@ export class PresignedUrlDto {
   @IsOptional()
   @IsEnum(['public-read', 'private'])
   acl?: 'public-read' | 'private';
+
+  @ApiPropertyOptional({
+    description: 'Mode of file access: "view" or "download"',
+    enum: ['view', 'download'],
+    default: 'download',
+  })
+  @IsOptional()
+  @IsEnum(['view', 'download'])
+  mode?: 'view' | 'download';
 }
 
 export class FileOperationDto {
