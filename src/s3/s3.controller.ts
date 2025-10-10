@@ -38,6 +38,7 @@ import { ExtractedInvoiceDataDto } from 'src/common/dto/llm.dto';
 import { LLMService } from 'src/common/services/llm.service';
 import { TextractService } from 'src/common/services/textract.service';
 import { FileStatus } from 'src/folder/schema/files.schema';
+import { FileQueueService } from 'src/queue/services/file.queue.service';
 
 @ApiTags('S3 File Operations')
 @Controller('s3')
@@ -47,6 +48,7 @@ export class S3Controller {
     private readonly folderService: FolderService,
     private readonly iLMService: LLMService,
     private readonly textractService: TextractService,
+    private readonly fileQueueService: FileQueueService,
   ) {}
 
   @Post('upload')
@@ -134,6 +136,17 @@ export class S3Controller {
           folderId,
           dbFiles,
         );
+
+        // Add each uploaded file to the processing queue
+        const newlyAddedFiles = updatedFolder.files.slice(-dbFiles.length);
+        for (const file of newlyAddedFiles) {
+          await this.fileQueueService.addFileToQueue(
+            file.url,
+            folderId,
+            (file as any)._id.toString(),
+          );
+        }
+
         return {
           message: 'Files uploaded successfully',
           // data: updatedFolder,

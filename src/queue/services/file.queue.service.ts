@@ -50,4 +50,17 @@ export class FileQueueService implements OnModuleInit {
       );
     }
   }
+
+  async addFileToQueue(fileUrl: string, folderId: string, fileId: string) {
+    await this.fileQueue.add('processFile', {
+      fileUrl,
+      folderId,
+      fileId,
+    });
+
+    await this.folderModel.updateOne(
+      { _id: folderId, 'files._id': fileId },
+      { $set: { 'files.$.status': FileStatus.PROCESSING } },
+    );
+  }
 }

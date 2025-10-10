@@ -15,6 +15,6 @@ import { Folder, FolderSchema } from './schema/folder.schema';
   ],
   controllers: [FolderController],
   providers: [FolderService, FolderRepository],
-  exports: [FolderService, FolderRepository],
+  exports: [FolderService, FolderRepository, FileQueueModule],
 })
 export class FoldersModule {}
