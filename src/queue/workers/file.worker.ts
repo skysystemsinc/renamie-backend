@@ -7,7 +7,6 @@ import { TextractService } from 'src/common/services/textract.service';
 import { Folder, FolderDocument } from 'src/folder/schema/folder.schema';
 import { FileStatus } from 'src/folder/schema/files.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
-import { metadata } from 'reflect-metadata/no-conflict';
 
 @Processor('file')
 export class FileProcessor extends WorkerHost {
@@ -26,20 +25,19 @@ export class FileProcessor extends WorkerHost {
       const jobId = await this.textractService.startInvoiceAnalysis(fileUrl);
       const results = await this.textractService.getInvoiceAnalysis(jobId);
       const mappedMetadata = results?.map((r) => ({
-        address: r.ADDRESS,
-        street: r.STREET,
-        city: r.CITY,
-        state: r.STATE,
-        zipCode: r.ZIP_CODE,
-        name: r.NAME,
-        addressBlock: r.ADDRESS_BLOCK,
-        customerNumber: r.CUSTOMER_NUMBER,
-        invoiceReceiptDate: r.INVOICE_RECEIPT_DATE,
-        invoiceReceiptId: r.INVOICE_RECEIPT_ID,
-        receiverAddress: r.RECEIVER_ADDRESS,
-        receiverName: r.RECEIVER_NAME,
+        address: r.ADDRESS ?? '',
+        street: r.STREET ?? '',
+        city: r.CITY ?? '',
+        state: r.STATE ?? '',
+        zipCode: r.ZIP_CODE ?? '',
+        name: r.NAME ?? '',
+        addressBlock: r.ADDRESS_BLOCK ?? '',
+        customerNumber: r.CUSTOMER_NUMBER ?? '',
+        invoiceReceiptDate: r.INVOICE_RECEIPT_DATE ?? '',
+        invoiceReceiptId: r.INVOICE_RECEIPT_ID ?? '',
+        receiverAddress: r.RECEIVER_ADDRESS ?? '',
+        receiverName: r.RECEIVER_NAME ?? '',
       }));
-
       const db = this.firebaseService.getDb();
       db.ref(`folders/${folderId}/files/${fileId}`).set({
         metadata: mappedMetadata,
