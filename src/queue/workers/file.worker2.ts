@@ -26,18 +26,18 @@ export class FileProcessor2 extends WorkerHost {
       const results = await this.textractService.getInvoiceAnalysis(jobId);
 
       const mappedMetadata = results?.map((r) => ({
-        address: r.ADDRESS,
-        street: r.STREET,
-        city: r.CITY,
-        state: r.STATE,
-        zipCode: r.ZIP_CODE,
-        name: r.NAME,
-        addressBlock: r.ADDRESS_BLOCK,
-        customerNumber: r.CUSTOMER_NUMBER,
-        invoiceReceiptDate: r.INVOICE_RECEIPT_DATE,
-        invoiceReceiptId: r.INVOICE_RECEIPT_ID,
-        receiverAddress: r.RECEIVER_ADDRESS,
-        receiverName: r.RECEIVER_NAME,
+        address: r.ADDRESS ?? '',
+        street: r.STREET ?? '',
+        city: r.CITY ?? '',
+        state: r.STATE ?? '',
+        zipCode: r.ZIP_CODE ?? '',
+        name: r.NAME ?? '',
+        addressBlock: r.ADDRESS_BLOCK ?? '',
+        customerNumber: r.CUSTOMER_NUMBER ?? '',
+        invoiceReceiptDate: r.INVOICE_RECEIPT_DATE ?? '',
+        invoiceReceiptId: r.INVOICE_RECEIPT_ID ?? '',
+        receiverAddress: r.RECEIVER_ADDRESS ?? '',
+        receiverName: r.RECEIVER_NAME ?? '',
       }));
 
       const db = this.firebaseService.getDb();
