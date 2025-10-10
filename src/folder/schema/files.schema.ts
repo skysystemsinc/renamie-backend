@@ -18,7 +18,7 @@ export class Files {
 
   @Prop()
   newName: string;
-  
+
   @Prop({ required: true })
   mimeType: string;
 
@@ -40,6 +40,9 @@ export class Files {
 
   @Prop({ type: Date, default: null })
   rename_at: Date | null;
+
+  @Prop()
+  batchId: string;
 }
 
 export const FilesSchema = SchemaFactory.createForClass(Files);

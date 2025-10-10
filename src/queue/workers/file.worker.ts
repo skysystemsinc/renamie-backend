@@ -7,6 +7,7 @@ import { TextractService } from 'src/common/services/textract.service';
 import { Folder, FolderDocument } from 'src/folder/schema/folder.schema';
 import { FileStatus } from 'src/folder/schema/files.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { metadata } from 'reflect-metadata/no-conflict';
 
 @Processor('file')
 export class FileProcessor extends WorkerHost {
@@ -19,7 +20,7 @@ export class FileProcessor extends WorkerHost {
   }
 
   async process(job: Job) {
-    const { fileUrl, folderId, fileId } = job.data;
+    const { fileUrl, folderId, fileId, batchId } = job.data;
 
     try {
       const jobId = await this.textractService.startInvoiceAnalysis(fileUrl);
@@ -40,7 +41,9 @@ export class FileProcessor extends WorkerHost {
       }));
 
       const db = this.firebaseService.getDb();
-
+      db.ref(`folders/${folderId}/files/${fileId}`).set({
+        metadata: mappedMetadata,
+      });
       await this.folderModel.updateOne(
         { _id: folderId, 'files._id': fileId },
         {
@@ -55,6 +58,24 @@ export class FileProcessor extends WorkerHost {
         status: FileStatus.COMPLETED,
       });
 
+      const folder = await this.folderModel.findById(folderId);
+      console.log('folder testing', folder);
+      const batchFiles = folder?.files.filter((f) => f.batchId === batchId);
+      console.log('batch files ', batchFiles);
+      console.log('sdsd');
+      const allCompleted = batchFiles?.every(
+        (f) => f.status === FileStatus.COMPLETED,
+      );
+
+      console.log('all completd', allCompleted);
+      // if (allCompleted) {
+      //   // call email notification
+      //   await this.sendBatchCompletionEmail(
+      //     folder.userEmail,
+      //     batchId,
+      //     batchFiles.length,
+      //   );
+      // }
       return results;
     } catch (error) {
       await this.folderModel.updateOne(
