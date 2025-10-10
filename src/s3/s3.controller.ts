@@ -38,6 +38,7 @@ import { LLMService } from 'src/common/services/llm.service';
 import { TextractService } from 'src/common/services/textract.service';
 import { FileStatus } from 'src/folder/schema/files.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { FileQueueService } from 'src/queue/services/file.queue.service';
 
 @ApiTags('S3 File Operations')
 @Controller('s3')
@@ -48,6 +49,7 @@ export class S3Controller {
     private readonly iLMService: LLMService,
     private readonly textractService: TextractService,
     private readonly firebaseService: FirebaseService,
+    private readonly fileQueueService: FileQueueService,
   ) {}
 
   @Post('upload')
@@ -141,12 +143,20 @@ export class S3Controller {
           dbFiles,
         );
         const db = this.firebaseService.getDb();
-        updatedFiles?.forEach((file) => {
+        // Add files to queue immediately after saving to database
+        for (const file of updatedFiles) {
           db.ref(`folders/${folderId}/files/${file._id}`).set({
             name: file.name,
             status: file.status,
           });
-        });
+
+          await this.fileQueueService.addFileToQueue(
+            file.url,
+            folderId,
+            (file as any)._id.toString(),
+            batchId,
+          );
+        }
         return {
           message: 'Files uploaded successfully',
           data: updatedFiles,
