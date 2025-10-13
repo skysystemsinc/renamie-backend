@@ -7,8 +7,7 @@ import { TextractService } from 'src/common/services/textract.service';
 import { Folder, FolderDocument } from 'src/folder/schema/folder.schema';
 import { FileStatus } from 'src/folder/schema/files.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
-import { SendgridService } from 'src/common/services/sendgrid';
-import { UserService } from 'src/users/services/user.service';
+import { FileQueueService } from '../services/file.queue.service';
 
 @Processor('file')
 export class FileProcessor2 extends WorkerHost {
@@ -16,8 +15,7 @@ export class FileProcessor2 extends WorkerHost {
     private readonly textractService: TextractService,
     @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
     private readonly firebaseService: FirebaseService,
-    private readonly sendgridService: SendgridService,
-    private readonly userService: UserService,
+    private readonly fileQueueService: FileQueueService,
   ) {
     super();
   }
@@ -61,33 +59,8 @@ export class FileProcessor2 extends WorkerHost {
         status: FileStatus.COMPLETED,
       });
 
-      // Fetch folder
-      const folder = await this.folderModel.findById(folderId);
-      const user =
-        folder?.userId &&
-        (await this.userService.findById(folder.userId.toString()));
-      const batchFiles = folder?.files.filter((f) => f.batchId === batchId);
-      const totalFiles = batchFiles?.length;
-      const completedFiles = batchFiles?.filter(
-        (f) => f.status === FileStatus.COMPLETED,
-      ).length;
-      const failedFiles = batchFiles?.filter(
-        (f) => f.status === FileStatus.FAILED,
-      ).length;
-      const processingFiles = batchFiles?.filter(
-        (f) => f.status === FileStatus.PROCESSING,
-      ).length;
-
-      if (processingFiles === 0 && user) {
-        await this.sendgridService.sendExtractionCompletedEmail(
-          user.email,
-          user.firstName,
-          folder?.name,
-          totalFiles,
-          completedFiles,
-          failedFiles,
-        );
-      }
+      // Email sending
+      await this.fileQueueService.handleBatchCompletion(folderId, batchId);
 
       return results;
     } catch (error) {
@@ -104,7 +77,7 @@ export class FileProcessor2 extends WorkerHost {
       db.ref(`folders/${folderId}/files/${fileId}`).update({
         status: FileStatus.FAILED,
       });
-      console.error(`Worker2 failed file: ${fileId}`, error.message);
+      // console.error(`Worker2 failed `, error.message);
     }
   }
 }

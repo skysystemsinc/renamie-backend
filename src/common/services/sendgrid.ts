@@ -6,7 +6,7 @@ import { emailConstant } from 'src/utils/constant';
 interface DynamicDataType {
   userName: string;
   verificationLink?: string;
-  batchCount?: number;
+  totalFiles?: number;
   folderName?: string;
   completedFiles?: number;
   failedFiles?: number;
@@ -106,14 +106,14 @@ export class SendgridService {
     to: string,
     userName: string,
     folderName?: string,
-    batchCount?: number,
+    totalFiles?: number,
     completedFiles?: number,
     failedFiles?: number,
   ) {
     try {
       await this.sendTemplateMail(to, emailConstant.fileProcessedTempId, {
         userName: userName,
-        batchCount: batchCount,
+        totalFiles: totalFiles,
         folderName: folderName,
         completedFiles: completedFiles,
         failedFiles: failedFiles,
