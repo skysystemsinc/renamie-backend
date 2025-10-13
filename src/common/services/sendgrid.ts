@@ -3,9 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { default as SendGrid } from '@sendgrid/mail';
 import { emailConstant } from 'src/utils/constant';
 
-interface EmailVerifyType {
+interface DynamicDataType {
   userName: string;
-  verificationLink: string;
+  verificationLink?: string;
+  totalFiles?: number;
+  folderName?: string;
+  completedFiles?: number;
+  failedFiles?: number;
 }
 
 @Injectable()
@@ -25,7 +29,7 @@ export class SendgridService {
   async sendTemplateMail(
     to: string,
     templateId: string,
-    dynamicData: EmailVerifyType,
+    dynamicData: DynamicDataType,
   ): Promise<void> {
     try {
       const msg: SendGrid.MailDataRequired = {
@@ -91,7 +95,29 @@ export class SendgridService {
         userName: userName,
         verificationLink: loginUrl,
       });
-      
+    } catch (error) {
+      console.error(`Failed to send changed password email to ${to}.`);
+      throw error;
+    }
+  }
+
+  // Files extraction completed
+  async sendExtractionCompletedEmail(
+    to: string,
+    userName: string,
+    folderName?: string,
+    totalFiles?: number,
+    completedFiles?: number,
+    failedFiles?: number,
+  ) {
+    try {
+      await this.sendTemplateMail(to, emailConstant.fileProcessedTempId, {
+        userName: userName,
+        totalFiles: totalFiles,
+        folderName: folderName,
+        completedFiles: completedFiles,
+        failedFiles: failedFiles,
+      });
     } catch (error) {
       console.error(`Failed to send changed password email to ${to}.`);
       throw error;

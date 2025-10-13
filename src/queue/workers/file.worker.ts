@@ -7,6 +7,7 @@ import { TextractService } from 'src/common/services/textract.service';
 import { Folder, FolderDocument } from 'src/folder/schema/folder.schema';
 import { FileStatus } from 'src/folder/schema/files.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
+import { FileQueueService } from '../services/file.queue.service';
 
 @Processor('file')
 export class FileProcessor extends WorkerHost {
@@ -14,13 +15,14 @@ export class FileProcessor extends WorkerHost {
     private readonly textractService: TextractService,
     @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
     private readonly firebaseService: FirebaseService,
+    private readonly fileQueueService: FileQueueService,
   ) {
     super();
   }
 
   async process(job: Job) {
     const { fileUrl, folderId, fileId, batchId } = job.data;
-
+    // console.log('batch id in work 1', batchId);
     try {
       const jobId = await this.textractService.startInvoiceAnalysis(fileUrl);
       const results = await this.textractService.getInvoiceAnalysis(jobId);
@@ -56,24 +58,9 @@ export class FileProcessor extends WorkerHost {
         status: FileStatus.COMPLETED,
       });
 
-      const folder = await this.folderModel.findById(folderId);
-      console.log('folder testing', folder);
-      const batchFiles = folder?.files.filter((f) => f.batchId === batchId);
-      console.log('batch files ', batchFiles);
-      console.log('sdsd');
-      const allCompleted = batchFiles?.every(
-        (f) => f.status === FileStatus.COMPLETED,
-      );
 
-      console.log('all completd', allCompleted);
-      // if (allCompleted) {
-      //   // call email notification
-      //   await this.sendBatchCompletionEmail(
-      //     folder.userEmail,
-      //     batchId,
-      //     batchFiles.length,
-      //   );
-      // }
+      await this.fileQueueService.handleBatchCompletion(folderId, batchId);
+
       return results;
     } catch (error) {
       await this.folderModel.updateOne(
@@ -89,7 +76,7 @@ export class FileProcessor extends WorkerHost {
       db.ref(`folders/${folderId}/files/${fileId}`).update({
         status: FileStatus.FAILED,
       });
-      console.error(`Worker1 failed file: ${fileId}`, error.message);
+      console.error(`Worker1 failed `, error);
     }
   }
 }

@@ -14,6 +14,9 @@ export class Folder {
 
   @Prop({ type: [FilesSchema], default: [] })
   files: Files[];
+
+  @Prop({ type: [String], default: [] })
+  emailSentBatches: string[];
 }
 
 export const FolderSchema = SchemaFactory.createForClass(Folder);
