@@ -7,6 +7,7 @@ import {
   DeleteObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
+  CopyObjectCommand,
 } from '@aws-sdk/client-s3';
 import {
   getSignedUrl,
@@ -299,6 +300,7 @@ export class S3Service {
     options: S3DownloadOptions = {},
   ): Promise<string> {
     try {
+      console.log('key', key);
       const { expiresIn = 3600, mode } = options; // 1 hour default
       const contentDisposition =
         mode === 'view'
@@ -337,12 +339,11 @@ export class S3Service {
    */
   async copyFile(sourceKey: string, destinationKey: string): Promise<void> {
     try {
-      const command = new PutObjectCommand({
+      const command = new CopyObjectCommand({
         Bucket: this.bucketName,
         Key: destinationKey,
         CopySource: `${this.bucketName}/${sourceKey}`,
-      } as any); // Using 'as any' for CopySource which is valid for S3 copy operation
-
+      } as any);
       await this.s3Client.send(command);
 
       this.logger.log(`File copied from ${sourceKey} to ${destinationKey}`);
