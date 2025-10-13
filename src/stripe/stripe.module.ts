@@ -9,6 +9,10 @@ import {
   SubscriptionSchema,
 } from '../subscriptions/schemas/subscription.schema';
 import { FirebaseModule } from 'src/firebase/firebase.module';
+import { SendgridService } from 'src/common/services/sendgrid';
+import { UserSchema } from 'src/users/schemas/user.schema';
+import { UsersModule } from 'src/users/users.module';
+import { PlansModule } from 'src/plans/plans.module';
 
 @Module({
   imports: [
@@ -17,8 +21,10 @@ import { FirebaseModule } from 'src/firebase/firebase.module';
       { name: Subscription.name, schema: SubscriptionSchema },
     ]),
      FirebaseModule,
+     UsersModule,
+     PlansModule
   ],
-  providers: [StripeService, SubscriptionRepository],
+  providers: [StripeService, SubscriptionRepository, SendgridService,],
   controllers: [StripeController],
   exports: [StripeService],
 })

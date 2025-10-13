@@ -1,7 +1,7 @@
 import { Injectable, Logger, RawBodyRequest } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
-import { UserDocument } from '../users/schemas/user.schema';
+import { User, UserDocument } from '../users/schemas/user.schema';
 import { SubscriptionRepository } from '../subscriptions/repositories/subscription.repository';
 import {
   SubscriptionDocument,
@@ -10,6 +10,10 @@ import {
 import { Request } from 'express';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { Types } from 'mongoose';
+import { SendgridService } from 'src/common/services/sendgrid';
+import { UserService } from 'src/users/services/user.service';
+import { PlanService } from 'src/plans/services/plan/plan.service';
+import { formatDate } from 'src/utils/helper';
 
 const mapStripeStatus = (status: string): SubscriptionStatus => {
   switch (status) {
@@ -35,6 +39,9 @@ export class StripeService {
     private readonly configService: ConfigService,
     private readonly subscriptionRepository: SubscriptionRepository,
     private readonly firebaseService: FirebaseService,
+    private readonly sendgridService: SendgridService,
+    private readonly userService: UserService,
+    private readonly planService: PlanService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -274,7 +281,6 @@ export class StripeService {
     const metadata = subscription.metadata;
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
-
     if (!existingSubscription && metadata?.subscriptionId) {
       existingSubscription = await this.subscriptionRepository.findById(
         metadata.subscriptionId,
@@ -296,13 +302,14 @@ export class StripeService {
     }
 
     if (
-      existingSubscription &&
+      existingSubscription?.status === SubscriptionStatus.PENDING &&
       subscription?.status === SubscriptionStatus.TRIALING
     ) {
       if (subscription && subscription?.trial_start) {
         const trailStartDate = new Date(subscription?.trial_start * 1000);
         const trialExpiresAt = new Date(trailStartDate);
         trialExpiresAt.setDate(trailStartDate.getDate() + 15);
+
         const updatedSubscription = await this.subscriptionRepository.update(
           existingSubscription.id,
           {
@@ -322,6 +329,23 @@ export class StripeService {
 
         this.logger.log(
           `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
+        );
+
+        // send trailing email
+        const getUser = await this.userService.findById(
+          existingSubscription?.user.toString(),
+        );
+        if (!getUser) return;
+        const getplan = await this.planService.findById(
+          existingSubscription?.plan.toString(),
+        );
+        if (!getplan) return;
+        await this.sendgridService.sendTrailingEmail(
+          getUser?.email,
+          getUser?.firstName,
+          formatDate(trailStartDate),
+          formatDate(trialExpiresAt),
+          getplan?.name,
         );
 
         //   // Save subscription in Firebase
