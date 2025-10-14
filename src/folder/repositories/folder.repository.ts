@@ -68,4 +68,44 @@ export class FolderRepository {
       },
     );
   }
+
+  // folder with paginated files
+  async getPaginatedFiles(
+    folderId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    folderId: string;
+    name: string;
+    files: any[];
+    totalFiles: number;
+  }> {
+    const skip = (page - 1) * limit;
+
+    const folder = await this.folderModel
+      .aggregate([
+        { $match: { _id: new Types.ObjectId(folderId) } },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            totalFiles: { $size: '$files' },
+            files: { $slice: ['$files', skip, limit] },
+          },
+        },
+      ])
+      .exec();
+
+    if (!folder || folder.length === 0) {
+      return { folderId: folderId, name: '', files: [], totalFiles: 0 };
+    }
+    const result = folder[0];
+
+    return {
+      folderId: result._id.toString(),
+      name: result.name,
+      files: result.files,
+      totalFiles: result.totalFiles,
+    };
+  }
 }
