@@ -101,12 +101,21 @@ export class FolderService {
     return await this.folderRepository.findAllByUserId(userId);
   }
 
-  async getFolderDetail(userId: string, id: string) {
+  // folder Detail
+  async getFolderDetail(
+    userId: string,
+    folderId: string,
+    page = 1,
+    limit = 10,
+  ) {
     const user = await this.userService.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return await this.folderRepository.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+
+   return await this.folderRepository.getPaginatedFiles(
+      folderId,
+      page,
+      limit,
+    );
   }
 
   async saveFilestoFolder(folderId: string, files: any[]) {

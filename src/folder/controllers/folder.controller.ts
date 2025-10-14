@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Get,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -75,11 +76,22 @@ export class FolderController {
     return ApiResponseDto.success('Folders fetched successfully', folders);
   }
 
+  // fetch folder
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  async get(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    const folderDetail = await this.folderService.getFolderDetail(userId, id);
+  async get(
+    @Param('id') folderId: string,
+    @CurrentUser('id') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+  ) {
+    const folderDetail = await this.folderService.getFolderDetail(
+      userId,
+      folderId,
+      page,
+      limit,
+    );
     return ApiResponseDto.success(
       'Folder detail fetched successfully',
       folderDetail,
@@ -88,20 +100,19 @@ export class FolderController {
 
   // rename file API
   @Post('file-rename/:id')
-@UseGuards(JwtAuthGuard)
-@ApiBody({ type: RenameFileDto })
-@ApiOperation({ summary: 'Rename a file in S3 and DB' })
-@ApiBearerAuth('JWT-auth')
-async renameFile(
-  @Param('id') fileId: string,
-  @Body() renameFileDto: RenameFileDto,
-  @CurrentUser('id') userId: string,
-) {
-  const result = await this.folderService.renameFileInFolder(
-    fileId,
-    renameFileDto.newName,
-  );
-  return ApiResponseDto.success('File renamed successfully', result);
-}
-
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: RenameFileDto })
+  @ApiOperation({ summary: 'Rename a file in S3 and DB' })
+  @ApiBearerAuth('JWT-auth')
+  async renameFile(
+    @Param('id') fileId: string,
+    @Body() renameFileDto: RenameFileDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const result = await this.folderService.renameFileInFolder(
+      fileId,
+      renameFileDto.newName,
+    );
+    return ApiResponseDto.success('File renamed successfully', result);
+  }
 }
