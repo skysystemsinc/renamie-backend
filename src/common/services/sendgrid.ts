@@ -13,6 +13,9 @@ interface DynamicDataType {
   trailStartDate?: string;
   trialExpiresAt?: string;
   plan?: string;
+  startDate?:string,
+  expiresAt?:string
+
 }
 
 @Injectable()
@@ -127,7 +130,7 @@ export class SendgridService {
     }
   }
 
-  //  // Files extraction completed
+  //  Trial started
   async sendTrailingEmail(
     to: string,
     userName: string,
@@ -138,9 +141,30 @@ export class SendgridService {
     try {
       await this.sendTemplateMail(to, emailConstant.trialTempId, {
         userName: userName,
-        trailStartDate : trailStartDate,
-        trialExpiresAt : trialExpiresAt ,
-        plan : plan,
+        trailStartDate: trailStartDate,
+        trialExpiresAt: trialExpiresAt,
+        plan: plan,
+      });
+    } catch (error) {
+      console.error(`Failed to send changed password email to ${to}.`);
+      throw error;
+    }
+  }
+
+  // Trial ended and subscription activated
+  async sendSubsActivationEmail(
+    to: string,
+    userName: string,
+    startDate: string,
+    expiresAt: string,
+    plan: string,
+  ) {
+    try {
+      await this.sendTemplateMail(to, emailConstant.subsActiveTempId, {
+        userName: userName,
+        startDate: startDate,
+        expiresAt: expiresAt,
+        plan: plan,
       });
     } catch (error) {
       console.error(`Failed to send changed password email to ${to}.`);
