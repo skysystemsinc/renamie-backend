@@ -10,6 +10,9 @@ interface DynamicDataType {
   folderName?: string;
   completedFiles?: number;
   failedFiles?: number;
+  trailStartDate?: string;
+  trialExpiresAt?: string;
+  plan?: string;
 }
 
 @Injectable()
@@ -117,6 +120,27 @@ export class SendgridService {
         folderName: folderName,
         completedFiles: completedFiles,
         failedFiles: failedFiles,
+      });
+    } catch (error) {
+      console.error(`Failed to send changed password email to ${to}.`);
+      throw error;
+    }
+  }
+
+  //  // Files extraction completed
+  async sendTrailingEmail(
+    to: string,
+    userName: string,
+    trailStartDate: string,
+    trialExpiresAt: string,
+    plan: string,
+  ) {
+    try {
+      await this.sendTemplateMail(to, emailConstant.trialTempId, {
+        userName: userName,
+        trailStartDate : trailStartDate,
+        trialExpiresAt : trialExpiresAt ,
+        plan : plan,
       });
     } catch (error) {
       console.error(`Failed to send changed password email to ${to}.`);
