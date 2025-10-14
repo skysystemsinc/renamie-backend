@@ -44,6 +44,8 @@ export class Subscription {
   @Prop({ type: MongooseSchema.Types.Mixed })
   metadata?: Record<string, any>;
 
+   @Prop()
+  trialStartedAt?: Date;
   @Prop()
   trialExpiresAt?: Date;
 

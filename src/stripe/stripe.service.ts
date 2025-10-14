@@ -316,6 +316,7 @@ export class StripeService {
             status: mapStripeStatus(subscription?.status),
             startedAt: subsStartAt,
             expiresAt: subsEndAt,
+            trialStartedAt: trailStartDate,
             trialExpiresAt: trialExpiresAt,
             stripeSubscriptionId: subscription?.id,
           },
@@ -387,30 +388,40 @@ export class StripeService {
   private async handleSubscriptionUpdated(
     subscription: Stripe.Subscription,
   ): Promise<void> {
-    this.logger.log(
-      `Subscription updated: ${subscription.id} for customer ${subscription.customer}`,
-    );
     // TODO: Update subscription details in database
     // TODO: Handle plan changes (upgrade/downgrade)
     // TODO: Update user access permissions
+    // console.log('update');
+    this.logger.log(
+      `Subscription updated: ${subscription.id} for customer ${subscription.customer}`,
+    );
+    const metadata = subscription.metadata;
+    let existingSubscription: SubscriptionDocument | null =
+      await this.subscriptionRepository.findById(metadata.subscriptionId);
 
-    if (subscription?.status === SubscriptionStatus.ACTIVE) {
-      const metadata = subscription.metadata;
+    if (!existingSubscription) {
+      this.logger.log(`Subscription not found in DB: ${subscription.id}`);
+      return;
+    }
 
-      let existingSubscription: SubscriptionDocument | null =
-        await this.subscriptionRepository.findById(metadata.subscriptionId);
-      if (!existingSubscription) {
-        this.logger.log(`Subscription not found in DB: ${subscription.id}`);
-        return;
+    if (
+      existingSubscription?.status === SubscriptionStatus.TRIALING &&
+      subscription?.status === SubscriptionStatus.ACTIVE
+    ) {
+      const subsStartAt = existingSubscription?.trialExpiresAt;
+      let subsEndAt = new Date();
+      if (subscription.items.data[0].plan.interval === 'month') {
+        subsStartAt && subsEndAt.setDate(subsStartAt.getDate() + 30);
       }
-
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
         {
           status: mapStripeStatus(subscription?.status),
+          startedAt: subsStartAt,
+          expiresAt: subsEndAt,
         },
       );
-
+      console.log('updatedSubscription', updatedSubscription);
       if (!updatedSubscription) {
         this.logger.log(
           `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
@@ -420,6 +431,24 @@ export class StripeService {
       this.logger.log(
         `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
       );
+      // send trailing email
+      const getUser = await this.userService.findById(
+        existingSubscription?.user.toString(),
+      );
+      if (!getUser) return;
+      const getplan = await this.planService.findById(
+        existingSubscription?.plan.toString(),
+      );
+      if (!getplan) return;
+      await this.sendgridService.sendSubsActivationEmail(
+        getUser?.email,
+        getUser?.firstName,
+        formatDate(updatedSubscription?.startedAt),
+        formatDate(updatedSubscription?.expiresAt),
+        getplan?.name,
+      );
+
+      // save to firebase
 
       try {
         const db = this.firebaseService.getDb();
