@@ -11,7 +11,18 @@ async function bootstrap() {
   });
 
   // ✅ Stripe webhook raw body handling
-  app.use('/api/v1/stripe/webhook', bodyParser.raw({ type: 'application/json' }));
+  app.use(
+    '/api/v1/stripe/webhook',
+    bodyParser.raw({ type: 'application/json' }),
+  );
+
+  // ✅ Explicitly assign rawBody for Stripe
+  app.use((req: any, res: any, next: any) => {
+    if (req.originalUrl === '/api/v1/stripe/webhook') {
+      req.rawBody = req.body;
+    }
+    next();
+  });
 
   const configService = app.get(ConfigService);
 
