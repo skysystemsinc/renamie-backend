@@ -3,11 +3,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    rawBody: true,
+    rawBody: true, // ✅ Keep this
   });
+
+  // ✅ IMPORTANT: raw body ONLY for Stripe webhook
+  app.use('/api/v1/stripe/webhook', bodyParser.raw({ type: '*/*' }));
 
   const configService = app.get(ConfigService);
 
