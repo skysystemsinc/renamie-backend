@@ -174,27 +174,28 @@ export class StripeService {
   // Webhook handler for Stripe events
   async handleStripeWebhook(req: RawBodyRequest<Request>): Promise<void> {
     this.logger.log(`Handling Stripe webhook`);
-    const sig = req.headers['stripe-signature'] as string;
+    const sig = req.headers['stripe-signature'];
     const webhookSecret = this.configService.get<string>(
       'STRIPE_WEBHOOK_SECRET',
     );
     const rawBody = req.rawBody;
 
     if (!rawBody || !sig || !webhookSecret) {
-      if (!rawBody) {
-        this.logger.error('Raw body is missing');
-      }
-      if (!sig) {
-        this.logger.error('Stripe signature is missing');
-      }
-      if (!webhookSecret) {
-        this.logger.error('Webhook secret is missing');
-      }
+      this.logger.error('Missing required webhook data', {
+        hasRawBody: !!rawBody,
+        hasSignature: !!sig,
+        hasWebhookSecret: !!webhookSecret,
+      });
       throw new Error('Missing required webhook data');
     }
 
     let event: Stripe.Event;
-    event = this.stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+    try {
+      event = this.stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
+    } catch (err) {
+      this.logger.error(`Webhook signature verification failed: ${err.message}`);
+      throw err;
+    }
 
     switch (event.type) {
       // Checkout session events
