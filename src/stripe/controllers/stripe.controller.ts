@@ -12,6 +12,14 @@ export class StripeController {
   @Post('webhook')
   @ApiOperation({ summary: 'Handle Stripe webhook' })
   async handleWebhook(@Req() req: RawBodyRequest<Request>) {
+    // ✅ Temporary debug logging - remove after verification
+    console.log('================ WEBHOOK RECEIVED ================');
+    console.log('Raw Body Type:', typeof req.rawBody);
+    console.log('Raw Body is Buffer:', Buffer.isBuffer(req.rawBody));
+    console.log('Raw Body Length:', req.rawBody?.length);
+    console.log('Has Stripe Signature:', !!req.headers['stripe-signature']);
+    console.log('===================================================');
+
     try {
       await this.stripeService.handleStripeWebhook(req);
       return { received: true };
