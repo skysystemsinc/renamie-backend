@@ -144,8 +144,8 @@ export class StripeService {
         customer: customerId,
         line_items: [{ price: priceId, quantity: 1 }],
         mode: 'subscription',
-        success_url: `${this.configService.get('FRONTEND_URL')}dashboard/pricing?success`,
-        cancel_url: `${this.configService.get('FRONTEND_URL')}dashboard/pricing?cancel`,
+        success_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?success`,
+        cancel_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?cancel`,
         // consent_collection: {
         //   terms_of_service: 'required',
         // },
