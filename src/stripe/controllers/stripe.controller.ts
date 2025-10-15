@@ -7,14 +7,21 @@ import { StripeService } from '../stripe.service';
 @ApiTags('Stripe')
 @Controller('stripe')
 export class StripeController {
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(private readonly stripeService: StripeService) { }
 
   @Post('webhook')
   @ApiOperation({ summary: 'Handle Stripe webhook' })
   async handleWebhook(@Req() req: RawBodyRequest<Request>) {
     try {
-      await this.stripeService.handleStripeWebhook(req);
-      return { received: true };
+      console.log('================ WEBHOOK RECEIVED ================');
+      console.log('Headers:', req.headers);
+      console.log('Stripe Signature Header:', req.headers['stripe-signature']);
+      console.log('Raw Body Type:', typeof req.rawBody);
+      console.log('Raw Body Buffer Length:', req.rawBody?.length);
+      console.log('Raw Body Preview:', req.rawBody?.toString('utf8').slice(0, 300)); // First 300 chars
+      console.log('===================================================');
+
+      return { received: true, message: 'Logging webhook data only for debugging.' };
     } catch (error) {
       console.error('Webhook error:', error);
       return { received: false, error: error.message };
