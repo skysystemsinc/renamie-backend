@@ -1,4 +1,5 @@
 // src/worker/main.worker.ts
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { QueueModule } from '../queue/queue.module';
 
