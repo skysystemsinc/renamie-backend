@@ -372,7 +372,7 @@ export class S3Service {
     const extension = originalName.split('.').pop();
     const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
     // const key = `${prefix || ''}${nameWithoutExt}_${timestamp}_${random}.${extension}`;
-    const key = `${prefix || ''}${nameWithoutExt}_${random}.${extension}`;
+    const key = `${prefix || ''}${nameWithoutExt}.${extension}`;
     return key.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 }
