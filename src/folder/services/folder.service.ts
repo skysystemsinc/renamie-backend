@@ -150,7 +150,7 @@ export class FolderService {
     if (!fileRecord) throw new NotFoundException('File not found');
     const oldKey = fileRecord.url;
     const fileExtension = oldKey.substring(oldKey.lastIndexOf('.'));
-    const newKey = this.s3Service.generateUniqueKey(
+    const newKey = this.s3Service.generatekey(
       `${newName}${fileExtension.toLowerCase()}`,
     );
     await this.s3Service.copyFile(oldKey, newKey);

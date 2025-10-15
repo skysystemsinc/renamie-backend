@@ -371,8 +371,17 @@ export class S3Service {
     const random = Math.random().toString(36).substring(2, 8);
     const extension = originalName.split('.').pop();
     const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-    // const key = `${prefix || ''}${nameWithoutExt}_${timestamp}_${random}.${extension}`;
-    const key = `${prefix || ''}${nameWithoutExt}.${extension}`;
+    const key = `${prefix || ''}${nameWithoutExt}_${timestamp}_${random}.${extension}`;
+    return key.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
+  //
+
+  generatekey(originalName: string, prefix?: string): string {
+    const random = Math.random().toString(36).substring(2, 8);
+    const extension = originalName.split('.').pop();
+    const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+    const key = `${prefix || ''}${nameWithoutExt}_${random}.${extension}`;
     return key.replace(/[^a-zA-Z0-9._-]/g, '_');
   }
 }
