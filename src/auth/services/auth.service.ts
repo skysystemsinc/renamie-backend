@@ -78,7 +78,7 @@ export class AuthService {
       verificationHash,
     );
     const appUrl = process.env.FRONTEND_URL;
-    const verifyUrl = `${appUrl}renamie.com/verify/${verificationHash}`;
+    const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
     await this.sendgridService.sendVerificationEmail(
       result.email,
       result.firstName,
@@ -164,7 +164,7 @@ export class AuthService {
     const id = (user as UserDocument)._id as string;
     let userId = id.toString();
     const appUrl = process.env.FRONTEND_URL;
-    const verifyUrl = `${appUrl}renamie.com/resetPassword/${userId}`;
+    const verifyUrl = `${appUrl}/renamie.com/resetPassword/${userId}`;
     await this.sendgridService.sendResetPasswordEmail(
       user?.email,
       user?.firstName,
@@ -186,7 +186,7 @@ export class AuthService {
       },
     );
     const appUrl = process.env.FRONTEND_URL;
-    const loginUrl = `${appUrl}login`;
+    const loginUrl = `${appUrl}/login`;
     if (updatedUser) {
       await this.sendgridService.sendPasswordChangedEmail(
         updatedUser?.email,
