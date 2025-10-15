@@ -1,0 +1,57 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to server via SSH
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            echo "🚀 Starting deployment..."
+            
+            # Navigate to project directory
+            cd /var/www/vhosts/demoprojects.co/renamie.demoprojects.co
+            
+            # Pull latest changes
+            echo "📥 Pulling latest changes from main branch..."
+            git pull origin main
+            
+            # Install dependencies
+            echo "📦 Installing dependencies..."
+            npm install
+            
+            # Build the project
+            echo "🔨 Building the project..."
+            npm run build
+
+            echo "🧾 Current PM2 list:"
+            pm2 list
+            
+            # Restart PM2 services
+            echo "🔄 Restarting PM2 services..."
+            pm2 restart renamie-backend --update-env
+            pm2 restart renamie-worker --update-env
+            
+            # Save PM2 process list
+            echo "💾 Saving PM2 process list..."
+            pm2 save
+            
+            echo "✅ Deployment completed!"
+
