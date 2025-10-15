@@ -27,7 +27,23 @@ jobs:
             echo "🚀 Starting deployment..."
             
             # Navigate to project directory
+            echo "📂 Navigating to project directory..."
             cd /var/www/vhosts/demoprojects.co/renamie.demoprojects.co
+
+            # Source environment and nvm (ensure Node and Yarn are available)
+            echo "🔄 Loading NVM and environment..."
+            source ~/.bashrc || true
+            source ~/.profile || true
+            source ~/.nvm/nvm.sh || true
+
+            # Use Node.js v22 (fallback to default if not available)
+            echo "🔢 Using Node.js v22 (fallback to default if not found)..."
+            nvm use 22 || nvm use node
+
+            echo "🧩 Versions:"
+            echo "Node.js version: $(node --version)"
+            echo "NVM version: $(nvm --version)"
+            echo "----------------------------------------------"
             
             # Pull latest changes
             echo "📥 Pulling latest changes from main branch..."
