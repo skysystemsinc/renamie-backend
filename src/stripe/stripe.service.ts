@@ -178,10 +178,18 @@ export class StripeService {
     const webhookSecret = this.configService.get<string>(
       'STRIPE_WEBHOOK_SECRET',
     );
-    const rawBody = req.rawBody as Buffer;
+    const rawBody = req.rawBody;
 
     if (!rawBody || !sig || !webhookSecret) {
-      this.logger.error('Missing required webhook data');
+      if (!rawBody) {
+        this.logger.error('Raw body is missing');
+      }
+      if (!sig) {
+        this.logger.error('Stripe signature is missing');
+      }
+      if (!webhookSecret) {
+        this.logger.error('Webhook secret is missing');
+      }
       throw new Error('Missing required webhook data');
     }
 
