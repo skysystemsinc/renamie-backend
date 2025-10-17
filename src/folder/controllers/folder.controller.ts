@@ -17,6 +17,7 @@ import { CreateFoldersDto, RenameFileDto } from '../dto/create-folder.dto';
 import { FolderService } from '../services/folder.service';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 import { FileQueueService } from 'src/queue/services/file.queue.service';
+import { S3Service } from 'src/common/services/s3.service';
 
 @ApiTags('folder')
 @Controller('folder')
@@ -24,6 +25,7 @@ export class FolderController {
   constructor(
     private readonly folderService: FolderService,
     private readonly fileQueueService: FileQueueService,
+    private readonly S3Service: S3Service,
   ) {}
 
   @Post()
@@ -109,7 +111,7 @@ export class FolderController {
     @Body() renameFileDto: RenameFileDto,
     @CurrentUser('id') userId: string,
   ) {
-    const result = await this.folderService.renameFileInFolder(
+    const result = await this.S3Service.renameFileInFolder(
       fileId,
       renameFileDto.newName,
     );

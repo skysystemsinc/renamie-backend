@@ -13,6 +13,7 @@ import {
   HttpStatus,
   BadRequestException,
   UploadedFiles,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -39,6 +40,10 @@ import { TextractService } from 'src/common/services/textract.service';
 import { FileStatus } from 'src/folder/schema/files.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { FileQueueService } from 'src/queue/services/file.queue.service';
+import AdmZip from 'adm-zip';
+import { ApiResponseDto } from 'src/common/dto/api-response.dto';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @ApiTags('S3 File Operations')
 @Controller('s3')
@@ -85,86 +90,18 @@ export class S3Controller {
   }
 
   @Post('upload-files/:folderId')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FilesInterceptor('files'))
   @ApiOperation({ summary: 'Upload multiple files to S3' })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ status: 201, description: 'Files uploaded successfully' })
   async uploadFiles(
+    @CurrentUser('id') userId: string,
     @Param('folderId') folderId: string,
     @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
-    if (!files || files.length === 0) {
-      throw new BadRequestException('No files uploaded');
-    }
-    try {
-      const batchId = `batch_${Math.floor(Math.random() * 1000)}`;
-      // console.log('btach id', batchId);
-      const uploadResults = await Promise.all(
-        files.map(async (file) => {
-          // console.log('file', file);
-          const key = this.s3Service.generateUniqueKey(
-            file.originalname,
-            'uploads/',
-          );
-          // console.log('key',key);
-          const s3UploadResult = await this.s3Service.uploadFile(
-            key,
-            file.buffer,
-            {
-              acl: 'private',
-              contentType: file.mimetype,
-              metadata: {
-                originalName: file.originalname,
-                uploadedAt: new Date().toISOString(),
-              },
-            },
-          );
-          return {
-            url: s3UploadResult?.key,
-            name: file?.originalname,
-            size: file?.size,
-            mimetype: file?.mimetype,
-          };
-        }),
-      );
-
-      const dbFiles = uploadResults.map((result) => ({
-        name: result.name,
-        mimeType: result.mimetype,
-        size: result.size,
-        url: result.url,
-        createdAt: new Date(),
-        status: FileStatus.PENDING,
-        batchId: batchId,
-      }));
-      if (uploadResults?.length > 0) {
-        const updatedFiles = await this.folderService.saveFilestoFolder(
-          folderId,
-          dbFiles,
-        );
-        const db = this.firebaseService.getDb();
-        // Add files to queue immediately after saving to database
-        for (const file of updatedFiles) {
-          db.ref(`folders/${folderId}/files/${file._id}`).set({
-            name: file.name,
-            status: file.status,
-          });
-
-          await this.fileQueueService.addFileToQueue(
-            file.url,
-            folderId,
-            (file as any)._id.toString(),
-            batchId,
-          );
-        }
-        return {
-          message: 'Files uploaded successfully',
-          data: updatedFiles,
-        };
-      }
-    } catch (error) {
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    const result = await this.s3Service.uploadFiles(userId, folderId, files);
+    return ApiResponseDto.success('Files uploaded successfully', result);
   }
 
   @Get('download/:key')
@@ -231,11 +168,14 @@ export class S3Controller {
     status: 200,
     description: 'Pre-signed URL generated successfully',
   })
-  async getPresignedDownloadUrl(@Query() query: PresignedUrlDto) {
+  async getPresignedDownloadUrl(
+    @Query() query: PresignedUrlDto,
+    @CurrentUser('id') userId: string,
+  ) {
     try {
       const url = await this.s3Service.getPresignedDownloadUrl(query.key, {
         expiresIn: query.expiresIn,
-        mode: query.mode, 
+        mode: query.mode,
       });
 
       return {
