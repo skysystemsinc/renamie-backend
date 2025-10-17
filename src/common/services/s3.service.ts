@@ -1,4 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -14,6 +21,13 @@ import {
   S3RequestPresigner,
 } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
+import AdmZip from 'adm-zip';
+import { FileStatus } from 'src/folder/schema/files.schema';
+import { FolderService } from 'src/folder/services/folder.service';
+import { FirebaseService } from 'src/firebase/firebase.service';
+import { FolderRepository } from 'src/folder/repositories/folder.repository';
+import { FileQueueService } from 'src/queue/services/file.queue.service';
+import { UserService } from 'src/users/services/user.service';
 
 export interface S3UploadOptions {
   acl?: 'public-read' | 'private';
@@ -46,7 +60,14 @@ export class S3Service {
   private readonly s3Client: S3Client;
   private readonly bucketName: string;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private readonly folderService: FolderService,
+    private readonly firebaseService: FirebaseService,
+    private readonly folderRepository: FolderRepository,
+    private readonly fileQueueService: FileQueueService,
+    private readonly userService: UserService,
+  ) {
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
     const secretAccessKey = this.configService.get<string>(
       'AWS_SECRET_ACCESS_KEY',
@@ -383,5 +404,139 @@ export class S3Service {
     const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
     const key = `${prefix || ''}${nameWithoutExt}_${random}.${extension}`;
     return key.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
+  // rename file
+  async renameFileInFolder(fileId: string, newName: string) {
+    const fileRecord = await this.folderRepository.findFileById(fileId);
+    if (!fileRecord) throw new NotFoundException('File not found');
+    const oldKey = fileRecord.url;
+    const fileExtension = oldKey.substring(oldKey.lastIndexOf('.'));
+    const newKey = this.generatekey(`${newName}${fileExtension.toLowerCase()}`);
+    await this.copyFile(oldKey, newKey);
+    await this.deleteFile(oldKey);
+    await this.folderRepository.updateFileData(fileId, {
+      newName: `${newName}${fileExtension}`,
+      url: newKey,
+      rename_at: new Date(),
+    });
+    const updatedFile = await this.folderRepository.findFileById(fileId);
+    return updatedFile;
+  }
+
+  // file upload
+  async uploadFiles(
+    userId: string,
+    folderId: string,
+    files: Array<Express.Multer.File>,
+  ) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files uploaded');
+    }
+
+    try {
+      const batchId = `batch_${Math.floor(Math.random() * 1000)}`;
+      const allFiles = [];
+
+      for (const file of files) {
+        if (
+          file.mimetype === 'application/zip' ||
+          file.mimetype === 'application/x-zip-compressed'
+        ) {
+          const zip = new AdmZip(file.buffer);
+          const entries = zip.getEntries();
+
+          for (const entry of entries) {
+            if (entry.isDirectory) continue;
+
+            if (!entry.entryName.toLowerCase().endsWith('.pdf')) {
+              throw new BadRequestException(
+                'The ZIP file must contain only PDF documents.',
+              );
+            }
+
+            allFiles.push({
+              name: entry.entryName,
+              mimetype: 'application/pdf',
+              size: entry.header.size,
+              buffer: entry.getData(),
+            });
+          }
+        } else if (file.mimetype === 'application/pdf') {
+          allFiles.push({
+            name: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            buffer: file.buffer,
+          });
+        } else {
+          throw new BadRequestException('Only PDF or ZIP files are allowed');
+        }
+      }
+
+      const uploadResults = await Promise.all(
+        allFiles.map(async (file) => {
+          const key = this.generateUniqueKey(file.name, 'uploads/');
+          const s3UploadResult = await this.uploadFile(key, file.buffer, {
+            acl: 'private',
+            contentType: file.mimetype,
+            metadata: {
+              originalName: file.name,
+              uploadedAt: new Date().toISOString(),
+            },
+          });
+
+          return {
+            url: s3UploadResult?.key,
+            name: file.name,
+            size: file.size,
+            mimetype: file.mimetype,
+          };
+        }),
+      );
+
+      const dbFiles = uploadResults.map((result) => ({
+        name: result.name,
+        mimeType: result.mimetype,
+        size: result.size,
+        url: result.url,
+        createdAt: new Date(),
+        status: FileStatus.PENDING,
+        batchId,
+      }));
+
+      if (uploadResults?.length > 0) {
+        const updatedFiles = await this.folderService.saveFilestoFolder(
+          folderId,
+          dbFiles,
+        );
+        const db = this.firebaseService.getDb();
+
+        for (const file of updatedFiles) {
+          db.ref(`folders/${folderId}/files/${file._id}`).set({
+            name: file.name,
+            status: file.status,
+          });
+
+          await this.fileQueueService.addFileToQueue(
+            file.url,
+            folderId,
+            (file as any)._id.toString(),
+            batchId,
+          );
+        }
+
+        return {
+          message: 'Files uploaded successfully',
+          data: updatedFiles,
+        };
+      }
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 }

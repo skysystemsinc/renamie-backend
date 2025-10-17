@@ -71,13 +71,12 @@ export class FileQueueService implements OnModuleInit {
   ) {
     const db = this.firebaseService.getDb();
     try {
-      await this.fileQueue.add('processFile', {
+      const queueRes = await this.fileQueue.add('processFile', {
         fileUrl,
         folderId,
         fileId,
         batchId,
       });
-
       await this.folderModel.updateOne(
         { _id: folderId, 'files._id': fileId },
         { $set: { 'files.$.status': FileStatus.PROCESSING } },
@@ -91,7 +90,7 @@ export class FileQueueService implements OnModuleInit {
       db.ref(`folders/${folderId}/files/${fileId}`).update({
         status: FileStatus.FAILED,
       });
-      throw new Error(`Failed to add file to queue: ${error.message}`);
+      throw new Error(`Failed to add file to queue: ${error}`);
     }
   }
 

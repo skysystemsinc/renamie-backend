@@ -7,10 +7,11 @@ import { LLMService } from 'src/common/services/llm.service';
 import { TextractService } from 'src/common/services/textract.service';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { FileQueueModule } from 'src/queue/file-queue.module';
+import { UsersModule } from 'src/users/users.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule, FoldersModule, FileQueueModule],
+  imports: [ConfigModule, FoldersModule, FileQueueModule, UsersModule],
   controllers: [S3Controller],
   providers: [S3Service, TextractService, LLMService, FirebaseService],
   exports: [S3Service, TextractService, LLMService, FirebaseService],
