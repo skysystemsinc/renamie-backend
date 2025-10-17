@@ -90,7 +90,7 @@ export class FolderRepository {
             _id: 1,
             name: 1,
             totalFiles: { $size: '$files' },
-            files: { $slice: ['$files', skip, limit] },
+            files: { $slice: [{ $reverseArray: '$files' }, skip, limit] },
           },
         },
       ])

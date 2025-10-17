@@ -78,7 +78,7 @@ export class FolderController {
     return ApiResponseDto.success('Folders fetched successfully', folders);
   }
 
-  // fetch folder
+  // fetch folder details
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

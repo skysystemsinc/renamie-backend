@@ -477,6 +477,7 @@ export class S3Service {
           throw new BadRequestException('Only PDF or ZIP files are allowed');
         }
       }
+
       const uploadResults = await Promise.all(
         allFiles.map(async (file) => {
           const key = this.generateUniqueKey(file.name, 'uploads/');
