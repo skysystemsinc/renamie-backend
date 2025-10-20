@@ -9,14 +9,15 @@ import { TextractService } from 'src/common/services/textract.service';
 import { Folder, FolderSchema } from 'src/folder/schema/folder.schema';
 import { UsersModule } from 'src/users/users.module';
 import { SendgridService } from 'src/common/services/sendgrid';
+import { FolderRepository } from 'src/folder/repositories/folder.repository';
 
 @Module({
   imports: [
     BullModule.registerQueue({ name: 'file' }),
     MongooseModule.forFeature([{ name: Folder.name, schema: FolderSchema }]),
-    UsersModule
+    UsersModule,
   ],
-  providers: [FileQueueService, FileProcessor, FileProcessor2, TextractService, SendgridService],
+  providers: [FileQueueService, FileProcessor, FileProcessor2, TextractService, SendgridService, FolderRepository],
   exports: [FileQueueService],
 })
 export class FileQueueModule {}

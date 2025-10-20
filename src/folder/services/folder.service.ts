@@ -1,6 +1,8 @@
 import {
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,9 +15,10 @@ import { S3Service } from 'src/common/services/s3.service';
 @Injectable()
 export class FolderService {
   constructor(
+    @Inject(forwardRef(() => S3Service))
+    private readonly s3Service: S3Service,
     private readonly userService: UserService,
     private readonly folderRepository: FolderRepository,
-    // private readonly s3Service: S3Service,
   ) {}
 
   async createFolder(createFoldersDto: CreateFoldersDto, userId: string) {
@@ -111,11 +114,7 @@ export class FolderService {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
 
-   return await this.folderRepository.getPaginatedFiles(
-      folderId,
-      page,
-      limit,
-    );
+    return await this.folderRepository.getPaginatedFiles(folderId, page, limit);
   }
 
   async saveFilestoFolder(folderId: string, files: any[]) {
@@ -164,4 +163,116 @@ export class FolderService {
   //   const updatedFile = await this.folderRepository.findFileById(fileId);
   //   return updatedFile;
   // }
+
+  // create format
+  async createFormat(userId: string, folderId: string, format: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const folder = await this.folderRepository.findById(folderId);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    const updatedFolder = await this.folderRepository.updateFormat(
+      folderId,
+      format,
+    );
+    return updatedFolder;
+  }
+
+  private reverseFileName(oldName: string, format: string | undefined): string {
+    const nameWithoutExt = oldName.replace(/\.[^/.]+$/, '');
+    const parts = nameWithoutExt.split('-');
+    if (parts.length < 2) return nameWithoutExt;
+    const [first, second] = parts;
+
+    const firstIsInvoice = /^\d+$/.test(first);
+    const secondIsInvoice = /^\d+$/.test(second);
+
+    if (format?.toLowerCase() === 'date-invoice') {
+      if (!firstIsInvoice && secondIsInvoice) return nameWithoutExt;
+      if (firstIsInvoice && !secondIsInvoice) return `${second}-${first}`;
+    }
+
+    if (format?.toLowerCase() === 'invoice-date') {
+      if (firstIsInvoice && !secondIsInvoice) return nameWithoutExt;
+      if (!firstIsInvoice && secondIsInvoice) return `${second}-${first}`;
+    }
+
+    return nameWithoutExt;
+  }
+
+  //  update format
+  async updateFormat(userId: string, folderId: string, format: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const folder = await this.folderRepository.findById(folderId);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    const updatedFolder = await this.folderRepository.updateFormat(
+      folderId,
+      format,
+    );
+
+    if (updatedFolder?._id) {
+      const completedFiles = await this.folderRepository.getCompletedFiles(
+        updatedFolder._id.toString(),
+      );
+
+      for (const file of completedFiles) {
+        const newFormattedName = this.reverseFileName(
+          file.newName,
+          updatedFolder?.format,
+        );
+        await this.s3Service.renameFileInFolder(
+          file._id.toString(),
+          newFormattedName,
+        );
+      }
+    }
+    return updatedFolder;
+  }
+
+  // get All files that has completed status
+  async getALLFiles(userId: string, page = 1,
+    limit = 10,) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const allFiles = await this.folderRepository.getAllCompletedFiles(userId, page, limit);
+    return allFiles;
+  }
+
+  async getFilesByFolder(
+  userId: string,
+  folderId: string,
+  page = 1,
+  limit = 10,
+) {
+  const user = await this.userService.findById(userId);
+  if (!user) throw new NotFoundException('User not found');
+
+   const folder = await this.folderRepository.findById(folderId);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+  const folderFiles = await this.folderRepository.getFilesByFolder(
+    userId,
+    folderId,
+    page,
+    limit,
+  );
+
+  return folderFiles;
+}
+
 }
