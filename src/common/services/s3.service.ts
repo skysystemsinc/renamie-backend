@@ -61,6 +61,7 @@ export class S3Service {
   private readonly bucketName: string;
 
   constructor(
+    
     private configService: ConfigService,
     private readonly folderService: FolderService,
     private readonly firebaseService: FirebaseService,

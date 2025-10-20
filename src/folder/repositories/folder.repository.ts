@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Folder, FolderDocument } from '../schema/folder.schema';
+import { format } from 'path';
 
 @Injectable()
 export class FolderRepository {
@@ -77,8 +78,9 @@ export class FolderRepository {
   ): Promise<{
     folderId: string;
     name: string;
-    files: any[];
     totalFiles: number;
+    format: string;
+    files: any[];
   }> {
     const skip = (page - 1) * limit;
 
@@ -90,22 +92,139 @@ export class FolderRepository {
             _id: 1,
             name: 1,
             totalFiles: { $size: '$files' },
-            files: { $slice: [{ $reverseArray: '$files' }, skip, limit] },
+            format: 1,
+            files: { $slice: ['$files', skip, limit] },
           },
         },
       ])
       .exec();
 
-    if (!folder || folder.length === 0) {
-      return { folderId: folderId, name: '', files: [], totalFiles: 0 };
-    }
     const result = folder[0];
-
     return {
       folderId: result._id.toString(),
       name: result.name,
-      files: result.files,
       totalFiles: result.totalFiles,
+      format: result.format,
+      files: result.files,
+    };
+  }
+
+  // formate
+  async updateFormat(
+    folderId: string,
+    format: string,
+  ): Promise<FolderDocument | null> {
+    return this.folderModel
+      .findByIdAndUpdate(folderId, { format }, { new: true })
+      .exec();
+  }
+
+  // get all completed files of a single folder
+  async getCompletedFiles(folderId: string): Promise<any[]> {
+    const result = await this.folderModel
+      .aggregate([
+        { $match: { _id: new Types.ObjectId(folderId) } },
+        { $unwind: '$files' },
+        { $match: { 'files.status': 'completed' } },
+        { $project: { _id: 0, file: '$files' } },
+      ])
+      .exec();
+
+    return result.map((r) => r.file);
+  }
+
+  // get completed files of complete module (with pagination)
+  async getAllCompletedFiles(
+    userId: string,
+    page = 1,
+    limit = 10,
+  ): Promise<{
+    files: any[];
+    totalFiles: number;
+    page: number;
+    limit: number;
+  }> {
+    const skip = (page - 1) * limit;
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          userId: new Types.ObjectId(userId),
+        },
+      },
+      { $unwind: '$files' },
+      { $match: { 'files.status': 'completed' } },
+      { $sort: { 'files.createdAt': -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+
+    // count total completed files for this user
+    const totalResult = await this.folderModel.aggregate([
+      { $match: { userId: new Types.ObjectId(userId) } },
+      { $unwind: '$files' },
+      { $match: { 'files.status': 'completed' } },
+      { $count: 'total' },
+    ]);
+
+    const totalFiles = totalResult.length > 0 ? totalResult[0].total : 0;
+
+    return {
+      files: result.map((r) => r.file),
+      totalFiles,
+      page,
+      limit,
+    };
+  }
+
+  // get file by folder
+  async getFilesByFolder(
+    userId: string,
+    folderId: string,
+    page = 1,
+    limit = 10,
+  ): Promise<{
+    files: any[];
+    totalFiles: number;
+    page: number;
+    limit: number;
+  }> {
+    const skip = (page - 1) * limit;
+
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          userId: new Types.ObjectId(userId),
+          _id: new Types.ObjectId(folderId),
+        },
+      },
+      { $unwind: '$files' },
+      { $match: { 'files.status': 'completed' } },
+      { $sort: { 'files.createdAt': -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+
+    const totalResult = await this.folderModel.aggregate([
+      {
+        $match: {
+          userId: new Types.ObjectId(userId),
+          _id: new Types.ObjectId(folderId),
+        },
+      },
+      { $unwind: '$files' },
+      { $match: { 'files.status': 'completed' } },
+      { $count: 'total' },
+    ]);
+
+    const totalFiles = totalResult.length > 0 ? totalResult[0].total : 0;
+
+    return {
+      files: result.map((r) => r.file),
+      totalFiles,
+      page,
+      limit,
     };
   }
 }

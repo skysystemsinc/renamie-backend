@@ -13,7 +13,11 @@ import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { CreateFoldersDto, RenameFileDto } from '../dto/create-folder.dto';
+import {
+  CreateFoldersDto,
+  FormatDto,
+  RenameFileDto,
+} from '../dto/create-folder.dto';
 import { FolderService } from '../services/folder.service';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 import { FileQueueService } from 'src/queue/services/file.queue.service';
@@ -42,6 +46,24 @@ export class FolderController {
       userId,
     );
     return ApiResponseDto.success('Folder created successfully', folder);
+  }
+
+  // get all files from folder module
+  @Get('files')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getAllFiles(
+    @CurrentUser('id') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+    @Query('folderId') folderId?: string,
+  ) {
+    const userFiles = folderId
+      ? await this.folderService.getFilesByFolder(userId, folderId, page, limit)
+      : await this.folderService.getALLFiles(userId, page, limit);
+    // const userFiles = await this.folderService.getALLFiles(userId, page, limit);
+    console.log('user files', userFiles);
+    return ApiResponseDto.success('Files fetched successfully', userFiles);
   }
 
   @Put(':id')
@@ -116,5 +138,43 @@ export class FolderController {
       renameFileDto.newName,
     );
     return ApiResponseDto.success('File renamed successfully', result);
+  }
+
+  // create
+  @Post('format/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: RenameFileDto })
+  @ApiOperation({ summary: 'Save file format to folder' })
+  @ApiBearerAuth('JWT-auth')
+  async createFormate(
+    @Param('id') folderId: string,
+    @Body() formatDto: FormatDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const result = await this.folderService.createFormat(
+      userId,
+      folderId,
+      formatDto.format,
+    );
+    return ApiResponseDto.success('Format Saved Successfully', result);
+  }
+
+  // update
+  @Put('format/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: RenameFileDto })
+  @ApiOperation({ summary: 'Save file format to folder' })
+  @ApiBearerAuth('JWT-auth')
+  async updateFormat(
+    @Param('id') folderId: string,
+    @Body() formatDto: FormatDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const result = await this.folderService.updateFormat(
+      userId,
+      folderId,
+      formatDto.format,
+    );
+    return ApiResponseDto.success('Format Updated Successfully', result);
   }
 }

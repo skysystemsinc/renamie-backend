@@ -9,7 +9,7 @@ export class Folder {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   userId: Types.ObjectId;
 
-  @Prop({ required: true})
+  @Prop({ required: true })
   name: string;
 
   @Prop({ type: [FilesSchema], default: [] })
@@ -17,6 +17,9 @@ export class Folder {
 
   @Prop({ type: [String], default: [] })
   emailSentBatches: string[];
+
+  @Prop({ type: String, default: '' })
+  format?: string;
 }
 
 export const FolderSchema = SchemaFactory.createForClass(Folder);

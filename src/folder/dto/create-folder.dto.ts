@@ -20,3 +20,10 @@ export class RenameFileDto {
   })
   newName: string;
 }
+
+
+export class FormatDto {
+  @ApiProperty({ example: 'PDF', description: 'The file format to save' })
+  @IsString()
+  format: string;
+}
