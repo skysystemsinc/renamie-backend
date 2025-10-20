@@ -44,6 +44,13 @@ export class Files {
   @Prop()
   batchId: string;
 
+
+  @Prop({ type: String, default: '' })
+  invoiceId: string;
+
+  @Prop({ type: String, default: '' })
+  invoiceDate: string;
+  
    @Prop({ type: String, default: null })
   reason: string | null;
 }
