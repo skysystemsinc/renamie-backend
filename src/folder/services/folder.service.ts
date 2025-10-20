@@ -15,7 +15,7 @@ export class FolderService {
   constructor(
     private readonly userService: UserService,
     private readonly folderRepository: FolderRepository,
-    private readonly s3Service: S3Service,
+    // private readonly s3Service: S3Service,
   ) {}
 
   async createFolder(createFoldersDto: CreateFoldersDto, userId: string) {
@@ -144,24 +144,24 @@ export class FolderService {
     return await this.folderRepository.findById(id);
   }
 
-  // rename file
-  async renameFileInFolder(fileId: string, newName: string) {
-    const fileRecord = await this.folderRepository.findFileById(fileId);
-    if (!fileRecord) throw new NotFoundException('File not found');
-    const oldKey = fileRecord.url;
-    const fileExtension = oldKey.substring(oldKey.lastIndexOf('.'));
-    const newKey = this.s3Service.generatekey(
-      `${newName}${fileExtension.toLowerCase()}`,
-    );
-    await this.s3Service.copyFile(oldKey, newKey);
-    await this.s3Service.deleteFile(oldKey);
-    await this.folderRepository.updateFileData(fileId, {
-      newName: `${newName}${fileExtension}`,
-      url: newKey,
-      rename_at: new Date(),
-    });
+  // // rename file
+  // async renameFileInFolder(fileId: string, newName: string) {
+  //   const fileRecord = await this.folderRepository.findFileById(fileId);
+  //   if (!fileRecord) throw new NotFoundException('File not found');
+  //   const oldKey = fileRecord.url;
+  //   const fileExtension = oldKey.substring(oldKey.lastIndexOf('.'));
+  //   const newKey = this.s3Service.generatekey(
+  //     `${newName}${fileExtension.toLowerCase()}`,
+  //   );
+  //   await this.s3Service.copyFile(oldKey, newKey);
+  //   await this.s3Service.deleteFile(oldKey);
+  //   await this.folderRepository.updateFileData(fileId, {
+  //     newName: `${newName}${fileExtension}`,
+  //     url: newKey,
+  //     rename_at: new Date(),
+  //   });
 
-    const updatedFile = await this.folderRepository.findFileById(fileId);
-    return updatedFile;
-  }
+  //   const updatedFile = await this.folderRepository.findFileById(fileId);
+  //   return updatedFile;
+  // }
 }

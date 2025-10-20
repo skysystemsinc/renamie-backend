@@ -77,7 +77,7 @@ export class FileProcessor2 extends WorkerHost {
       db.ref(`folders/${folderId}/files/${fileId}`).update({
         status: FileStatus.FAILED,
       });
-      // console.error(`Worker2 failed `, error.message);
+      console.error(`Worker2 failed `, error.message);
     }
   }
 }
