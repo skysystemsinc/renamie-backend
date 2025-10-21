@@ -193,7 +193,9 @@ export class StripeService {
     try {
       event = this.stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
     } catch (err) {
-      this.logger.error(`Webhook signature verification failed: ${err.message}`);
+      this.logger.error(
+        `Webhook signature verification failed: ${err.message}`,
+      );
       throw err;
     }
 
@@ -284,6 +286,7 @@ export class StripeService {
   private async handleSubscriptionCreated(
     subscription: Stripe.Subscription,
   ): Promise<void> {
+    console.log('created');
     this.logger.log(
       `Subscription created: ${subscription.id} for customer ${subscription.customer}`,
     );
@@ -401,6 +404,7 @@ export class StripeService {
     // TODO: Handle plan changes (upgrade/downgrade)
     // TODO: Update user access permissions
     // console.log('update');
+    // console.log('subs at stripe', subscription);
     this.logger.log(
       `Subscription updated: ${subscription.id} for customer ${subscription.customer}`,
     );
@@ -411,6 +415,88 @@ export class StripeService {
     if (!existingSubscription) {
       this.logger.log(`Subscription not found in DB: ${subscription.id}`);
       return;
+    }
+
+    const getUser = await this.userService.findById(
+      existingSubscription?.user.toString(),
+    );
+    if (!getUser) return;
+    const getplan = await this.planService.findById(
+      existingSubscription?.plan.toString(),
+    );
+    if (!getplan) return;
+
+    if (
+      existingSubscription?.status === SubscriptionStatus.ACTIVE &&
+      subscription?.status === SubscriptionStatus.ACTIVE
+    ) {
+      // console.log('true');
+      // console.log('existing sub', existingSubscription);
+      // console.log('subs in update', subscription);
+      // console.log('subs,data', subscription && subscription?.items?.data);
+      // console.log(
+      //   'subs,plan',
+      //   subscription && subscription?.items?.data?.[0]?.plan,
+      // );
+
+      const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+      const plan = await this.planService.findByStripePriceId(stripePriceId);
+      //  Update the subscription record in your DB
+      const startAt = new Date();
+      const expiresAt = new Date(startAt);
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+      const updatedSubscription = await this.subscriptionRepository.update(
+        existingSubscription.id,
+        {
+          plan: new Types.ObjectId(plan?.id),
+          status: mapStripeStatus(subscription?.status),
+          startedAt: startAt,
+          expiresAt: expiresAt,
+        },
+      );
+
+      // send subsc Updated email
+      // await this.sendgridService.sendSubsUpdatedEmail(
+      //   getUser?.email,
+      //   getUser?.firstName,
+      //   formatDate(updatedSubscription?.startedAt),
+      //   formatDate(updatedSubscription?.expiresAt),
+      //   getplan?.name,
+      // );
+
+      // Update subscription in Firebase as well
+      try {
+        const db = this.firebaseService.getDb();
+        const userId: string =
+          updatedSubscription?.user instanceof Types.ObjectId
+            ? updatedSubscription.user.toString()
+            : String(updatedSubscription?.user);
+
+        const subscriptionId: string =
+          updatedSubscription?._id instanceof Types.ObjectId
+            ? updatedSubscription._id.toString()
+            : String(updatedSubscription?._id);
+
+        const planId: string =
+          updatedSubscription?.plan instanceof Types.ObjectId
+            ? updatedSubscription?.plan.toString()
+            : String(updatedSubscription?.plan);
+
+        await db.ref(`users/${userId}/subscription`).set({
+          _id: subscriptionId,
+          plan: planId,
+          userId: userId,
+          status: subscription?.status,
+        });
+
+        this.logger.log(
+          `✅ Subscription updated in Firebase for user ${userId}`,
+        );
+      } catch (err) {
+        this.logger.error(
+          ` Failed to update subscription in Firebase: ${err.message}`,
+        );
+      }
     }
 
     if (
@@ -430,7 +516,6 @@ export class StripeService {
           expiresAt: subsEndAt,
         },
       );
-      console.log('updatedSubscription', updatedSubscription);
       if (!updatedSubscription) {
         this.logger.log(
           `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
@@ -440,15 +525,7 @@ export class StripeService {
       this.logger.log(
         `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
       );
-      // send trailing email
-      const getUser = await this.userService.findById(
-        existingSubscription?.user.toString(),
-      );
-      if (!getUser) return;
-      const getplan = await this.planService.findById(
-        existingSubscription?.plan.toString(),
-      );
-      if (!getplan) return;
+      // send subsc Active email
       await this.sendgridService.sendSubsActivationEmail(
         getUser?.email,
         getUser?.firstName,
@@ -613,4 +690,63 @@ export class StripeService {
 
   // async retriveStripeSubscription(
   // )
+
+  // create billing portal configuration
+  async createBillingPortalConfiguration(
+    allPriceAndProducts: { stripePriceId: string; stripeProductId: string }[],
+  ) {
+    try {
+      this.logger.log('Creating Stripe Billing Portal configuration');
+      const products = allPriceAndProducts.map((item) => ({
+        product: item.stripeProductId,
+        prices: [item.stripePriceId],
+      }));
+      const configuration =
+        await this.stripe.billingPortal.configurations.create({
+          features: {
+            subscription_update: {
+              default_allowed_updates: ['price'],
+              enabled: true,
+              proration_behavior: 'none',
+              products: products,
+            },
+            payment_method_update: {
+              enabled: true,
+            },
+          },
+          default_return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?success`,
+          name: `Subscription Update for customer`,
+        });
+      this.logger.log(
+        `Created billing portal configuration: ${configuration.id}`,
+      );
+      return configuration;
+    } catch (error) {
+      console.log('error', error);
+      throw new Error(
+        `Failed to create billing portal configuration: ${error.message}`,
+      );
+    }
+  }
+
+  // create billing portal session
+  async createBillingPortalSession(configurationId: string, customer: string) {
+    try {
+      this.logger.log('Creating Stripe Billing Portal configuration');
+      const session = await this.stripe.billingPortal.sessions.create({
+        customer: customer,
+        return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?success`,
+        configuration: configurationId,
+      });
+
+      this.logger.log(`Created billing portal session: ${session.id}`);
+      console.log('session', session);
+      return session;
+    } catch (error) {
+      console.log('error', error);
+      throw new Error(
+        `Failed to create billing portal session: ${error.message}`,
+      );
+    }
+  }
 }

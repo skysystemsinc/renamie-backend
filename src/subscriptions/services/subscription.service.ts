@@ -31,11 +31,12 @@ export class SubscriptionService {
     userId: string,
   ) {
     // check if user exists
+    console.log('create');
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
+  console.log('user',user);
     // check if plan exists
     const plan = await this.planService.findById(createSubscriptionDto.planId);
     if (!plan) {
@@ -50,24 +51,48 @@ export class SubscriptionService {
         user as UserDocument,
         plan.name,
       );
-
       // Update user with Stripe Customer ID
       await this.userService.update(userId, {
         stripeCustomerId: customer,
       } as UpdateUserDto);
     }
 
-    const subscription = await this.subscriptionRepository.create({
-      plan: new Types.ObjectId(plan.id),
-      user: new Types.ObjectId(userId),
-      status: SubscriptionStatus.PENDING,
-    });
-    const checkoutSession = await this.stripeService.createCheckoutSession(
-      customer,
-      plan.stripePriceId,
-      subscription.id,
-    );
-    return checkoutSession;
+    // Find User active subscription
+    const userSubs = await this.subscriptionRepository.findByUserId(userId);
+
+    // if found update subscription
+    if (userSubs) {
+      const allPriceAndProducts =
+        await this.planService.findAllPriceAndProduct();
+      // console.log('allPriceAndProducts ', allPriceAndProducts);
+
+      // create stripe configuration
+      const configuration =
+        await this.stripeService.createBillingPortalConfiguration(
+          allPriceAndProducts,
+        );
+
+      // create stripe customer portal
+      if (configuration?.id) {
+        const session = await this.stripeService.createBillingPortalSession(
+          configuration?.id,
+          customer,
+        );
+        return session;
+      }
+    } else {
+      const subscription = await this.subscriptionRepository.create({
+        plan: new Types.ObjectId(plan.id),
+        user: new Types.ObjectId(userId),
+        status: SubscriptionStatus.PENDING,
+      });
+      const checkoutSession = await this.stripeService.createCheckoutSession(
+        customer,
+        plan.stripePriceId,
+        subscription.id,
+      );
+      return checkoutSession;
+    }
     // return this.paymentService.createPayment(createSubscriptionDto as CreatePaymentDto, userId);
   }
 
