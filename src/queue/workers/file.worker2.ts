@@ -76,6 +76,8 @@ export class FileProcessor2 extends WorkerHost {
           {
             $set: {
               'files.$.status': FileStatus.COMPLETED,
+              'files.$.invoiceId': invoiceId,
+              'files.$.invoiceDate': invoiceDate,
             },
             $push: { 'files.$.metadata': { $each: mappedMetadata } },
           },

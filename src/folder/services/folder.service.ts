@@ -183,26 +183,22 @@ export class FolderService {
     return updatedFolder;
   }
 
-  private reverseFileName(oldName: string, format: string | undefined): string {
-    const nameWithoutExt = oldName.replace(/\.[^/.]+$/, '');
-    const parts = nameWithoutExt.split('-');
-    if (parts.length < 2) return nameWithoutExt;
-    const [first, second] = parts;
-
-    const firstIsInvoice = /^\d+$/.test(first);
-    const secondIsInvoice = /^\d+$/.test(second);
-
+  private reverseFileName(
+    invoiceId: string,
+    invoiceDate: string,
+    format: string | undefined,
+  ): string {
+    // console.log('old name', oldName);
+    console.log('format', format);
     if (format?.toLowerCase() === 'date-invoice') {
-      if (!firstIsInvoice && secondIsInvoice) return nameWithoutExt;
-      if (firstIsInvoice && !secondIsInvoice) return `${second}-${first}`;
+      return `${invoiceDate}-${invoiceId}`;
     }
 
     if (format?.toLowerCase() === 'invoice-date') {
-      if (firstIsInvoice && !secondIsInvoice) return nameWithoutExt;
-      if (!firstIsInvoice && secondIsInvoice) return `${second}-${first}`;
+      return `${invoiceId}-${invoiceDate}`;
     }
 
-    return nameWithoutExt;
+    return `${invoiceId}-${invoiceDate}`;
   }
 
   //  update format
@@ -229,7 +225,8 @@ export class FolderService {
 
       for (const file of completedFiles) {
         const newFormattedName = this.reverseFileName(
-          file.newName,
+          file?.invoiceId,
+          file?.invoiceDate,
           updatedFolder?.format,
         );
         await this.s3Service.renameFileInFolder(
@@ -242,37 +239,39 @@ export class FolderService {
   }
 
   // get All files that has completed status
-  async getALLFiles(userId: string, page = 1,
-    limit = 10,) {
+  async getALLFiles(userId: string, page = 1, limit = 10) {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const allFiles = await this.folderRepository.getAllCompletedFiles(userId, page, limit);
+    const allFiles = await this.folderRepository.getAllCompletedFiles(
+      userId,
+      page,
+      limit,
+    );
     return allFiles;
   }
 
   async getFilesByFolder(
-  userId: string,
-  folderId: string,
-  page = 1,
-  limit = 10,
-) {
-  const user = await this.userService.findById(userId);
-  if (!user) throw new NotFoundException('User not found');
+    userId: string,
+    folderId: string,
+    page = 1,
+    limit = 10,
+  ) {
+    const user = await this.userService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
 
-   const folder = await this.folderRepository.findById(folderId);
+    const folder = await this.folderRepository.findById(folderId);
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
-  const folderFiles = await this.folderRepository.getFilesByFolder(
-    userId,
-    folderId,
-    page,
-    limit,
-  );
+    const folderFiles = await this.folderRepository.getFilesByFolder(
+      userId,
+      folderId,
+      page,
+      limit,
+    );
 
-  return folderFiles;
-}
-
+    return folderFiles;
+  }
 }
