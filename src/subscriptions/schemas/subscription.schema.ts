@@ -28,7 +28,7 @@ export class Subscription {
   @Prop({
     required: true,
     enum: SubscriptionStatus,
-    default: SubscriptionStatus.TRIALING,
+    default: SubscriptionStatus.PENDING,
   })
   status: SubscriptionStatus;
 

@@ -14,11 +14,13 @@ import { UserDocument } from 'src/users/schemas/user.schema';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { SubscriptionStatus } from '../schemas/subscription.schema';
 import Stripe from 'stripe';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SubscriptionService {
   private stripe: Stripe;
   constructor(
+    private readonly configService: ConfigService,
     private readonly subscriptionRepository: SubscriptionRepository,
     private readonly paymentService: PaymentService,
     private readonly planService: PlanService,
@@ -31,12 +33,11 @@ export class SubscriptionService {
     userId: string,
   ) {
     // check if user exists
-    console.log('create');
+
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-  console.log('user',user);
     // check if plan exists
     const plan = await this.planService.findById(createSubscriptionDto.planId);
     if (!plan) {
@@ -58,29 +59,52 @@ export class SubscriptionService {
     }
 
     // Find User active subscription
-    const userSubs = await this.subscriptionRepository.findByUserId(userId);
-
+    const userSubs =
+      await this.subscriptionRepository.findBySubsWithActiveAndTrialingStatus(
+        userId,
+      );
     // if found update subscription
     if (userSubs) {
       const allPriceAndProducts =
         await this.planService.findAllPriceAndProduct();
-      // console.log('allPriceAndProducts ', allPriceAndProducts);
-
       // create stripe configuration
+      const products = allPriceAndProducts.map((item) => ({
+        product: item.stripeProductId,
+        prices: [item.stripePriceId],
+      }));
+      const config = {
+        features: {
+          subscription_update: {
+            default_allowed_updates: ['price'],
+            enabled: true,
+            proration_behavior: 'none',
+            products: products,
+          },
+          payment_method_update: {
+            enabled: true,
+          },
+        },
+        default_return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?success`,
+        name: `Subscription Update for customer`,
+      };
       const configuration =
-        await this.stripeService.createBillingPortalConfiguration(
-          allPriceAndProducts,
-        );
+        await this.stripeService.createBillingPortalConfiguration(config);
 
       // create stripe customer portal
       if (configuration?.id) {
-        const session = await this.stripeService.createBillingPortalSession(
-          configuration?.id,
-          customer,
-        );
+        const sessionConfig = {
+          customer: customer,
+          return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?success`,
+          configuration: configuration?.id,
+        };
+        const session =
+          await this.stripeService.createBillingPortalSession(sessionConfig);
         return session;
       }
     } else {
+      let existingSubscription =
+        await this.subscriptionRepository.findSubsByUserId(userId);
+      const previousSubs = existingSubscription ? true : false;
       const subscription = await this.subscriptionRepository.create({
         plan: new Types.ObjectId(plan.id),
         user: new Types.ObjectId(userId),
@@ -90,6 +114,7 @@ export class SubscriptionService {
         customer,
         plan.stripePriceId,
         subscription.id,
+        previousSubs,
       );
       return checkoutSession;
     }
@@ -101,19 +126,44 @@ export class SubscriptionService {
   }
 
   // cencel susbcription
-  async cancelSubscription(id: string) {
+  async cancelSubscription(id: string, userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    let customer = user.stripeCustomerId;
     const subscription = await this.subscriptionRepository.findById(id);
     if (!subscription) {
       throw new NotFoundException('subscription not found');
     }
-    if (!subscription.stripeSubscriptionId) {
-      throw new BadRequestException(
-        'Stripe subscription id missing in DB record',
-      );
+    const config = {
+      features: {
+        subscription_cancel: {
+          enabled: true,
+          mode: 'at_period_end',
+          proration_behavior: 'none',
+        },
+      },
+      default_return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?cancel`,
+      name: `Subscription Update for customer`,
+    };
+    const configuration =
+      await this.stripeService.createBillingPortalConfiguration(config);
+
+    if (configuration?.id) {
+      const sessionConfig = {
+        customer: customer,
+        return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?cancel`,
+        configuration: configuration?.id,
+      };
+      const session =
+        await this.stripeService.createBillingPortalSession(sessionConfig);
+      return session;
     }
-    const stripeSubscriptionId = subscription?.stripeSubscriptionId;
-    return await this.stripeService.updateStripeSubscription(
-      stripeSubscriptionId,
-    );
+
+    // const stripeSubscriptionId = subscription?.stripeSubscriptionId;
+    // return await this.stripeService.updateStripeSubscription(
+    //   stripeSubscriptionId,
+    // );
   }
 }
