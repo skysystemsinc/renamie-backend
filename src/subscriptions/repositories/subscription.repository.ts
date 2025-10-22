@@ -42,11 +42,28 @@ export class SubscriptionRepository {
       .exec();
   }
 
+  async findSubsByUserId(userId: string): Promise<SubscriptionDocument | null> {
+    return this.subscriptionModel
+      .findOne({
+        user: new Types.ObjectId(userId),
+        status: SubscriptionStatus.CANCELED,
+      })
+      .exec();
+  }
   async findByUserId(userId: string): Promise<SubscriptionDocument | null> {
     return this.subscriptionModel
       .findOne({
         user: new Types.ObjectId(userId),
         status: SubscriptionStatus.ACTIVE,
+      })
+      .exec();
+  }
+
+   async findBySubsWithActiveAndTrialingStatus(userId: string): Promise<SubscriptionDocument | null> {
+    return this.subscriptionModel
+      .findOne({
+        user: new Types.ObjectId(userId),
+        status: { $in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
       })
       .exec();
   }

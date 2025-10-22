@@ -134,12 +134,23 @@ export class StripeService {
     customerId: string,
     priceId: string,
     subscriptionId: string,
+    previousSubs: boolean,
   ): Promise<Stripe.Checkout.Session> {
     try {
       this.logger.log(
         `Creating Stripe checkout session for customer ${customerId}`,
       );
+      const subscriptionData: any = {
+        metadata: {
+          subscriptionId,
+          customerId,
+          priceId,
+        },
+      };
 
+      if (!previousSubs) {
+        subscriptionData.trial_period_days = 15;
+      }
       return await this.stripe.checkout.sessions.create({
         customer: customerId,
         line_items: [{ price: priceId, quantity: 1 }],
@@ -156,14 +167,7 @@ export class StripeService {
           description: 'Subscription for Plan',
         },
 
-        subscription_data: {
-          trial_period_days: 15,
-          metadata: {
-            subscriptionId,
-            customerId,
-            priceId,
-          },
-        },
+        subscription_data: subscriptionData,
       });
     } catch (error) {
       this.logger.error(`Error creating Stripe subscription: ${error.message}`);
@@ -286,7 +290,6 @@ export class StripeService {
   private async handleSubscriptionCreated(
     subscription: Stripe.Subscription,
   ): Promise<void> {
-    console.log('created');
     this.logger.log(
       `Subscription created: ${subscription.id} for customer ${subscription.customer}`,
     );
@@ -306,17 +309,94 @@ export class StripeService {
       this.logger.log(`Subscription not found in DB: ${subscription.id}`);
       return;
     }
+    if (
+      existingSubscription?.status === SubscriptionStatus.PENDING &&
+      subscription?.status === SubscriptionStatus.ACTIVE
+    ) {
+      const startAt = new Date();
+      const expiresAt = new Date(startAt);
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+      const updatedSubscription = await this.subscriptionRepository.update(
+        existingSubscription.id,
+        {
+          status: mapStripeStatus(subscription?.status),
+          startedAt: startAt,
+          expiresAt: expiresAt,
+          stripeSubscriptionId: subscription?.id,
+        },
+      );
+      if (!updatedSubscription) {
+        this.logger.log(
+          `Subscription not updated at Active: ${subscription.id} for customer ${subscription.customer}`,
+        );
+        return;
+      }
 
-    const subsStartAt = new Date(subscription.start_date * 1000);
-    let subsEndAt = new Date();
-    if (subscription.items.data[0].plan.interval === 'month') {
-      subsEndAt.setDate(subsStartAt.getDate() + 30);
+      this.logger.log(
+        `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
+      );
+
+      // send trailing email
+      const getUser = await this.userService.findById(
+        existingSubscription?.user.toString(),
+      );
+      if (!getUser) return;
+      const getplan = await this.planService.findById(
+        existingSubscription?.plan.toString(),
+      );
+      if (!getplan) return;
+
+      // send subsc Updated email
+      // await this.sendgridService.sendSubsUpdatedEmail(
+      //   getUser?.email,
+      //   getUser?.firstName,
+      //   formatDate(updatedSubscription?.startedAt),
+      //   formatDate(updatedSubscription?.expiresAt),
+      //   getplan?.name,
+      // );
+
+      //   // Save subscription in Firebase
+      try {
+        const db = this.firebaseService.getDb();
+        const userId: string =
+          updatedSubscription.user instanceof Types.ObjectId
+            ? updatedSubscription.user.toString()
+            : String(updatedSubscription.user);
+        const subscriptionId: string =
+          updatedSubscription._id instanceof Types.ObjectId
+            ? updatedSubscription._id.toString()
+            : String(updatedSubscription._id);
+
+        const planId: string =
+          updatedSubscription.plan instanceof Types.ObjectId
+            ? updatedSubscription.plan.toString()
+            : String(updatedSubscription.plan);
+
+        await db.ref(`users/${userId}/subscription`).set({
+          _id: subscriptionId,
+          plan: planId,
+          userId: userId,
+          status: subscription?.status,
+        });
+
+        this.logger.log(` Subscription stored in Firebase for user ${userId}`);
+      } catch (err) {
+        this.logger.error(
+          `Failed to save subscription in   Firebase: ${err.message}`,
+        );
+      }
     }
 
+    // when first time user subscribed to a plan
     if (
       existingSubscription?.status === SubscriptionStatus.PENDING &&
       subscription?.status === SubscriptionStatus.TRIALING
     ) {
+      const subsStartAt = new Date(subscription.start_date * 1000);
+      let subsEndAt = new Date();
+      if (subscription.items.data[0].plan.interval === 'month') {
+        subsEndAt.setDate(subsStartAt.getDate() + 30);
+      }
       if (subscription && subscription?.trial_start) {
         const trailStartDate = new Date(subscription?.trial_start * 1000);
         const trialExpiresAt = new Date(trailStartDate);
@@ -430,18 +510,9 @@ export class StripeService {
       existingSubscription?.status === SubscriptionStatus.ACTIVE &&
       subscription?.status === SubscriptionStatus.ACTIVE
     ) {
-      // console.log('true');
-      // console.log('existing sub', existingSubscription);
-      // console.log('subs in update', subscription);
-      // console.log('subs,data', subscription && subscription?.items?.data);
-      // console.log(
-      //   'subs,plan',
-      //   subscription && subscription?.items?.data?.[0]?.plan,
-      // );
-
       const stripePriceId = subscription.items?.data?.[0]?.price?.id;
       const plan = await this.planService.findByStripePriceId(stripePriceId);
-      //  Update the subscription record in your DB
+      //  Update the subscription record in  DB
       const startAt = new Date();
       const expiresAt = new Date(startAt);
       expiresAt.setMonth(expiresAt.getMonth() + 1);
@@ -489,9 +560,7 @@ export class StripeService {
           status: subscription?.status,
         });
 
-        this.logger.log(
-          `✅ Subscription updated in Firebase for user ${userId}`,
-        );
+        this.logger.log(` Subscription updated in Firebase for user ${userId}`);
       } catch (err) {
         this.logger.error(
           ` Failed to update subscription in Firebase: ${err.message}`,
@@ -499,10 +568,14 @@ export class StripeService {
       }
     }
 
+    // when updating subs in trial period
     if (
       existingSubscription?.status === SubscriptionStatus.TRIALING &&
       subscription?.status === SubscriptionStatus.ACTIVE
     ) {
+      const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+      const plan = await this.planService.findByStripePriceId(stripePriceId);
+      //
       const subsStartAt = existingSubscription?.trialExpiresAt;
       let subsEndAt = new Date();
       if (subscription.items.data[0].plan.interval === 'month') {
@@ -511,6 +584,7 @@ export class StripeService {
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
         {
+          plan: new Types.ObjectId(plan?.id),
           status: mapStripeStatus(subscription?.status),
           startedAt: subsStartAt,
           expiresAt: subsEndAt,
@@ -574,7 +648,8 @@ export class StripeService {
     this.logger.log(
       `Subscription deleted: ${subscription.id} for customer ${subscription.customer}`,
     );
-
+    console.log('delete');
+    console.log('subs', subscription);
     // TODO: Revoke premium access
     // TODO: Update user subscription status to inactive
     // TODO: Send cancellation confirmation email
@@ -597,17 +672,32 @@ export class StripeService {
         canceledAt: new Date(),
       },
     );
-
     if (!updatedSubscription) {
       this.logger.error(
         `Failed to update local subscription status for deleted ID: ${existingSubscription.id}`,
       );
       return;
     }
-
+    const getUser = await this.userService.findById(
+      updatedSubscription?.user.toString(),
+    );
+    if (!getUser) return;
+    const getplan = await this.planService.findById(
+      updatedSubscription?.plan.toString(),
+    );
+    if (!getplan) return;
     this.logger.log(
       `Subscription ${updatedSubscription.id} successfully marked as CANCELED in DB.`,
     );
+
+    // send subsc Cancel email
+    // await this.sendgridService.sendSubsUpdatedEmail(
+    //   getUser?.email,
+    //   getUser?.firstName,
+    //   formatDate(updatedSubscription?.startedAt),
+    //   formatDate(updatedSubscription?.canceledAt),
+    //   getplan?.name,
+    // );
 
     try {
       const db = this.firebaseService.getDb();
@@ -688,35 +778,12 @@ export class StripeService {
     // TODO: Handle one-time payment cancellation
   }
 
-  // async retriveStripeSubscription(
-  // )
-
   // create billing portal configuration
-  async createBillingPortalConfiguration(
-    allPriceAndProducts: { stripePriceId: string; stripeProductId: string }[],
-  ) {
+  async createBillingPortalConfiguration(config: any) {
     try {
       this.logger.log('Creating Stripe Billing Portal configuration');
-      const products = allPriceAndProducts.map((item) => ({
-        product: item.stripeProductId,
-        prices: [item.stripePriceId],
-      }));
       const configuration =
-        await this.stripe.billingPortal.configurations.create({
-          features: {
-            subscription_update: {
-              default_allowed_updates: ['price'],
-              enabled: true,
-              proration_behavior: 'none',
-              products: products,
-            },
-            payment_method_update: {
-              enabled: true,
-            },
-          },
-          default_return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?success`,
-          name: `Subscription Update for customer`,
-        });
+        await this.stripe.billingPortal.configurations.create(config);
       this.logger.log(
         `Created billing portal configuration: ${configuration.id}`,
       );
@@ -730,14 +797,17 @@ export class StripeService {
   }
 
   // create billing portal session
-  async createBillingPortalSession(configurationId: string, customer: string) {
+  async createBillingPortalSession(sessionConfig: any) {
     try {
       this.logger.log('Creating Stripe Billing Portal configuration');
-      const session = await this.stripe.billingPortal.sessions.create({
-        customer: customer,
-        return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?success`,
-        configuration: configurationId,
-      });
+      const session = await this.stripe.billingPortal.sessions.create(
+        sessionConfig,
+        //   {
+        //   customer: customer,
+        //   return_url: `${this.configService.get('FRONTEND_URL')}/dashboard/pricing?success`,
+        //   configuration: configurationId,
+        // }
+      );
 
       this.logger.log(`Created billing portal session: ${session.id}`);
       console.log('session', session);

@@ -41,13 +41,7 @@ export class SubscriptionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Cancel a subscription' })
   @ApiBearerAuth('JWT-auth')
-  async cancel(@Param('id') id: string) {
-    console.log('subscriptionId', id);
-    const updatedSubs = await this.subscriptionService.cancelSubscription(id);
-    return {
-      success: true,
-      message: 'Subscription cancel_at_period_end updated successfully',
-      data: updatedSubs,
-    };
+  async cancel(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return await this.subscriptionService.cancelSubscription(id, userId);
   }
 }
