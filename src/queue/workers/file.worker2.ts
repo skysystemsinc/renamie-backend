@@ -24,6 +24,64 @@ export class FileProcessor2 extends WorkerHost {
     super();
   }
 
+  private async handleFailedFile(
+    folderId: string,
+    fileId: string,
+    fileUrl: string,
+    mappedMetadata: any[],
+  ) {
+    const db = this.firebaseService.getDb();
+    await this.folderModel.updateOne(
+      { _id: folderId, 'files._id': fileId },
+      {
+        $set: {
+          'files.$.status': FileStatus.FAILED,
+          'files.$.reason':
+            'Missing invoiceReceiptId or invoiceReceiptDate during renaming.',
+        },
+        $push: { 'files.$.metadata': { $each: mappedMetadata } },
+      },
+    );
+
+    db.ref(`folders/${folderId}/files/${fileId}`).update({
+      url: fileUrl,
+      status: FileStatus.FAILED,
+      metadata: mappedMetadata,
+      reason: 'Missing invoiceReceiptId or invoiceReceiptDate during renaming.',
+    });
+  }
+
+  private async handleSuccessRename(
+    folderId: string,
+    fileId: string,
+    newName: string,
+    invoiceId: string,
+    invoiceDate: string,
+    mappedMetadata: any[],
+  ) {
+    await this.folderModel.updateOne(
+      { _id: folderId, 'files._id': fileId },
+      {
+        $set: {
+          'files.$.status': FileStatus.COMPLETED,
+          'files.$.invoiceId': invoiceId,
+          'files.$.invoiceDate': invoiceDate,
+        },
+        $push: { 'files.$.metadata': { $each: mappedMetadata } },
+      },
+    );
+    const db = this.firebaseService.getDb();
+    const updatedFile = await this.s3Service.renameFileInFolder(
+      fileId,
+      newName,
+    );
+    db.ref(`folders/${folderId}/files/${fileId}`).update({
+      status: FileStatus.COMPLETED,
+      newName: updatedFile?.newName,
+      url: updatedFile?.url,
+    });
+  }
+
   async process(job: Job) {
     const { fileUrl, folderId, fileId, batchId } = job.data;
     // console.log('in work 2');
@@ -52,62 +110,73 @@ export class FileProcessor2 extends WorkerHost {
       const firstMetadata = mappedMetadata?.[0];
       const invoiceId = firstMetadata?.invoiceReceiptId?.trim();
       const invoiceDate = firstMetadata?.invoiceReceiptDate?.trim();
-      if (!invoiceId || !invoiceDate) {
-        await this.folderModel.updateOne(
-          { _id: folderId, 'files._id': fileId },
-          {
-            $set: {
-              'files.$.status': FileStatus.FAILED,
-              'files.$.reason':
-                'Missing invoiceReceiptId or invoiceReceiptDate during renaming.',
-            },
-            $push: { 'files.$.metadata': { $each: mappedMetadata } },
-          },
-        );
+      if (
+        folder?.format === 'Invoice-Date' ||
+        folder?.format === 'Date-Invoice'
+      ) {
+        if (!invoiceId || !invoiceDate) {
+          await this.handleFailedFile(
+            folderId,
+            fileId,
+            fileUrl,
+            mappedMetadata ?? [],
+          );
+        } else {
+          const newName =
+            folder.format === 'Invoice-Date'
+              ? `${invoiceId}-${invoiceDate}`
+              : `${invoiceDate}-${invoiceId}`;
 
-        db.ref(`folders/${folderId}/files/${fileId}`).update({
-          status: FileStatus.FAILED,
-          reason:
-            'Missing invoiceReceiptId or invoiceReceiptDate during renaming.',
-        });
-      } else {
-        await this.folderModel.updateOne(
-          { _id: folderId, 'files._id': fileId },
-          {
-            $set: {
-              'files.$.status': FileStatus.COMPLETED,
-              'files.$.invoiceId': invoiceId,
-              'files.$.invoiceDate': invoiceDate,
-            },
-            $push: { 'files.$.metadata': { $each: mappedMetadata } },
-          },
-        );
-        let newName;
-        if (folder?.format === 'Invoice-Date') {
-          let newName = `${invoiceId}-${invoiceDate}`;
-          const updatedFile = await this.s3Service.renameFileInFolder(
+          await this.handleSuccessRename(
+            folderId,
             fileId,
             newName,
+            invoiceId,
+            invoiceDate,
+            mappedMetadata ?? [],
           );
+        }
+      }
 
-          db.ref(`folders/${folderId}/files/${fileId}`).update({
-            status: FileStatus.COMPLETED,
-            newName: updatedFile?.newName,
-            url: updatedFile?.url,
-          });
-        } else if (folder?.format === 'Date-Invoice') {
-          let newName = `${invoiceDate}-${invoiceId}`;
-          const updatedFile = await this.s3Service.renameFileInFolder(
+      if (folder?.format === 'Invoice') {
+        if (!invoiceId) {
+          await this.handleFailedFile(
+            folderId,
+            fileId,
+            fileUrl,
+            mappedMetadata ?? [],
+          );
+        } else {
+          let newName = `${invoiceId}`;
+          await this.handleSuccessRename(
+            folderId,
             fileId,
             newName,
+            invoiceId,
+            invoiceDate ?? '',
+            mappedMetadata ?? [],
           );
+        }
+      }
 
-          // console.log('updatedFile', updatedFile);
-          db.ref(`folders/${folderId}/files/${fileId}`).update({
-            status: FileStatus.COMPLETED,
-            newName: updatedFile?.newName,
-            url: updatedFile?.url,
-          });
+      if (folder?.format === 'Date') {
+        if (!invoiceDate) {
+          await this.handleFailedFile(
+            folderId,
+            fileId,
+            fileUrl,
+            mappedMetadata ?? [],
+          );
+        } else {
+          let newName = `${invoiceDate}`;
+          await this.handleSuccessRename(
+            folderId,
+            fileId,
+            newName,
+            invoiceId ?? '',
+            invoiceDate,
+            mappedMetadata ?? [],
+          );
         }
       }
 
