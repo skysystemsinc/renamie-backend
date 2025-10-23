@@ -44,4 +44,13 @@ export class SubscriptionController {
   async cancel(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return await this.subscriptionService.cancelSubscription(id, userId);
   }
+
+  @Get('billing')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Invoice History' })
+  async billingPortal(@CurrentUser('id') userId: string) {
+    console.log('user id ', userId);
+    return await this.subscriptionService.createBillingPortal(userId);
+  }
 }
