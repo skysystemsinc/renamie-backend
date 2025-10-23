@@ -166,4 +166,37 @@ export class SubscriptionService {
     //   stripeSubscriptionId,
     // );
   }
+
+  // billing
+  async createBillingPortal(userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    let customer = user.stripeCustomerId;
+    const config = {
+      features: {
+        invoice_history: {
+          enabled: true,
+        },
+      },
+      default_return_url: `${this.configService.get('FRONTEND_URL')}/dashboard`,
+      name: `Billing`,
+    };
+    const configuration =
+      await this.stripeService.createBillingPortalConfiguration(config);
+
+    // console.log('configuartion', configuration);
+    if (configuration?.id) {
+      const sessionConfig = {
+        customer: customer,
+        return_url: `${this.configService.get('FRONTEND_URL')}/dashboard`,
+        configuration: configuration?.id,
+      };
+      const session =
+        await this.stripeService.createBillingPortalSession(sessionConfig);
+      console.log('session', session);
+      return session;
+    }
+  }
 }
