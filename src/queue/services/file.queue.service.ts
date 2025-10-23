@@ -83,11 +83,13 @@ export class FileQueueService implements OnModuleInit {
       );
 
       db.ref(`folders/${folderId}/files/${fileId}`).update({
+        url: fileUrl,
         status: FileStatus.PROCESSING,
       });
     } catch (error) {
       console.log('error', error);
       db.ref(`folders/${folderId}/files/${fileId}`).update({
+        url: fileUrl,
         status: FileStatus.FAILED,
       });
       throw new Error(`Failed to add file to queue: ${error}`);

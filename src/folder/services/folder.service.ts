@@ -188,14 +188,18 @@ export class FolderService {
     invoiceDate: string,
     format: string | undefined,
   ): string {
-    // console.log('old name', oldName);
-    console.log('format', format);
     if (format?.toLowerCase() === 'date-invoice') {
       return `${invoiceDate}-${invoiceId}`;
     }
 
     if (format?.toLowerCase() === 'invoice-date') {
       return `${invoiceId}-${invoiceDate}`;
+    }
+    if (format?.toLowerCase() === 'invoice') {
+      return `${invoiceId}`;
+    }
+    if (format?.toLowerCase() === 'date') {
+      return `${invoiceDate}`;
     }
 
     return `${invoiceId}-${invoiceDate}`;
@@ -217,7 +221,6 @@ export class FolderService {
       folderId,
       format,
     );
-
     if (updatedFolder?._id) {
       const completedFiles = await this.folderRepository.getCompletedFiles(
         updatedFolder._id.toString(),

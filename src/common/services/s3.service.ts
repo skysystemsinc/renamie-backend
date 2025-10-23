@@ -61,7 +61,6 @@ export class S3Service {
   private readonly bucketName: string;
 
   constructor(
-    
     private configService: ConfigService,
     private readonly folderService: FolderService,
     private readonly firebaseService: FirebaseService,
@@ -408,7 +407,8 @@ export class S3Service {
   }
 
   // rename file
-  async renameFileInFolder(fileId: string, newName: string) {
+  async renameFileInFolder(fileId: string, newName: string, ) {
+
     const fileRecord = await this.folderRepository.findFileById(fileId);
     if (!fileRecord) throw new NotFoundException('File not found');
     const oldKey = fileRecord.url;
