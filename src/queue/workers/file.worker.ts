@@ -84,25 +84,34 @@ export class FileProcessor extends WorkerHost {
 
   async process(job: Job) {
     const { fileUrl, folderId, fileId, batchId } = job.data;
-    // console.log('batch id in work 1', batchId);
     try {
       const folder = await this.folderRepository.findById(folderId);
       const jobId = await this.textractService.startInvoiceAnalysis(fileUrl);
       const results = await this.textractService.getInvoiceAnalysis(jobId);
-      const mappedMetadata = results?.map((r) => ({
-        address: r.ADDRESS ?? '',
-        street: r.STREET ?? '',
-        city: r.CITY ?? '',
-        state: r.STATE ?? '',
-        zipCode: r.ZIP_CODE ?? '',
-        name: r.NAME ?? '',
-        addressBlock: r.ADDRESS_BLOCK ?? '',
-        customerNumber: r.CUSTOMER_NUMBER ?? '',
-        invoiceReceiptDate: r.INVOICE_RECEIPT_DATE ?? '',
-        invoiceReceiptId: r.INVOICE_RECEIPT_ID ?? '',
-        receiverAddress: r.RECEIVER_ADDRESS ?? '',
-        receiverName: r.RECEIVER_NAME ?? '',
-      }));
+      const mappedMetadata = Array.isArray(results)
+        ? results.map((r) => ({
+            address: r.ADDRESS ?? '',
+            street: r.STREET ?? '',
+            city: r.CITY ?? '',
+            state: r.STATE ?? '',
+            zipCode: r.ZIP_CODE ?? '',
+            addressBlock: r.ADDRESS_BLOCK ?? '',
+            name: r.NAME ?? '',
+            customerNumber: r.CUSTOMER_NUMBER ?? '',
+            invoiceReceiptDate: r.INVOICE_RECEIPT_DATE ?? '',
+            invoiceReceiptId: r.INVOICE_RECEIPT_ID ?? '',
+            orderDate: r.ORDER_DATE ?? '',
+            paymentTerms: r.PAYMENT_TERMS ?? '',
+            receiverName: r.RECEIVER_NAME ?? '',
+            subtotal: r.SUBTOTAL ?? '',
+            total: r.TOTAL ?? '',
+            vendorAddress: r.VENDOR_ADDRESS ?? '',
+            vendorName: r.VENDOR_NAME ?? '',
+            vendorPhone: r.VENDOR_PHONE ?? '',
+            vendorUrl: r.VENDOR_URL ?? '',
+            other: r.OTHER ?? '',
+          }))
+        : [];
       const db = this.firebaseService.getDb();
       db.ref(`folders/${folderId}/files/${fileId}`).set({
         metadata: mappedMetadata,
@@ -110,6 +119,7 @@ export class FileProcessor extends WorkerHost {
       const firstMetadata = mappedMetadata?.[0];
       const invoiceId = firstMetadata?.invoiceReceiptId?.trim();
       const invoiceDate = firstMetadata?.invoiceReceiptDate?.trim();
+
       if (
         folder?.format === 'Invoice-Date' ||
         folder?.format === 'Date-Invoice'
