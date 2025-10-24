@@ -45,6 +45,10 @@ export class User {
 
   @Prop()
   emailVerifiedAt?: Date;
+
+  // property for folder count
+  @Prop({ default: 0 })
+  folderCount: number;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

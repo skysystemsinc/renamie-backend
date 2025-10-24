@@ -109,6 +109,7 @@ export class SubscriptionService {
         plan: new Types.ObjectId(plan.id),
         user: new Types.ObjectId(userId),
         status: SubscriptionStatus.PENDING,
+        features: plan?.features,
       });
       const checkoutSession = await this.stripeService.createCheckoutSession(
         customer,
@@ -198,5 +199,10 @@ export class SubscriptionService {
       console.log('session', session);
       return session;
     }
+  }
+
+  // find
+  async findSubsByUserId(userId: string) {
+    return this.subscriptionRepository.findUserSubs(userId);
   }
 }

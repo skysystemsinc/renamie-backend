@@ -28,6 +28,7 @@ import { FirebaseService } from 'src/firebase/firebase.service';
 import { FolderRepository } from 'src/folder/repositories/folder.repository';
 import { FileQueueService } from 'src/queue/services/file.queue.service';
 import { UserService } from 'src/users/services/user.service';
+import { SubscriptionService } from 'src/subscriptions/services/subscription.service';
 
 export interface S3UploadOptions {
   acl?: 'public-read' | 'private';
@@ -67,6 +68,7 @@ export class S3Service {
     private readonly folderRepository: FolderRepository,
     private readonly fileQueueService: FileQueueService,
     private readonly userService: UserService,
+    // private readonly subscriptionService: SubscriptionService,
   ) {
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
     const secretAccessKey = this.configService.get<string>(
@@ -407,8 +409,7 @@ export class S3Service {
   }
 
   // rename file
-  async renameFileInFolder(fileId: string, newName: string, ) {
-
+  async renameFileInFolder(fileId: string, newName: string) {
     const fileRecord = await this.folderRepository.findFileById(fileId);
     if (!fileRecord) throw new NotFoundException('File not found');
     const oldKey = fileRecord.url;
@@ -438,6 +439,8 @@ export class S3Service {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
     }
+
+    // const subs = await this.subscriptionService.findByUserId(userId);
 
     try {
       const batchId = `batch_${Math.floor(Math.random() * 1000)}`;

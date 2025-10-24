@@ -313,6 +313,8 @@ export class StripeService {
       existingSubscription?.status === SubscriptionStatus.PENDING &&
       subscription?.status === SubscriptionStatus.ACTIVE
     ) {
+      const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+      const plan = await this.planService.findByStripePriceId(stripePriceId);
       const startAt = new Date();
       const expiresAt = new Date(startAt);
       expiresAt.setMonth(expiresAt.getMonth() + 1);
@@ -323,6 +325,7 @@ export class StripeService {
           startedAt: startAt,
           expiresAt: expiresAt,
           stripeSubscriptionId: subscription?.id,
+          features: plan?.features,
         },
       );
       if (!updatedSubscription) {
@@ -465,9 +468,7 @@ export class StripeService {
             status: subscription?.status,
           });
 
-          this.logger.log(
-            `✅ Subscription stored in Firebase for user ${userId}`,
-          );
+          this.logger.log(`Subscription stored in Firebase for user ${userId}`);
         } catch (err) {
           this.logger.error(
             `Failed to save subscription in   Firebase: ${err.message}`,
@@ -523,6 +524,7 @@ export class StripeService {
           status: mapStripeStatus(subscription?.status),
           startedAt: startAt,
           expiresAt: expiresAt,
+          features: plan?.features,
         },
       );
 
@@ -588,6 +590,7 @@ export class StripeService {
           status: mapStripeStatus(subscription?.status),
           startedAt: subsStartAt,
           expiresAt: subsEndAt,
+          features: plan?.features,
         },
       );
       if (!updatedSubscription) {
