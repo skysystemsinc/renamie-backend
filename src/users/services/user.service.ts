@@ -2,16 +2,21 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRepository } from '../repositories/user.repository';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { User } from '../schemas/user.schema';
+import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findByEmail(
@@ -84,5 +89,18 @@ export class UserService {
 
   async verifyEmail(id: string): Promise<void> {
     await this.userRepository.verifyEmail(id);
+  }
+
+  // update profile
+
+  async updateProfile(
+    userId: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<User> {
+    const updatedUser = await this.userRepository.update(userId, updateUserDto);
+    if (!updatedUser) {
+      throw new NotFoundException('User not found');
+    }
+    return updatedUser;
   }
 }

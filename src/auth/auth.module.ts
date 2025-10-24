@@ -10,12 +10,14 @@ import { UsersModule } from '../users/users.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { SendgridService } from 'src/common/services/sendgrid';
+import { StripeModule } from 'src/stripe/stripe.module';
 
 @Module({
   imports: [
     UsersModule,
     SubscriptionsModule,
     PassportModule,
+    StripeModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
