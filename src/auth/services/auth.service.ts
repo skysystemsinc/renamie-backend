@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../../users/services/user.service';
@@ -15,6 +19,8 @@ import {
 import { SubscriptionService } from '../../subscriptions/services/subscription.service';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { SendgridService } from 'src/common/services/sendgrid';
+import { UpdateUserDto } from 'src/users/dto/update-user.dto';
+import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +32,7 @@ export class AuthService {
     private sendgridService: SendgridService,
     private subscriptionService: SubscriptionService,
     private firebaseService: FirebaseService,
+    private readonly stripeService: StripeService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -179,25 +186,56 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
+    if (updatePasswordDto?.currentPassword) {
+      const matchPass = await this.userService.validatePassword(
+        user,
+        updatePasswordDto.currentPassword,
+      );
+      if (!matchPass) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+    }
     const updatedUser = await this.userService.update(
       updatePasswordDto.userId,
       {
-        password: updatePasswordDto.password,
+        password: updatePasswordDto.newPassword,
       },
     );
     const appUrl = process.env.FRONTEND_URL;
     const loginUrl = `${appUrl}/login`;
     if (updatedUser) {
-      await this.sendgridService.sendPasswordChangedEmail(
-        updatedUser?.email,
-        updatedUser?.firstName,
-        loginUrl,
-      );
+      if (!updatePasswordDto?.currentPassword) {
+        await this.sendgridService.sendPasswordChangedEmail(
+          updatedUser?.email,
+          updatedUser?.firstName,
+          loginUrl,
+        );
+      }
 
       return {
         message: 'Password updated successfully!',
         user: updatedUser,
       };
     }
+  }
+
+  // update profile
+  async changeUserProfile(userId: string, updateUserDto: UpdateUserDto) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const updatedUser = await this.userService.updateProfile(
+      userId,
+      updateUserDto,
+    );
+    if (updatedUser?.stripeCustomerId) {
+      let customerId = updatedUser?.stripeCustomerId;
+      await this.stripeService.updateStripeCustomer(customerId, {
+        email: updatedUser?.email,
+        name: `${updatedUser.firstName} ${updatedUser.lastName}`,
+      });
+    }
+    return updatedUser;
   }
 }

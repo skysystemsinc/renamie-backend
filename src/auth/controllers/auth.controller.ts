@@ -6,6 +6,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  Get,
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { AuthService } from '../services/auth.service';
@@ -20,12 +21,14 @@ import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
-import { ApiBody } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import {
   EmailVerifyDto,
   resetPasswordDto,
   updatePasswordDto,
 } from '../dto/verify-email.dto';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -81,5 +84,20 @@ export class AuthController {
   async updatePassword(@Body() updatePasswordDto: updatePasswordDto) {
     const result = await this.authService.updatePassword(updatePasswordDto);
     return ApiResponseDto.success('Your password has been updated !', result);
+  }
+
+  // get user
+  @Post('update-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getUser(
+    @CurrentUser('id') userId: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    const result = await this.authService.changeUserProfile(
+      userId,
+      updateUserDto,
+    );
+    return ApiResponseDto.success('user profile updated !', result);
   }
 }
