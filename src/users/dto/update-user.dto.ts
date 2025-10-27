@@ -25,4 +25,9 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   folderCount?: number;
+
+  
+  @IsOptional()
+  @IsString()
+  fileCount?: number;
 }

@@ -1,4 +1,9 @@
-import { Injectable, Logger, RawBodyRequest } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  RawBodyRequest,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { User, UserDocument } from '../users/schemas/user.schema';
@@ -501,7 +506,13 @@ export class StripeService {
     const getUser = await this.userService.findById(
       existingSubscription?.user.toString(),
     );
+    console.log('get user', getUser);
     if (!getUser) return;
+    const userId = (getUser as any)._id.toString();
+    // if (!getUser) {
+    //   throw new NotFoundException('User not found');
+    // }
+
     const getplan = await this.planService.findById(
       existingSubscription?.plan.toString(),
     );
@@ -527,6 +538,14 @@ export class StripeService {
           features: plan?.features,
         },
       );
+
+      // if (getUser?._id) {
+
+      await this.userService.updateUser(userId, {
+        fileCount: 0,
+        folderCount: 0,
+      });
+      // }
 
       // send subsc Updated email
       // await this.sendgridService.sendSubsUpdatedEmail(
@@ -583,6 +602,7 @@ export class StripeService {
       if (subscription.items.data[0].plan.interval === 'month') {
         subsStartAt && subsEndAt.setDate(subsStartAt.getDate() + 30);
       }
+
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
         {
@@ -602,6 +622,10 @@ export class StripeService {
       this.logger.log(
         `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
       );
+      await this.userService.updateUser(userId, {
+        fileCount: 0,
+        folderCount: 0,
+      });
       // send subsc Active email
       await this.sendgridService.sendSubsActivationEmail(
         getUser?.email,

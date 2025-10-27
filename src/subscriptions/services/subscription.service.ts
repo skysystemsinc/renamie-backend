@@ -205,4 +205,10 @@ export class SubscriptionService {
   async findSubsByUserId(userId: string) {
     return this.subscriptionRepository.findUserSubs(userId);
   }
+
+  async findUserActiveOrTrialingSubs(userId: string) {
+    return this.subscriptionRepository.findBySubsWithActiveAndTrialingStatus(
+      userId,
+    );
+  }
 }
