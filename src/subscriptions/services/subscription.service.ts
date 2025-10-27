@@ -187,7 +187,6 @@ export class SubscriptionService {
     const configuration =
       await this.stripeService.createBillingPortalConfiguration(config);
 
-    // console.log('configuartion', configuration);
     if (configuration?.id) {
       const sessionConfig = {
         customer: customer,
@@ -196,7 +195,6 @@ export class SubscriptionService {
       };
       const session =
         await this.stripeService.createBillingPortalSession(sessionConfig);
-      console.log('session', session);
       return session;
     }
   }
@@ -210,5 +208,25 @@ export class SubscriptionService {
     return this.subscriptionRepository.findBySubsWithActiveAndTrialingStatus(
       userId,
     );
+  }
+
+  // get usage
+  async getUsage(userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const subscription =
+      await this.subscriptionRepository.findBySubsWithActiveAndTrialingStatus(
+        userId,
+      );
+    if (!subscription) {
+      throw new NotFoundException('subscription not found');
+    }
+    return {
+      folderCount: user?.folderCount,
+      fileCount: user?.fileCount,
+      features: subscription?.features,
+    };
   }
 }

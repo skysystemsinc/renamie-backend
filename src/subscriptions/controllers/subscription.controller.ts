@@ -15,6 +15,7 @@ import {
   CreateSubscriptionDto,
 } from '../dto/create-subscription.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 
 @ApiTags('Subscriptions')
 @Controller('subscription')
@@ -50,7 +51,16 @@ export class SubscriptionController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Invoice History' })
   async billingPortal(@CurrentUser('id') userId: string) {
-    console.log('user id ', userId);
     return await this.subscriptionService.createBillingPortal(userId);
+  }
+
+  // usage
+  @Get('usage')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'usage' })
+  async usage(@CurrentUser('id') userId: string) {
+    const result = await this.subscriptionService.getUsage(userId);
+    return ApiResponseDto.success('usage fetched successfully!', result);
   }
 }
