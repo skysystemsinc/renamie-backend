@@ -8,10 +8,11 @@ import { TextractService } from 'src/common/services/textract.service';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { FileQueueModule } from 'src/queue/file-queue.module';
 import { UsersModule } from 'src/users/users.module';
+import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule, FoldersModule, FileQueueModule, UsersModule],
+  imports: [ConfigModule, FoldersModule, FileQueueModule, UsersModule, SubscriptionsModule],
   controllers: [S3Controller],
   providers: [S3Service, TextractService, LLMService, FirebaseService],
   exports: [S3Service, TextractService, LLMService, FirebaseService],

@@ -28,6 +28,7 @@ import { FirebaseService } from 'src/firebase/firebase.service';
 import { FolderRepository } from 'src/folder/repositories/folder.repository';
 import { FileQueueService } from 'src/queue/services/file.queue.service';
 import { UserService } from 'src/users/services/user.service';
+import { SubscriptionService } from 'src/subscriptions/services/subscription.service';
 
 export interface S3UploadOptions {
   acl?: 'public-read' | 'private';
@@ -67,6 +68,7 @@ export class S3Service {
     private readonly folderRepository: FolderRepository,
     private readonly fileQueueService: FileQueueService,
     private readonly userService: UserService,
+    private readonly subscriptionService: SubscriptionService,
   ) {
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
     const secretAccessKey = this.configService.get<string>(
@@ -407,8 +409,7 @@ export class S3Service {
   }
 
   // rename file
-  async renameFileInFolder(fileId: string, newName: string, ) {
-
+  async renameFileInFolder(fileId: string, newName: string) {
     const fileRecord = await this.folderRepository.findFileById(fileId);
     if (!fileRecord) throw new NotFoundException('File not found');
     const oldKey = fileRecord.url;
@@ -435,8 +436,26 @@ export class S3Service {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
+    }
+
+    const subs =
+      await this.subscriptionService.findUserActiveOrTrialingSubs(userId);
+    if (!subs) {
+      throw new NotFoundException('subscription not found');
+    }
+
+    const { storage, filesize, batch } = subs?.features;
+    if (user?.fileCount >= storage) {
+      throw new NotFoundException(`You have reached your files upload limit.`);
+    }
+
+    if (files.length > batch) {
+      throw new BadRequestException(
+        `You can upload a maximum of ${batch} files at once for your current plan.`,
+      );
     }
 
     try {
@@ -451,32 +470,67 @@ export class S3Service {
           const zip = new AdmZip(file.buffer);
           const entries = zip.getEntries();
 
+          const pdfEntries = entries.filter(
+            (entry) =>
+              !entry.isDirectory &&
+              entry.entryName.toLowerCase().endsWith('.pdf'),
+          );
+          if (pdfEntries.length > batch) {
+            throw new BadRequestException(
+              `Your ZIP contains ${pdfEntries.length} PDFs, but only ${batch} are allowed per batch.`,
+            );
+          }
           for (const entry of entries) {
             if (entry.isDirectory) continue;
-
+          
+            console.log('entry.entryName', entry.entryName);
             if (!entry.entryName.toLowerCase().endsWith('.pdf')) {
               throw new BadRequestException(
                 'The ZIP file must contain only PDF documents.',
               );
             }
+            const entrySizeKB = entry.header.size / 1024;
 
+            if (entrySizeKB > filesize) {
+              throw new BadRequestException(
+                `File "${entry.entryName}" exceeds the maximum allowed size of ${filesize / 1024} MB for your plan.`,
+              );
+            }
             allFiles.push({
               name: entry.entryName,
               mimetype: 'application/pdf',
-              size: entry.header.size,
+              size: entrySizeKB,
               buffer: entry.getData(),
             });
           }
         } else if (file.mimetype === 'application/pdf') {
+          console.log('true this ');
+          console.log('file size', file?.size);
+          const fileSizeKB = file.size / 1024;
+          console.log('fileSizeKB', fileSizeKB);
+          if (fileSizeKB > filesize) {
+            throw new BadRequestException(
+              `File "${file.originalname}" exceeds the maximum allowed size of ${filesize / 1024} MB for your plan.`,
+            );
+          }
           allFiles.push({
             name: file.originalname,
             mimetype: file.mimetype,
-            size: file.size,
+            size: fileSizeKB,
             buffer: file.buffer,
           });
         } else {
           throw new BadRequestException('Only PDF or ZIP files are allowed');
         }
+      }
+
+      const totalFilesCount = user.fileCount + allFiles.length;
+      const fileLeft = storage - user.fileCount;
+      if (totalFilesCount > storage) {
+        throw new BadRequestException(
+          // `You can only upload ${storage} files in total. You already have ${user.fileCount}, and this upload adds ${allFiles.length}.`,
+          `You can upload only ${fileLeft} more file${fileLeft > 1 ? 's' : ''}.`,
+        );
       }
 
       const uploadResults = await Promise.all(
@@ -510,6 +564,10 @@ export class S3Service {
         batchId,
       }));
 
+      await this.userService.updateUser(userId, {
+        fileCount: user.fileCount + allFiles.length,
+      });
+
       if (uploadResults?.length > 0) {
         const updatedFiles = await this.folderService.saveFilestoFolder(
           folderId,
@@ -530,7 +588,6 @@ export class S3Service {
             batchId,
           );
         }
-
         return {
           message: 'Files uploaded successfully',
           data: updatedFiles,

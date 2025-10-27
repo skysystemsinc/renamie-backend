@@ -14,9 +14,7 @@ import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class UserService {
-  constructor(
-    private readonly userRepository: UserRepository,
-  ) {}
+  constructor(private readonly userRepository: UserRepository) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findByEmail(
@@ -101,6 +99,15 @@ export class UserService {
     if (!updatedUser) {
       throw new NotFoundException('User not found');
     }
+    return updatedUser;
+  }
+
+  // update user
+  async updateUser(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<User | null> {
+    const updatedUser = await this.userRepository.update(id, updateUserDto);
     return updatedUser;
   }
 }

@@ -11,6 +11,7 @@ import { UserService } from 'src/users/services/user.service';
 import { FolderRepository } from '../repositories/folder.repository';
 import { Types } from 'mongoose';
 import { S3Service } from 'src/common/services/s3.service';
+import { SubscriptionService } from 'src/subscriptions/services/subscription.service';
 
 @Injectable()
 export class FolderService {
@@ -19,12 +20,21 @@ export class FolderService {
     private readonly s3Service: S3Service,
     private readonly userService: UserService,
     private readonly folderRepository: FolderRepository,
+    private readonly subscriptionService: SubscriptionService,
   ) {}
 
   async createFolder(createFoldersDto: CreateFoldersDto, userId: string) {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+    const subs = await this.subscriptionService.findSubsByUserId(userId);
+    if (!subs) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    if (user.folderCount >= subs.features.folders) {
+      throw new NotFoundException(`You have reached your folder limit.`);
     }
 
     const existing = await this.folderRepository.findByNameAndUserId(
@@ -36,10 +46,16 @@ export class FolderService {
       throw new ConflictException('Folder with this name already exists');
     }
 
-    return this.folderRepository.create({
+    const createdFolder = this.folderRepository.create({
       userId: new Types.ObjectId(userId),
       name: createFoldersDto.name,
     });
+
+    await this.userService.updateUser(userId, {
+      folderCount: user.folderCount + 1,
+    });
+
+    return createdFolder;
   }
 
   async updateFolder(

@@ -59,11 +59,15 @@ export class SubscriptionRepository {
       .exec();
   }
 
-   async findBySubsWithActiveAndTrialingStatus(userId: string): Promise<SubscriptionDocument | null> {
+  async findBySubsWithActiveAndTrialingStatus(
+    userId: string,
+  ): Promise<SubscriptionDocument | null> {
     return this.subscriptionModel
       .findOne({
         user: new Types.ObjectId(userId),
-        status: { $in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+        status: {
+          $in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING],
+        },
       })
       .exec();
   }
@@ -80,5 +84,13 @@ export class SubscriptionRepository {
       },
       { $set: { status: SubscriptionStatus.EXPIRED } },
     );
+  }
+
+  async findUserSubs(userId: string): Promise<SubscriptionDocument | null> {
+    return this.subscriptionModel
+      .findOne({
+        user: new Types.ObjectId(userId),
+      })
+      .exec();
   }
 }

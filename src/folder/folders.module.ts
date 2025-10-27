@@ -7,12 +7,14 @@ import { UsersModule } from 'src/users/users.module';
 import { FileQueueModule } from 'src/queue/file-queue.module';
 import { Folder, FolderSchema } from './schema/folder.schema';
 import { S3Service } from 'src/common/services/s3.service';
+import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Folder.name, schema: FolderSchema }]),
     UsersModule,
     FileQueueModule,
+    SubscriptionsModule,
   ],
   controllers: [FolderController],
   providers: [FolderService, FolderRepository, S3Service],

@@ -21,4 +21,13 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   role?: string;
+
+  @IsOptional()
+  @IsString()
+  folderCount?: number;
+
+  
+  @IsOptional()
+  @IsString()
+  fileCount?: number;
 }
