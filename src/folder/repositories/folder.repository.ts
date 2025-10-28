@@ -227,4 +227,42 @@ export class FolderRepository {
       limit,
     };
   }
+
+  // get totalCompleted files
+
+  // async getAllDownloadedFiles(
+  //   userId: string,
+  //   folderId?: string,
+  // ): Promise<{ files: any[] }> {
+  //   let matchStage: any = {
+  //     userId: new Types.ObjectId(userId),
+  //   };
+
+  //   if (folderId) {
+  //     matchStage._id = new Types.ObjectId(folderId);
+  //   }
+  //   const result = await this.folderModel.aggregate([
+  //     {
+  //       $match: matchStage,
+  //     },
+  //     {
+  //       $unwind: '$files',
+  //     },
+  //     {
+  //       $match: {
+  //         'files.status': 'completed',
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         _id: 0,
+  //         file: '$files',
+  //       },
+  //     },
+  //   ]);
+
+  //   return {
+  //     files: result.map((r) => r.file),
+  //   };
+  // }
 }

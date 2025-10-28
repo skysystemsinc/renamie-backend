@@ -61,8 +61,6 @@ export class FolderController {
     const userFiles = folderId
       ? await this.folderService.getFilesByFolder(userId, folderId, page, limit)
       : await this.folderService.getALLFiles(userId, page, limit);
-    // const userFiles = await this.folderService.getALLFiles(userId, page, limit);
-    console.log('user files', userFiles);
     return ApiResponseDto.success('Files fetched successfully', userFiles);
   }
 
@@ -99,6 +97,22 @@ export class FolderController {
     const folders = await this.folderService.getALLFolders(userId);
     return ApiResponseDto.success('Folders fetched successfully', folders);
   }
+
+  // get download files in zip
+
+  // @Get('zip-download')
+  // @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth('JWT-auth')
+  // async getFiles(
+  //   @CurrentUser('id') userId: string,
+  //   @Query('folderId') folderId?: string,
+  // ) {
+  //   console.log('folder id', folderId);
+  //   console.log('user id', userId);
+  //   console.log('test');
+  //   const userFiles = await this.folderService.getZipDownload(userId, folderId);
+  //   return ApiResponseDto.success('Files fetched successfully', userFiles);
+  // }
 
   // fetch folder details
   @Get(':id')

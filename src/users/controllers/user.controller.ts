@@ -11,7 +11,6 @@ import {
 import { UserService } from '../services/user.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '../schemas/user.schema';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
@@ -65,4 +64,6 @@ export class UserController {
     await this.userService.delete(id);
     return ApiResponseDto.success('User deleted successfully');
   }
+
+
 }
