@@ -110,4 +110,18 @@ export class UserService {
     const updatedUser = await this.userRepository.update(id, updateUserDto);
     return updatedUser;
   }
+
+  // invite user
+  async createInvitedUser(createUserDto: CreateUserDto): Promise<User> {
+    const existingUser = await this.userRepository.findByEmail(
+      createUserDto.email,
+    );
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const userData = { ...createUserDto, password: hashedPassword };
+    return this.userRepository.create(userData);
+  }
 }

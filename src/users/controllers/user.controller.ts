@@ -65,4 +65,12 @@ export class UserController {
     await this.userService.delete(id);
     return ApiResponseDto.success('User deleted successfully');
   }
+
+  //
+  @Post('invite-user')
+  @Roles(UserRole.ADMIN)
+  async createInviteUser(@Body() createUserDto: CreateUserDto) {
+    const user = await this.userService.createInvitedUser(createUserDto);
+    return ApiResponseDto.success('Collaborator created successfully', user);
+  }
 }
