@@ -52,21 +52,6 @@ export class User {
 
   @Prop({ default: 0 })
   fileCount: number;
-
-  //
-  @Prop({ default: false })
-  isCollaborator?: boolean; // for  user2
-
-  @Prop({ default: false })
-  inviteAccepted?: boolean; // for user2
-
-  // invite sent at 
-  //invite  accesptedn at 
-
- 
-  // userId  self  relation
-   
-
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
