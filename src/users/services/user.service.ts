@@ -2,15 +2,13 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRepository } from '../repositories/user.repository';
-import { CreateUserDto } from '../dto/create-user.dto';
+import { CreateInviteUserDataDto, CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { User } from '../schemas/user.schema';
-import { StripeService } from 'src/stripe/stripe.service';
+// import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class UserService {
@@ -111,17 +109,13 @@ export class UserService {
     return updatedUser;
   }
 
-  // invite user
-  async createInvitedUser(createUserDto: CreateUserDto): Promise<User> {
-    const existingUser = await this.userRepository.findByEmail(
-      createUserDto.email,
-    );
+  // create user with
+  async createInviteUser(userData: CreateInviteUserDataDto): Promise<User> {
+    const existingUser =
+      userData && (await this.userRepository.findByEmail(userData?.email));
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
-
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    const userData = { ...createUserDto, password: hashedPassword };
-    return this.userRepository.create(userData);
+    return this.userRepository.createInvite(userData);
   }
 }

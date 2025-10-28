@@ -28,12 +28,22 @@ export class FolderService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const subs = await this.subscriptionService.findSubsByUserId(userId);
+    let parentId = userId;
+    if (user?.isCollaborator && user?.inviteAccepted) {
+      parentId = user?.userId.toString();
+    }
+
+    const parent = await this.userService.findById(parentId);
+    if (!parent) {
+      throw new NotFoundException('user not found');
+    }
+
+    const subs = await this.subscriptionService.findSubsByUserId(parentId);
     if (!subs) {
       throw new NotFoundException('Subscription not found');
     }
 
-    if (user.folderCount >= subs.features.folders) {
+    if (parent.folderCount >= subs.features.folders) {
       throw new NotFoundException(`You have reached your folder limit.`);
     }
 
@@ -51,8 +61,8 @@ export class FolderService {
       name: createFoldersDto.name,
     });
 
-    await this.userService.updateUser(userId, {
-      folderCount: user.folderCount + 1,
+    await this.userService.updateUser(parentId, {
+      folderCount: parent.folderCount + 1,
     });
 
     return createdFolder;

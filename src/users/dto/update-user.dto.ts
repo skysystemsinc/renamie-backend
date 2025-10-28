@@ -30,4 +30,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   fileCount?: number;
+
+    @IsOptional()
+  @IsString()
+  userCount?: number;
 }
+
+
+

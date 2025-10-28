@@ -29,6 +29,7 @@ import {
 } from '../dto/verify-email.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
+import { CreateInvitedUserDto} from 'src/users/dto/create-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -99,5 +100,17 @@ export class AuthController {
       updateUserDto,
     );
     return ApiResponseDto.success('user profile updated !', result);
+  }
+
+
+    // create invite user
+  @Post('invite-user')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+  async createInviteUser(
+      @CurrentUser('id') userId: string,
+    @Body() createInvitedUserDto: CreateInvitedUserDto) {
+    const user = await this.authService.createInvitedUser(userId,createInvitedUserDto);
+    return ApiResponseDto.success('Collaborator created successfully', user);
   }
 }

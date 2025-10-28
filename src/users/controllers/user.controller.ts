@@ -9,14 +9,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from '../services/user.service';
-import { CreateUserDto } from '../dto/create-user.dto';
+import {  CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '../schemas/user.schema';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {  ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Users')
 @Controller('users')
@@ -66,11 +64,5 @@ export class UserController {
     return ApiResponseDto.success('User deleted successfully');
   }
 
-  //
-  @Post('invite-user')
-  @Roles(UserRole.ADMIN)
-  async createInviteUser(@Body() createUserDto: CreateUserDto) {
-    const user = await this.userService.createInvitedUser(createUserDto);
-    return ApiResponseDto.success('Collaborator created successfully', user);
-  }
+
 }

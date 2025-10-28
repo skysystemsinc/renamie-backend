@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
 
@@ -52,6 +52,26 @@ export class User {
 
   @Prop({ default: 0 })
   fileCount: number;
+
+  @Prop({ default: 0 })
+  userCount: number;
+
+  //
+  @Prop({ default: false })
+  isCollaborator?: boolean;
+
+  @Prop({ default: false })
+  inviteAccepted?: boolean;
+
+  @Prop()
+  inviteSentAt?: Date;
+
+  @Prop()
+  inviteAcceptedAt?: Date;
+
+  // userId  self  relation
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  userId: Types.ObjectId;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
