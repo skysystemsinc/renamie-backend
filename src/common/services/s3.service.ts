@@ -426,6 +426,14 @@ export class S3Service {
     return updatedFile;
   }
 
+  async fileRename(userId: string, fileId: string, newName: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return await this.renameFileInFolder(fileId, newName);
+  }
   // file upload
   async uploadFiles(
     userId: string,
@@ -482,8 +490,7 @@ export class S3Service {
           }
           for (const entry of entries) {
             if (entry.isDirectory) continue;
-          
-            console.log('entry.entryName', entry.entryName);
+
             if (!entry.entryName.toLowerCase().endsWith('.pdf')) {
               throw new BadRequestException(
                 'The ZIP file must contain only PDF documents.',
@@ -504,10 +511,7 @@ export class S3Service {
             });
           }
         } else if (file.mimetype === 'application/pdf') {
-          console.log('true this ');
-          console.log('file size', file?.size);
           const fileSizeKB = file.size / 1024;
-          console.log('fileSizeKB', fileSizeKB);
           if (fileSizeKB > filesize) {
             throw new BadRequestException(
               `File "${file.originalname}" exceeds the maximum allowed size of ${filesize / 1024} MB for your plan.`,

@@ -133,7 +133,8 @@ export class FolderController {
     @Body() renameFileDto: RenameFileDto,
     @CurrentUser('id') userId: string,
   ) {
-    const result = await this.S3Service.renameFileInFolder(
+    const result = await this.S3Service.fileRename(
+      userId,
       fileId,
       renameFileDto.newName,
     );
