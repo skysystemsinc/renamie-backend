@@ -55,9 +55,13 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    if (user && user?.isCollaborator && !user?.inviteAccepted) {
+      throw new UnauthorizedException('Please accept the invitation.');
+    }
     if (user && !user?.emailVerified) {
       throw new UnauthorizedException('Please verify your email.');
     }
+
     await this.userService.updateLastLogin(user._id);
     const subscription = await this.subscriptionService.findByUserId(user._id);
     const tokens = await this.generateTokens(user);
@@ -254,6 +258,7 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
     const activeSubs = await this.subscriptionService.getUsage(userId);
     const usersAllowed = activeSubs?.features?.users;
     if (user?.userCount >= usersAllowed) {
@@ -271,14 +276,51 @@ export class AuthService {
       password: hashedPassword,
       isCollaborator: true,
       inviteAccepted: false,
+      emailVerified: true,
       inviteSentAt: new Date(),
       userId: parentId,
     };
 
+    await this.userService.checkIfAlreadyExist(userData?.email);
     const result = await this.userService.createInviteUser(userData);
-    await this.userService.updateUser(userId, {
-      userCount: user?.userCount + 1,
-    });
+
+    if (result) {
+      await this.userService.updateUser(userId, {
+        userCount: user?.userCount + 1,
+      });
+      const id = (result as any)?._id.toString();
+      const appUrl = process.env.FRONTEND_URL;
+      const invitationUrl = `${appUrl}/renamie.com/invite/${id}`;
+      await this.sendgridService.sendInviteEmail(
+        result?.email,
+        result?.firstName,
+        user?.firstName,
+        invitationUrl,
+      );
+    }
     return result;
+  }
+
+  // get Collaborators
+
+  async getCollaborators(userId: string, parentId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const collaborators =
+      await this.userService.findCollaboratorsByParentId(parentId);
+    return collaborators;
+  }
+
+  // accept Invite
+  async acceptInvite(userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const collaborators =
+      await this.userService.acceptCollaboratorInvitation(userId);
+    return collaborators;
   }
 }

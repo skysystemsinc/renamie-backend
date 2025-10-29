@@ -47,20 +47,20 @@ export class User {
   emailVerifiedAt?: Date;
 
   // property for folder count
-  @Prop({ default: 0 })
+  @Prop()
   folderCount: number;
 
-  @Prop({ default: 0 })
+  @Prop()
   fileCount: number;
 
-  @Prop({ default: 0 })
+  @Prop()
   userCount: number;
 
   //
   @Prop({ default: false })
   isCollaborator?: boolean;
 
-  @Prop({ default: false })
+  @Prop()
   inviteAccepted?: boolean;
 
   @Prop()

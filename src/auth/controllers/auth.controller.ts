@@ -7,6 +7,7 @@ import {
   HttpCode,
   HttpStatus,
   Get,
+  Param,
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { AuthService } from '../services/auth.service';
@@ -21,7 +22,7 @@ import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
-import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiResponse } from '@nestjs/swagger';
 import {
   EmailVerifyDto,
   resetPasswordDto,
@@ -29,7 +30,10 @@ import {
 } from '../dto/verify-email.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
-import { CreateInvitedUserDto} from 'src/users/dto/create-user.dto';
+import {
+  CollaboratorResponseDto,
+  CreateInvitedUserDto,
+} from 'src/users/dto/create-user.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -102,15 +106,39 @@ export class AuthController {
     return ApiResponseDto.success('user profile updated !', result);
   }
 
-
-    // create invite user
+  // create invite user
   @Post('invite-user')
-    @UseGuards(JwtAuthGuard)
-    @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponse({ type: CollaboratorResponseDto })
   async createInviteUser(
-      @CurrentUser('id') userId: string,
-    @Body() createInvitedUserDto: CreateInvitedUserDto) {
-    const user = await this.authService.createInvitedUser(userId,createInvitedUserDto);
+    @CurrentUser('id') userId: string,
+    @Body() createInvitedUserDto: CreateInvitedUserDto,
+  ) {
+    const user = await this.authService.createInvitedUser(
+      userId,
+      createInvitedUserDto,
+    );
     return ApiResponseDto.success('Collaborator created successfully', user);
+  }
+
+  @Get('invite-accept/:id')
+  async updateCollaborator(@Param('id') id: string) {
+    const user = await this.authService.acceptInvite(id);
+    return ApiResponseDto.success(
+      'Invitation accepted successfully! you can now start collaborating.',
+      user,
+    );
+  }
+
+  @Get('collaborators/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getCollaborators(
+    @Param('id') parentId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    const user = await this.authService.getCollaborators(userId, parentId);
+    return ApiResponseDto.success('Collaborator Fetched successfully', user);
   }
 }

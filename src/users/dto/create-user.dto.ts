@@ -113,3 +113,33 @@ export class CreateInviteUserDataDto {
   @IsNotEmpty()
   userId: string;
 }
+
+
+export class CollaboratorResponseDto {
+  @ApiProperty()
+  _id: string;
+
+  @ApiProperty()
+  email: string;
+
+  @ApiProperty()
+  firstName: string;
+
+  @ApiProperty()
+  lastName: string;
+
+  @ApiProperty()
+  inviteAccepted: boolean;
+
+  @ApiProperty()
+  inviteSentAt: Date;
+
+  @ApiProperty()
+  inviteAcceptedAt?: Date;
+
+  @ApiProperty()
+  isCollaborator: boolean;
+
+  @ApiProperty()
+  userId: string;
+}

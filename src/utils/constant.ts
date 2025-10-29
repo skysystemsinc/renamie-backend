@@ -4,5 +4,6 @@ export const emailConstant = {
   changedPasswordTempId: 'd-cecd87f22ea041f68ea11273b9af3ba3',
   fileProcessedTempId: "d-4d3f3d4d607a4235b03aecdfb716da3a",
   trialTempId:"d-8e8cb65a1c4b4f20b283256bbc4e8d43",
-   subsActiveTempId :"d-6bb3c5f7953e4295b36a19b8ac9a3b40"
+   subsActiveTempId :"d-6bb3c5f7953e4295b36a19b8ac9a3b40",
+   inviteUserTempId:"d-4a7ec7805428444d9c9afec0784ea1cd"
 };

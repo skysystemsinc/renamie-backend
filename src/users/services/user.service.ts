@@ -109,13 +109,23 @@ export class UserService {
     return updatedUser;
   }
 
-  // create user with
-  async createInviteUser(userData: CreateInviteUserDataDto): Promise<User> {
-    const existingUser =
-      userData && (await this.userRepository.findByEmail(userData?.email));
+  async checkIfAlreadyExist(email: string) {
+    const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
     }
+  }
+
+  // create collaboartor
+  async createInviteUser(userData: CreateInviteUserDataDto): Promise<User> {
     return this.userRepository.createInvite(userData);
+  }
+
+  async findCollaboratorsByParentId(parentId: string) {
+    return this.userRepository.findCollaboratorsByParentId(parentId);
+  }
+
+  async acceptCollaboratorInvitation(userId: string) {
+    return this.userRepository.findUserByIdAndAcceptInvite(userId);
   }
 }
