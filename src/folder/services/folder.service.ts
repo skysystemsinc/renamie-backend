@@ -127,6 +127,9 @@ export class FolderService {
       throw new NotFoundException('User not found');
     }
 
+    if(user.isCollaborator && user.inviteAccepted){
+      userId = user.userId.toString();
+    }
     return await this.folderRepository.findAllByUserId(userId);
   }
 
