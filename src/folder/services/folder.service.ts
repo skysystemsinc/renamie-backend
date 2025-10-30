@@ -59,6 +59,7 @@ export class FolderService {
     const createdFolder = this.folderRepository.create({
       userId: new Types.ObjectId(userId),
       name: createFoldersDto.name,
+      parentUser: new Types.ObjectId(parentId),
     });
 
     await this.userService.updateUser(parentId, {
@@ -126,11 +127,15 @@ export class FolderService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
-    if(user.isCollaborator && user.inviteAccepted){
-      userId = user.userId.toString();
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
     }
-    return await this.folderRepository.findAllByUserId(userId);
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    return await this.folderRepository.findAllByParentId(parentId);
   }
 
   // folder Detail
@@ -142,7 +147,15 @@ export class FolderService {
   ) {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
+    console.log('user', user);
 
+     const folder = await this.folderRepository.findAllByParentId(
+      (user as any)?._id.toString(),
+    );
+    console.log('folders',folder);
+    if(folder?.length === 0){
+      throw new NotFoundException('You do not have collaboration with this user to access this folder');
+    }
     return await this.folderRepository.getPaginatedFiles(folderId, page, limit);
   }
 
