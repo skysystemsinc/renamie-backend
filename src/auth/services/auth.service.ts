@@ -61,9 +61,10 @@ export class AuthService {
     if (user && !user?.emailVerified) {
       throw new UnauthorizedException('Please verify your email.');
     }
-
     await this.userService.updateLastLogin(user._id);
-    const subscription = await this.subscriptionService.findByUserId(user._id);
+    // const subscription = await this.subscriptionService.findByUserId(user._id);
+    const subscription =
+      await this.subscriptionService.findUserActiveOrTrialingSubs(user?._id);
     const tokens = await this.generateTokens(user);
     await this.userService.updateRefreshToken(user._id, tokens.refreshToken);
 
@@ -258,7 +259,6 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     const activeSubs = await this.subscriptionService.getUsage(userId);
     const usersAllowed = activeSubs?.features?.users;
     if (user?.userCount >= usersAllowed) {
@@ -283,12 +283,21 @@ export class AuthService {
 
     await this.userService.checkIfAlreadyExist(userData?.email);
     const result = await this.userService.createInviteUser(userData);
-
     if (result) {
+      const id = (result as any)?._id.toString();
       await this.userService.updateUser(userId, {
         userCount: user?.userCount + 1,
       });
-      const id = (result as any)?._id.toString();
+
+      await this.firebaseService.createUser(id, {
+        id: id,
+        email: result.email,
+        firstName: result.firstName,
+        lastName: result.lastName,
+        role: result.role,
+        createdAt: new Date().toISOString(),
+      });
+
       const appUrl = process.env.FRONTEND_URL;
       const invitationUrl = `${appUrl}/renamie.com/invite/${id}`;
       await this.sendgridService.sendInviteEmail(
@@ -322,5 +331,22 @@ export class AuthService {
     const collaborators =
       await this.userService.acceptCollaboratorInvitation(userId);
     return collaborators;
+  }
+
+  // removeCollaborator
+
+  async removeCollaborator(userId: string, id: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const collaboartor = await this.userService.findById(id);
+    if (!collaboartor) {
+      throw new NotFoundException('Collaborator not found');
+    }
+
+    await this.userService.removeCollaborators(id);
+    return collaboartor;
   }
 }

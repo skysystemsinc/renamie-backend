@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Get,
   Param,
+  Delete,
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { AuthService } from '../services/auth.service';
@@ -140,5 +141,20 @@ export class AuthController {
   ) {
     const user = await this.authService.getCollaborators(userId, parentId);
     return ApiResponseDto.success('Collaborator Fetched successfully', user);
+  }
+
+  @Delete('remove-collaborator/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponse({ type: CollaboratorResponseDto })
+  async removeCollaborator(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    const collaboartor = await this.authService.removeCollaborator(userId, id);
+    return ApiResponseDto.success(
+      'Collaborator deleted successfully!',
+      collaboartor,
+    );
   }
 }

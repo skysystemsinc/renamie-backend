@@ -96,4 +96,9 @@ export class UserRepository {
       })
       .exec();
   }
+
+  //
+  async removeUserById(id: string) {
+  await this.userModel.findByIdAndDelete(id);
+  }
 }

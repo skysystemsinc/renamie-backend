@@ -128,4 +128,9 @@ export class UserService {
   async acceptCollaboratorInvitation(userId: string) {
     return this.userRepository.findUserByIdAndAcceptInvite(userId);
   }
+
+  //
+  async removeCollaborators(id: string) {
+    return this.userRepository.removeUserById(id);
+  }
 }

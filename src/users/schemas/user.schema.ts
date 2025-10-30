@@ -47,13 +47,13 @@ export class User {
   emailVerifiedAt?: Date;
 
   // property for folder count
-  @Prop()
+  @Prop({ default: false })
   folderCount: number;
 
-  @Prop()
+  @Prop({ default: false })
   fileCount: number;
 
-  @Prop()
+  @Prop({ default: false })
   userCount: number;
 
   //
