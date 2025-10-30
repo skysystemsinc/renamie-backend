@@ -43,6 +43,15 @@ export class FolderRepository {
     return this.folderModel.find({ userId: new Types.ObjectId(userId) }).exec();
   }
 
+  //find folders by parent id
+  async findAllByParentId(
+    parentId: string,
+  ): Promise<FolderDocument[]> {
+    return this.folderModel
+      .find({ parentUser: new Types.ObjectId(parentId) })
+      .exec();
+  }
+
   //  find file
   async findFileById(fileId: string): Promise<any | null> {
     const folder = await this.folderModel.findOne(

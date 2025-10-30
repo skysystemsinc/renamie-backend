@@ -9,6 +9,9 @@ export class Folder {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   userId: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: 'User', default: null })
+  parentUser?: Types.ObjectId | null;
+
   @Prop({ required: true })
   name: string;
 
