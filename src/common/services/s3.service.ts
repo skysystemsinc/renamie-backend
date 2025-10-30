@@ -436,13 +436,23 @@ export class S3Service {
   }
   // file upload
   async uploadFiles(
-    userId: string,
+    id: string,
     folderId: string,
     files: Array<Express.Multer.File>,
   ) {
-    const user = await this.userService.findById(userId);
+    const user = await this.userService.findById(id);
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    let parentId = id;
+    if (user?.isCollaborator && user?.inviteAccepted) {
+      parentId = user?.userId.toString();
+    }
+
+    const parent = await this.userService.findById(parentId);
+    if (!parent) {
+      throw new NotFoundException('user not found');
     }
 
     if (!files || files.length === 0) {
@@ -450,13 +460,13 @@ export class S3Service {
     }
 
     const subs =
-      await this.subscriptionService.findUserActiveOrTrialingSubs(userId);
+      await this.subscriptionService.findUserActiveOrTrialingSubs(parentId);
     if (!subs) {
       throw new NotFoundException('subscription not found');
     }
 
     const { storage, filesize, batch } = subs?.features;
-    if (user?.fileCount >= storage) {
+    if (parent?.fileCount >= storage) {
       throw new NotFoundException(`You have reached your files upload limit.`);
     }
 
@@ -528,8 +538,8 @@ export class S3Service {
         }
       }
 
-      const totalFilesCount = user.fileCount + allFiles.length;
-      const fileLeft = storage - user.fileCount;
+      const totalFilesCount = parent.fileCount + allFiles.length;
+      const fileLeft = storage - parent.fileCount;
       if (totalFilesCount > storage) {
         throw new BadRequestException(
           // `You can only upload ${storage} files in total. You already have ${user.fileCount}, and this upload adds ${allFiles.length}.`,
@@ -568,8 +578,8 @@ export class S3Service {
         batchId,
       }));
 
-      await this.userService.updateUser(userId, {
-        fileCount: user.fileCount + allFiles.length,
+      await this.userService.updateUser(parentId, {
+        fileCount: parent.fileCount + allFiles.length,
       });
 
       if (uploadResults?.length > 0) {

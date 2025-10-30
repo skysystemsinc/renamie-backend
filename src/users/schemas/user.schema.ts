@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
 
@@ -47,11 +47,31 @@ export class User {
   emailVerifiedAt?: Date;
 
   // property for folder count
-  @Prop({ default: 0 })
+  @Prop({ default: false })
   folderCount: number;
 
-  @Prop({ default: 0 })
+  @Prop({ default: false })
   fileCount: number;
+
+  @Prop({ default: false })
+  userCount: number;
+
+  //
+  @Prop({ default: false })
+  isCollaborator?: boolean;
+
+  @Prop()
+  inviteAccepted?: boolean;
+
+  @Prop()
+  inviteSentAt?: Date;
+
+  @Prop()
+  inviteAcceptedAt?: Date;
+
+  // userId  self  relation
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  userId: Types.ObjectId;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

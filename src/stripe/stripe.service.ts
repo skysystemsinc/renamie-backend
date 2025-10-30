@@ -539,13 +539,11 @@ export class StripeService {
         },
       );
 
-      // if (getUser?._id) {
-
       await this.userService.updateUser(userId, {
         fileCount: 0,
         folderCount: 0,
+        userCount: 0,
       });
-      // }
 
       // send subsc Updated email
       // await this.sendgridService.sendSubsUpdatedEmail(
@@ -625,6 +623,7 @@ export class StripeService {
       await this.userService.updateUser(userId, {
         fileCount: 0,
         folderCount: 0,
+        userCount: 0,
       });
       // send subsc Active email
       await this.sendgridService.sendSubsActivationEmail(

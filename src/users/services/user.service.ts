@@ -2,15 +2,13 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRepository } from '../repositories/user.repository';
-import { CreateUserDto } from '../dto/create-user.dto';
+import { CreateInviteUserDataDto, CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { User } from '../schemas/user.schema';
-import { StripeService } from 'src/stripe/stripe.service';
+// import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class UserService {
@@ -109,5 +107,30 @@ export class UserService {
   ): Promise<User | null> {
     const updatedUser = await this.userRepository.update(id, updateUserDto);
     return updatedUser;
+  }
+
+  async checkIfAlreadyExist(email: string) {
+    const existingUser = await this.userRepository.findByEmail(email);
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+  }
+
+  // create collaboartor
+  async createInviteUser(userData: CreateInviteUserDataDto): Promise<User> {
+    return this.userRepository.createInvite(userData);
+  }
+
+  async findCollaboratorsByParentId(parentId: string) {
+    return this.userRepository.findCollaboratorsByParentId(parentId);
+  }
+
+  async acceptCollaboratorInvitation(userId: string) {
+    return this.userRepository.findUserByIdAndAcceptInvite(userId);
+  }
+
+  //
+  async removeCollaborators(id: string) {
+    return this.userRepository.removeUserById(id);
   }
 }

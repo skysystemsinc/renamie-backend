@@ -15,6 +15,8 @@ interface DynamicDataType {
   plan?: string;
   startDate?: string;
   expiresAt?: string;
+  senderName?: string;
+  invitationUrl?: string;
 }
 
 @Injectable()
@@ -191,4 +193,23 @@ export class SendgridService {
   //     throw error;
   //   }
   // }
+
+  // Invite User Email
+  async sendInviteEmail(
+    to: string,
+    userName: string,
+    senderName: string,
+    invitationUrl: string,
+  ) {
+    try {
+      await this.sendTemplateMail(to, emailConstant.inviteUserTempId, {
+        userName: userName,
+        senderName: senderName,
+        invitationUrl: invitationUrl,
+      });
+    } catch (error) {
+      console.error(`Failed to send Collaboration email to ${to}.`);
+      throw error;
+    }
+  }
 }
