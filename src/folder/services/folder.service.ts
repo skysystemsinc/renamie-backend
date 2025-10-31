@@ -12,6 +12,9 @@ import { FolderRepository } from '../repositories/folder.repository';
 import { Types } from 'mongoose';
 import { S3Service } from 'src/common/services/s3.service';
 import { SubscriptionService } from 'src/subscriptions/services/subscription.service';
+import archiver from 'archiver';
+import { Response } from 'express';
+import { FieldPath } from 'firebase-admin/firestore';
 
 @Injectable()
 export class FolderService {
@@ -157,9 +160,9 @@ export class FolderService {
     if (!parentUser) {
       throw new NotFoundException('User not found');
     }
-    const folder = await this.folderRepository.findAllByfolderIdAndParentId(
-      parentId,
+    const folder = await this.folderRepository.findByFolderIdAndParentId(
       folderId,
+      parentId,
     );
     if (folder?.length === 0) {
       throw new ForbiddenException('Unauthorized');
@@ -297,7 +300,9 @@ export class FolderService {
   }
 
   // get All files that has completed status
-  async getALLFiles(userId: string, page = 1, limit = 10) {
+  async getALLFiles(userId: string, page?: number, limit?: number) {
+    console.log('page', page);
+    console.log('limit', limit);
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -310,19 +315,27 @@ export class FolderService {
     if (!parentUser) {
       throw new NotFoundException('User not found');
     }
-    const allFiles = await this.folderRepository.getAllCompletedFiles(
-      parentId,
-      page,
-      limit,
-    );
-    return allFiles;
+    if (page && limit) {
+      const allFiles =
+        await this.folderRepository.getAllCompletedFilesWithPagination(
+          parentId,
+          page,
+          limit,
+        );
+      return allFiles;
+    } else {
+      const allFiles =
+        await this.folderRepository.getAllCompletedFiles(parentId);
+      console.log('files', allFiles);
+      return allFiles;
+    }
   }
 
   async getFilesByFolder(
     userId: string,
     folderId: string,
-    page = 1,
-    limit = 10,
+    page?: number,
+    limit?: number,
   ) {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -338,28 +351,37 @@ export class FolderService {
     if (!parentUser) {
       throw new NotFoundException('User not found');
     }
-    const folderBelongsToUser = await this.folderRepository.findOneByParentId(
-      folderId,
-      parentId,
-    );
+    const folderBelongsToUser =
+      await this.folderRepository.findByFolderIdAndParentId(folderId, parentId);
     if (folderBelongsToUser?.length === 0) {
       throw new ForbiddenException('Unauthorized');
     }
 
-    if (folderId) {
-      const folderFiles = await this.folderRepository.getFilesByFolder(
+    if (folderId && page && limit) {
+      const folderFiles = await this.folderRepository.getPaginatedFilesByFolder(
         parentId,
         folderId,
         page,
         limit,
       );
       return folderFiles;
+    } else {
+      const folderFiles = await this.folderRepository.getFilesByFolder(
+        parentId,
+        folderId,
+      );
+      return folderFiles;
     }
   }
 
-  // 
+  // get files by date
 
-  async getFilesByDate(userId: string, page = 1, limit = 10, date: string) {
+  async getFilesByDate(
+    userId: string,
+    date: string,
+    page?: number,
+    limit?: number,
+  ) {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
 
@@ -371,11 +393,17 @@ export class FolderService {
     if (!parentUser) {
       throw new NotFoundException('User not found');
     }
-    if (date) {
-      const folderFiles = await this.folderRepository.getFilesByDate(
+    if (date && page && limit) {
+      const folderFiles = await this.folderRepository.getPaginatedFilesByDate(
         parentId,
         page,
         limit,
+        date,
+      );
+      return folderFiles;
+    } else {
+      const folderFiles = await this.folderRepository.getFilesByDate(
+        parentId,
         date,
       );
       return folderFiles;
@@ -385,9 +413,9 @@ export class FolderService {
   async getFilesByDateAndFolder(
     userId: string,
     folderId: string,
-    page = 1,
-    limit = 10,
     date: string,
+    page?: number,
+    limit?: number,
   ) {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -404,23 +432,48 @@ export class FolderService {
     if (!parentUser) {
       throw new NotFoundException('User not found');
     }
-    const folderBelongsToUser = await this.folderRepository.findOneByParentId(
-      folderId,
-      parentId,
-    );
+    const folderBelongsToUser =
+      await this.folderRepository.findByFolderIdAndParentId(folderId, parentId);
     if (folderBelongsToUser?.length === 0) {
       throw new ForbiddenException('Unauthorized');
     }
 
-    if (folderId && date) {
+    if (folderId && date && page && limit) {
+      const folderFiles =
+        await this.folderRepository.getPaginatedFilesByFolderAndDate(
+          parentId,
+          folderId,
+          page,
+          limit,
+          date,
+        );
+      return folderFiles;
+    } else {
       const folderFiles = await this.folderRepository.getFilesByFolderAndDate(
         parentId,
         folderId,
-        page,
-        limit,
         date,
       );
       return folderFiles;
     }
+  }
+
+  async streamZipFromS3(files: any[], res: Response) {
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      throw err;
+    });
+
+    archive.pipe(res);
+
+    for (const file of files) {
+      const key = file.url; // S3 key
+      const fileName = file.newName || key.split('/').pop();
+
+      const fileStream = await this.s3Service.downloadFile(key);
+      archive.append(fileStream, { name: fileName });
+    }
+
+    await archive.finalize();
   }
 }

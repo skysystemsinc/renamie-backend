@@ -42,8 +42,9 @@ export class FolderRepository {
   async findAllByUserId(userId: string): Promise<FolderDocument[]> {
     return this.folderModel.find({ userId: new Types.ObjectId(userId) }).exec();
   }
-  // find one folder by parent id
-  async findOneByParentId(
+
+  // find folder by folder id and  parent id
+  async findByFolderIdAndParentId(
     folderId: string,
     parentId: string,
   ): Promise<FolderDocument[]> {
@@ -54,25 +55,14 @@ export class FolderRepository {
       })
       .exec();
   }
+
   // find folders by parent id
   async findAllByParentId(parentId: string): Promise<FolderDocument[]> {
     return this.folderModel
       .find({
         parentUser: new Types.ObjectId(parentId),
       })
-       .sort({ createdAt: -1 })
-      .exec();
-  }
-  //find folders by folder id and  parent id
-  async findAllByfolderIdAndParentId(
-    parentId: string,
-    folderId: string,
-  ): Promise<FolderDocument[]> {
-    return this.folderModel
-      .find({
-        _id: new Types.ObjectId(folderId),
-        parentUser: new Types.ObjectId(parentId),
-      })
+      .sort({ createdAt: -1 })
       .exec();
   }
 
@@ -172,8 +162,8 @@ export class FolderRepository {
     return result.map((r) => r.file);
   }
 
-  // get completed files of complete module (with pagination)
-  async getAllCompletedFiles(
+  // get completed files  (with pagination)
+  async getAllCompletedFilesWithPagination(
     userId: string,
     page = 1,
     limit = 10,
@@ -215,8 +205,8 @@ export class FolderRepository {
     };
   }
 
-  // get file by folder
-  async getFilesByFolder(
+  // get file by folder   (with pagination)
+  async getPaginatedFilesByFolder(
     userId: string,
     folderId: string,
     page = 1,
@@ -265,8 +255,8 @@ export class FolderRepository {
     };
   }
 
-  // get files by date
-  async getFilesByDate(
+  // get files by date  (with pagination)
+  async getPaginatedFilesByDate(
     userId: string,
     page = 1,
     limit = 10,
@@ -278,7 +268,6 @@ export class FolderRepository {
     limit: number;
   }> {
     const skip = (page - 1) * limit;
-
     const startDate = new Date(date);
     startDate.setUTCHours(0, 0, 0, 0);
     const endDate = new Date(date);
@@ -332,7 +321,7 @@ export class FolderRepository {
   }
 
   // get by both folder and date
-  async getFilesByFolderAndDate(
+  async getPaginatedFilesByFolderAndDate(
     userId: string,
     folderId: string,
     page = 1,
@@ -389,6 +378,148 @@ export class FolderRepository {
       totalFiles: total.length ? total[0].total : 0,
       page,
       limit,
+    };
+  }
+
+  // get file by folder
+  async getFilesByFolder(
+    userId: string,
+    folderId: string,
+  ): Promise<{
+    files: any[];
+    totalFiles: number;
+  }> {
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+          _id: new Types.ObjectId(folderId),
+        },
+      },
+      { $unwind: '$files' },
+      { $match: { 'files.status': 'completed' } },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+    const totalFiles = result.length;
+    return {
+      files: result.map((r) => r.file),
+      totalFiles,
+    };
+  }
+
+  // get all completed files
+  async getAllCompletedFiles(userId: string): Promise<{
+    files: any[];
+    totalFiles: number;
+  }> {
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+        },
+      },
+      { $unwind: '$files' },
+      { $match: { 'files.status': 'completed' } },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+
+    const totalFiles = result.length;
+
+    return {
+      files: result.map((r) => r.file),
+      totalFiles,
+    };
+  }
+
+  //  get all by date
+  async getFilesByDate(
+    userId: string,
+    date: string,
+  ): Promise<{
+    files: any[];
+    totalFiles: number;
+  }> {
+    const startDate = new Date(date);
+    startDate.setUTCHours(0, 0, 0, 0);
+    const endDate = new Date(date);
+    endDate.setUTCHours(23, 59, 59, 999);
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+        },
+      },
+      { $unwind: '$files' },
+      {
+        $match: {
+          'files.status': 'completed',
+          'files.createdAt': {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+    const totalResult = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+        },
+      },
+      { $unwind: '$files' },
+      {
+        $match: {
+          'files.status': 'completed',
+          'files.createdAt': {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      { $count: 'total' },
+    ]);
+    const totalFiles = totalResult.length > 0 ? totalResult[0].total : 0;
+    return {
+      files: result.map((r) => r.file),
+      totalFiles,
+    };
+  }
+
+  // get by folder id and date both
+
+  async getFilesByFolderAndDate(
+    userId: string,
+    folderId: string,
+    date: string,
+  ) {
+    const startDate = new Date(date);
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    const endDate = new Date(date);
+    endDate.setUTCHours(23, 59, 59, 999);
+
+    const files = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+          _id: new Types.ObjectId(folderId),
+        },
+      },
+      { $unwind: '$files' },
+      {
+        $match: {
+          'files.status': 'completed',
+          'files.createdAt': { $gte: startDate, $lte: endDate },
+        },
+      },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+
+    const total = files.length;
+    return {
+      files: files.map((f) => f.file),
+      totalFiles: total,
     };
   }
 }
