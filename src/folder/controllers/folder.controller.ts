@@ -57,12 +57,28 @@ export class FolderController {
     @Query('page') page: number,
     @Query('limit') limit: number,
     @Query('folderId') folderId?: string,
+    @Query('date') date?: string,
   ) {
-    const userFiles = folderId
-      ? await this.folderService.getFilesByFolder(userId, folderId, page, limit)
-      : await this.folderService.getALLFiles(userId, page, limit);
+    const userFiles =
+      folderId && !date
+        ? await this.folderService.getFilesByFolder(
+            userId,
+            folderId,
+            page,
+            limit,
+          )
+        : date && !folderId
+          ? await this.folderService.getFilesByDate(userId, page, limit, date)
+          : folderId && date
+            ? await this.folderService.getFilesByDateAndFolder(
+                userId,
+                folderId,
+                page,
+                limit,
+                date,
+              )
+            : await this.folderService.getALLFiles(userId, page, limit);
     // const userFiles = await this.folderService.getALLFiles(userId, page, limit);
-    console.log('user files', userFiles);
     return ApiResponseDto.success('Files fetched successfully', userFiles);
   }
 

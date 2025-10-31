@@ -42,13 +42,37 @@ export class FolderRepository {
   async findAllByUserId(userId: string): Promise<FolderDocument[]> {
     return this.folderModel.find({ userId: new Types.ObjectId(userId) }).exec();
   }
-
-  //find folders by parent id
-  async findAllByParentId(
+  // find one folder by parent id
+  async findOneByParentId(
+    folderId: string,
     parentId: string,
   ): Promise<FolderDocument[]> {
     return this.folderModel
-      .find({ parentUser: new Types.ObjectId(parentId) })
+      .find({
+        _id: new Types.ObjectId(folderId),
+        parentUser: new Types.ObjectId(parentId),
+      })
+      .exec();
+  }
+  // find folders by parent id
+  async findAllByParentId(parentId: string): Promise<FolderDocument[]> {
+    return this.folderModel
+      .find({
+        parentUser: new Types.ObjectId(parentId),
+      })
+       .sort({ createdAt: -1 })
+      .exec();
+  }
+  //find folders by folder id and  parent id
+  async findAllByfolderIdAndParentId(
+    parentId: string,
+    folderId: string,
+  ): Promise<FolderDocument[]> {
+    return this.folderModel
+      .find({
+        _id: new Types.ObjectId(folderId),
+        parentUser: new Types.ObjectId(parentId),
+      })
       .exec();
   }
 
@@ -81,6 +105,7 @@ export class FolderRepository {
 
   // folder with paginated files
   async getPaginatedFiles(
+    userId: string,
     folderId: string,
     page: number = 1,
     limit: number = 10,
@@ -92,10 +117,15 @@ export class FolderRepository {
     files: any[];
   }> {
     const skip = (page - 1) * limit;
-
     const folder = await this.folderModel
       .aggregate([
-        { $match: { _id: new Types.ObjectId(folderId) } },
+        {
+          $match: {
+            _id: new Types.ObjectId(folderId),
+            parentUser: new Types.ObjectId(userId),
+          },
+        },
+
         {
           $project: {
             _id: 1,
@@ -157,7 +187,7 @@ export class FolderRepository {
     const result = await this.folderModel.aggregate([
       {
         $match: {
-          userId: new Types.ObjectId(userId),
+          parentUser: new Types.ObjectId(userId),
         },
       },
       { $unwind: '$files' },
@@ -170,14 +200,13 @@ export class FolderRepository {
 
     // count total completed files for this user
     const totalResult = await this.folderModel.aggregate([
-      { $match: { userId: new Types.ObjectId(userId) } },
+      { $match: { parentUser: new Types.ObjectId(userId) } },
       { $unwind: '$files' },
       { $match: { 'files.status': 'completed' } },
       { $count: 'total' },
     ]);
 
     const totalFiles = totalResult.length > 0 ? totalResult[0].total : 0;
-
     return {
       files: result.map((r) => r.file),
       totalFiles,
@@ -199,11 +228,10 @@ export class FolderRepository {
     limit: number;
   }> {
     const skip = (page - 1) * limit;
-
     const result = await this.folderModel.aggregate([
       {
         $match: {
-          userId: new Types.ObjectId(userId),
+          parentUser: new Types.ObjectId(userId),
           _id: new Types.ObjectId(folderId),
         },
       },
@@ -218,7 +246,7 @@ export class FolderRepository {
     const totalResult = await this.folderModel.aggregate([
       {
         $match: {
-          userId: new Types.ObjectId(userId),
+          parentUser: new Types.ObjectId(userId),
           _id: new Types.ObjectId(folderId),
         },
       },
@@ -232,6 +260,133 @@ export class FolderRepository {
     return {
       files: result.map((r) => r.file),
       totalFiles,
+      page,
+      limit,
+    };
+  }
+
+  // get files by date
+  async getFilesByDate(
+    userId: string,
+    page = 1,
+    limit = 10,
+    date: string,
+  ): Promise<{
+    files: any[];
+    totalFiles: number;
+    page: number;
+    limit: number;
+  }> {
+    const skip = (page - 1) * limit;
+
+    const startDate = new Date(date);
+    startDate.setUTCHours(0, 0, 0, 0);
+    const endDate = new Date(date);
+    endDate.setUTCHours(23, 59, 59, 999);
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+        },
+      },
+      { $unwind: '$files' },
+      {
+        $match: {
+          'files.status': 'completed',
+          'files.createdAt': {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      { $sort: { 'files.createdAt': -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+    const totalResult = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+        },
+      },
+      { $unwind: '$files' },
+      {
+        $match: {
+          'files.status': 'completed',
+          'files.createdAt': {
+            $gte: startDate,
+            $lte: endDate,
+          },
+        },
+      },
+      { $count: 'total' },
+    ]);
+    const totalFiles = totalResult.length > 0 ? totalResult[0].total : 0;
+    return {
+      files: result.map((r) => r.file),
+      totalFiles,
+      page,
+      limit,
+    };
+  }
+
+  // get by both folder and date
+  async getFilesByFolderAndDate(
+    userId: string,
+    folderId: string,
+    page = 1,
+    limit = 10,
+    date: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    const startDate = new Date(date);
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    const endDate = new Date(date);
+    endDate.setUTCHours(23, 59, 59, 999);
+
+    const files = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+          _id: new Types.ObjectId(folderId),
+        },
+      },
+      { $unwind: '$files' },
+      {
+        $match: {
+          'files.status': 'completed',
+          'files.createdAt': { $gte: startDate, $lte: endDate },
+        },
+      },
+      { $sort: { 'files.createdAt': -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+
+    const total = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+          _id: new Types.ObjectId(folderId),
+        },
+      },
+      { $unwind: '$files' },
+      {
+        $match: {
+          'files.status': 'completed',
+          'files.createdAt': { $gte: startDate, $lte: endDate },
+        },
+      },
+      { $count: 'total' },
+    ]);
+
+    return {
+      files: files.map((f) => f.file),
+      totalFiles: total.length ? total[0].total : 0,
       page,
       limit,
     };
