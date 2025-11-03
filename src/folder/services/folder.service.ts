@@ -460,7 +460,7 @@ export class FolderService {
 
   async streamZipFromS3(files: any[], res: Response) {
     const archive = archiver('zip', { zlib: { level: 9 } });
-    archive.on('error', (err) => {
+    archive.on('error', (err: any) => {
       throw err;
     });
     archive.pipe(res);
