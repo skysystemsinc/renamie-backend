@@ -58,9 +58,9 @@ export class AuthService {
     if (user && user?.isCollaborator && !user?.inviteAccepted) {
       throw new UnauthorizedException('Please accept the invitation.');
     }
-    // if (user && !user?.emailVerified) {
-    //   throw new UnauthorizedException('Please verify your email.');
-    // }
+    if (user && !user?.emailVerified) {
+      throw new UnauthorizedException('Please verify your email.');
+    }
     await this.userService.updateLastLogin(user._id);
     // const subscription = await this.subscriptionService.findByUserId(user._id);
     const subscription =
