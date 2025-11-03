@@ -114,9 +114,8 @@ export class FolderController {
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename=download.zip');
 
+    // console.log('user files',userFiles);
     return this.folderService.streamZipFromS3(files, res);
-
-    // return this.folderService.downloadZip(files);
   }
 
   @Put(':id')

@@ -463,13 +463,11 @@ export class FolderService {
     archive.on('error', (err) => {
       throw err;
     });
-
     archive.pipe(res);
 
     for (const file of files) {
-      const key = file.url; // S3 key
-      const fileName = file.newName || key.split('/').pop();
-
+      const key = file.url;
+      const fileName = key.split('/').pop();
       const fileStream = await this.s3Service.downloadFile(key);
       archive.append(fileStream, { name: fileName });
     }
