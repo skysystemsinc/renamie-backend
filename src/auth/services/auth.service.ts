@@ -27,6 +27,7 @@ import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { StripeService } from 'src/stripe/stripe.service';
 import { CreateInvitedUserDto } from 'src/users/dto/create-user.dto';
 import { randomGenerator } from 'src/utils/helper';
+import { SSEService } from 'src/sse/controllers/services/sse.service';
 
 @Injectable()
 export class AuthService {
@@ -39,6 +40,7 @@ export class AuthService {
     private subscriptionService: SubscriptionService,
     private firebaseService: FirebaseService,
     private readonly stripeService: StripeService,
+    private readonly sseService: SSEService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -53,13 +55,13 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid Credentials');
     }
     if (user && user?.isCollaborator && !user?.inviteAccepted) {
-      throw new UnauthorizedException('Please accept the invitation.');
+      throw new UnauthorizedException('Please Accept The Invitation.');
     }
     if (user && !user?.emailVerified) {
-      throw new UnauthorizedException('Please verify your email.');
+      throw new UnauthorizedException('Please Verify Your Email.');
     }
     await this.userService.updateLastLogin(user._id);
     // const subscription = await this.subscriptionService.findByUserId(user._id);
@@ -234,7 +236,7 @@ export class AuthService {
   async changeUserProfile(userId: string, updateUserDto: UpdateUserDto) {
     const user = await this.userService.findById(userId);
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('User Not Found');
     }
     const updatedUser = await this.userService.updateProfile(
       userId,
@@ -347,6 +349,11 @@ export class AuthService {
     }
 
     await this.userService.removeCollaborators(id);
+    this.sseService.sendLogout(id);
+    await this.userService.updateUser(userId, {
+      userCount: user?.userCount - 1,
+    });
+
     return collaboartor;
   }
 }
