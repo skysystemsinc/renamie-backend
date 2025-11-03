@@ -423,4 +423,21 @@ export class FolderService {
       return folderFiles;
     }
   }
+
+  // Zip download
+  // async getZipDownload(userId: string, folderId?: string) {
+  //   const user = await this.userService.findById(userId);
+  //   if (!user) {
+  //     throw new NotFoundException('User not found');
+  //   }
+  //   const folder = folderId && (await this.folderRepository.findById(folderId));
+  //   if (!folder) {
+  //     throw new NotFoundException('Folder not found');
+  //   }
+  //   const folderFiles = await this.folderRepository.getAllDownloadedFiles(
+  //     userId,
+  //     folderId,
+  //   );
+  //   console.log('folderFiles', folderFiles);
+  // }
 }

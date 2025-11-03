@@ -8,6 +8,8 @@ import {
   Delete,
   Get,
   Query,
+  NotFoundException,
+  Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -22,6 +24,7 @@ import { FolderService } from '../services/folder.service';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 import { FileQueueService } from 'src/queue/services/file.queue.service';
 import { S3Service } from 'src/common/services/s3.service';
+import type { Response } from 'express';
 
 @ApiTags('folder')
 @Controller('folder')
@@ -68,18 +71,51 @@ export class FolderController {
             limit,
           )
         : date && !folderId
-          ? await this.folderService.getFilesByDate(userId, page, limit, date)
+          ? await this.folderService.getFilesByDate(userId, date, page, limit)
           : folderId && date
             ? await this.folderService.getFilesByDateAndFolder(
                 userId,
                 folderId,
+                date,
                 page,
                 limit,
-                date,
               )
             : await this.folderService.getALLFiles(userId, page, limit);
-    // const userFiles = await this.folderService.getALLFiles(userId, page, limit);
     return ApiResponseDto.success('Files fetched successfully', userFiles);
+  }
+
+  //  zip files
+  @Get('zip-download')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getZipDownload(
+    @CurrentUser('id') userId: string,
+    @Res() res: Response,
+    @Query('folderId') folderId?: string,
+    @Query('date') date?: string,
+  ) {
+    const userFiles =
+      folderId && !date
+        ? await this.folderService.getFilesByFolder(userId, folderId)
+        : date && !folderId
+          ? await this.folderService.getFilesByDate(userId, date)
+          : folderId && date
+            ? await this.folderService.getFilesByDateAndFolder(
+                userId,
+                folderId,
+                date,
+              )
+            : await this.folderService.getALLFiles(userId);
+    const files = userFiles.files;
+    if (!files?.length) {
+      throw new NotFoundException('No files found');
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename=download.zip');
+
+    // console.log('user files',userFiles);
+    return this.folderService.streamZipFromS3(files, res);
   }
 
   @Put(':id')
