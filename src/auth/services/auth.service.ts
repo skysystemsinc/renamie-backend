@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -11,6 +13,8 @@ import { RegisterDto } from '../dto/register.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { UserDocument } from '../../users/schemas/user.schema';
 import { randomBytes } from 'crypto';
+import * as bcrypt from 'bcrypt';
+
 import {
   EmailVerifyDto,
   resetPasswordDto,
@@ -21,6 +25,8 @@ import { FirebaseService } from 'src/firebase/firebase.service';
 import { SendgridService } from 'src/common/services/sendgrid';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { StripeService } from 'src/stripe/stripe.service';
+import { CreateInvitedUserDto } from 'src/users/dto/create-user.dto';
+import { randomGenerator } from 'src/utils/helper';
 
 @Injectable()
 export class AuthService {
@@ -49,11 +55,16 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    if (user && user?.isCollaborator && !user?.inviteAccepted) {
+      throw new UnauthorizedException('Please accept the invitation.');
+    }
     if (user && !user?.emailVerified) {
       throw new UnauthorizedException('Please verify your email.');
     }
     await this.userService.updateLastLogin(user._id);
-    const subscription = await this.subscriptionService.findByUserId(user._id);
+    // const subscription = await this.subscriptionService.findByUserId(user._id);
+    const subscription =
+      await this.subscriptionService.findUserActiveOrTrialingSubs(user?._id);
     const tokens = await this.generateTokens(user);
     await this.userService.updateRefreshToken(user._id, tokens.refreshToken);
 
@@ -237,5 +248,105 @@ export class AuthService {
       });
     }
     return updatedUser;
+  }
+
+  // invite user
+  async createInvitedUser(
+    userId: string,
+    createInvitedUserDto: CreateInvitedUserDto,
+  ) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const activeSubs = await this.subscriptionService.getUsage(userId);
+    const usersAllowed = activeSubs?.features?.users;
+    if (user?.userCount >= usersAllowed) {
+      throw new BadRequestException(
+        'You have reached the maximum number of collaborators allowed in your current plan.',
+      );
+    }
+
+    const parentId = (user as any)?._id;
+    const password = randomGenerator();
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const userData = {
+      ...createInvitedUserDto,
+      password: hashedPassword,
+      isCollaborator: true,
+      inviteAccepted: false,
+      emailVerified: true,
+      inviteSentAt: new Date(),
+      userId: parentId,
+    };
+
+    await this.userService.checkIfAlreadyExist(userData?.email);
+    const result = await this.userService.createInviteUser(userData);
+    if (result) {
+      const id = (result as any)?._id.toString();
+      await this.userService.updateUser(userId, {
+        userCount: user?.userCount + 1,
+      });
+
+      await this.firebaseService.createUser(id, {
+        id: id,
+        email: result.email,
+        firstName: result.firstName,
+        lastName: result.lastName,
+        role: result.role,
+        createdAt: new Date().toISOString(),
+      });
+
+      const appUrl = process.env.FRONTEND_URL;
+      const invitationUrl = `${appUrl}/renamie.com/invite/${id}`;
+      await this.sendgridService.sendInviteEmail(
+        result?.email,
+        result?.firstName,
+        user?.firstName,
+        invitationUrl,
+      );
+    }
+    return result;
+  }
+
+  // get Collaborators
+
+  async getCollaborators(userId: string, parentId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const collaborators =
+      await this.userService.findCollaboratorsByParentId(parentId);
+    return collaborators;
+  }
+
+  // accept Invite
+  async acceptInvite(userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const collaborators =
+      await this.userService.acceptCollaboratorInvitation(userId);
+    return collaborators;
+  }
+
+  // removeCollaborator
+
+  async removeCollaborator(userId: string, id: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const collaboartor = await this.userService.findById(id);
+    if (!collaboartor) {
+      throw new NotFoundException('Collaborator not found');
+    }
+
+    await this.userService.removeCollaborators(id);
+    return collaboartor;
   }
 }

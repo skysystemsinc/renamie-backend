@@ -9,13 +9,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from '../services/user.service';
-import { CreateUserDto } from '../dto/create-user.dto';
+import {  CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '../schemas/user.schema';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {  ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Users')
 @Controller('users')

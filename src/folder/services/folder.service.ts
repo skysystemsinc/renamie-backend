@@ -28,12 +28,22 @@ export class FolderService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const subs = await this.subscriptionService.findSubsByUserId(userId);
+    let parentId = userId;
+    if (user?.isCollaborator && user?.inviteAccepted) {
+      parentId = user?.userId.toString();
+    }
+
+    const parent = await this.userService.findById(parentId);
+    if (!parent) {
+      throw new NotFoundException('user not found');
+    }
+
+    const subs = await this.subscriptionService.findSubsByUserId(parentId);
     if (!subs) {
       throw new NotFoundException('Subscription not found');
     }
 
-    if (user.folderCount >= subs.features.folders) {
+    if (parent.folderCount >= subs.features.folders) {
       throw new NotFoundException(`You have reached your folder limit.`);
     }
 
@@ -49,10 +59,11 @@ export class FolderService {
     const createdFolder = this.folderRepository.create({
       userId: new Types.ObjectId(userId),
       name: createFoldersDto.name,
+      parentUser: new Types.ObjectId(parentId),
     });
 
-    await this.userService.updateUser(userId, {
-      folderCount: user.folderCount + 1,
+    await this.userService.updateUser(parentId, {
+      folderCount: parent.folderCount + 1,
     });
 
     return createdFolder;
@@ -73,7 +84,7 @@ export class FolderService {
       throw new NotFoundException('Folder not found');
     }
 
-    if (folder.userId.toString() !== userId) {
+    if (folder?.parentUser?.toString() !== userId) {
       throw new ForbiddenException(
         'You do not have permission to update this folder',
       );
@@ -102,7 +113,7 @@ export class FolderService {
       throw new NotFoundException('Folder not found');
     }
 
-    if (folder.userId.toString() !== userId) {
+    if (folder?.parentUser?.toString() !== userId) {
       throw new ForbiddenException(
         'You do not have permission to delete this folder',
       );
@@ -116,8 +127,15 @@ export class FolderService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
-    return await this.folderRepository.findAllByUserId(userId);
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    return await this.folderRepository.findAllByParentId(parentId);
   }
 
   // folder Detail
@@ -128,9 +146,30 @@ export class FolderService {
     limit = 10,
   ) {
     const user = await this.userService.findById(userId);
-    if (!user) throw new NotFoundException('User not found');
-
-    return await this.folderRepository.getPaginatedFiles(folderId, page, limit);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    const folder = await this.folderRepository.findAllByfolderIdAndParentId(
+      parentId,
+      folderId,
+    );
+    if (folder?.length === 0) {
+      throw new ForbiddenException('Unauthorized');
+    }
+    return await this.folderRepository.getPaginatedFiles(
+      parentId,
+      folderId,
+      page,
+      limit,
+    );
   }
 
   async saveFilestoFolder(folderId: string, files: any[]) {
@@ -263,8 +302,16 @@ export class FolderService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
     const allFiles = await this.folderRepository.getAllCompletedFiles(
-      userId,
+      parentId,
       page,
       limit,
     );
@@ -279,19 +326,102 @@ export class FolderService {
   ) {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
-
     const folder = await this.folderRepository.findById(folderId);
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
-    const folderFiles = await this.folderRepository.getFilesByFolder(
-      userId,
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    const folderBelongsToUser = await this.folderRepository.findOneByParentId(
       folderId,
-      page,
-      limit,
+      parentId,
     );
+    if (folderBelongsToUser?.length === 0) {
+      throw new ForbiddenException('Unauthorized');
+    }
 
-    return folderFiles;
+    if (folderId) {
+      const folderFiles = await this.folderRepository.getFilesByFolder(
+        parentId,
+        folderId,
+        page,
+        limit,
+      );
+      return folderFiles;
+    }
+  }
+
+  // 
+
+  async getFilesByDate(userId: string, page = 1, limit = 10, date: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    if (date) {
+      const folderFiles = await this.folderRepository.getFilesByDate(
+        parentId,
+        page,
+        limit,
+        date,
+      );
+      return folderFiles;
+    }
+  }
+
+  async getFilesByDateAndFolder(
+    userId: string,
+    folderId: string,
+    page = 1,
+    limit = 10,
+    date: string,
+  ) {
+    const user = await this.userService.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    const folder = folderId && (await this.folderRepository.findById(folderId));
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    const folderBelongsToUser = await this.folderRepository.findOneByParentId(
+      folderId,
+      parentId,
+    );
+    if (folderBelongsToUser?.length === 0) {
+      throw new ForbiddenException('Unauthorized');
+    }
+
+    if (folderId && date) {
+      const folderFiles = await this.folderRepository.getFilesByFolderAndDate(
+        parentId,
+        folderId,
+        page,
+        limit,
+        date,
+      );
+      return folderFiles;
+    }
   }
 
   // Zip download

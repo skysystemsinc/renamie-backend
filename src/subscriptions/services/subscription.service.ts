@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { SubscriptionRepository } from '../repositories/subscription.repository';
 import { CreateSubscriptionDto } from '../dto/create-subscription.dto';
@@ -226,6 +222,7 @@ export class SubscriptionService {
     return {
       folderCount: user?.folderCount,
       fileCount: user?.fileCount,
+      userCount: user?.userCount,
       features: subscription?.features,
     };
   }
