@@ -11,7 +11,7 @@ export class FolderRepository {
   ) {}
 
   async create(FolderDocument: Partial<Folder>): Promise<FolderDocument> {
-    const createdFolder = new this.folderModel(FolderDocument);
+    const createdFolder =  new this.folderModel(FolderDocument);
     return createdFolder.save();
   }
 

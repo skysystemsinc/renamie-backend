@@ -32,12 +32,13 @@ export class FolderService {
       throw new NotFoundException('User not found');
     }
     let parentId = userId;
+    let parentUser = user;
     if (user?.isCollaborator && user?.inviteAccepted) {
       parentId = user?.userId.toString();
     }
 
-    const parent = await this.userService.findById(parentId);
-    if (!parent) {
+    parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
       throw new NotFoundException('user not found');
     }
 
@@ -46,7 +47,7 @@ export class FolderService {
       throw new NotFoundException('Subscription not found');
     }
 
-    if (parent.folderCount >= subs.features.folders) {
+    if (parentUser.folderCount >= subs.features.folders) {
       throw new NotFoundException(`You have reached your folder limit.`);
     }
 
@@ -66,7 +67,7 @@ export class FolderService {
     });
 
     await this.userService.updateUser(parentId, {
-      folderCount: parent.folderCount + 1,
+      folderCount: parentUser.folderCount + 1,
     });
 
     return createdFolder;
@@ -110,21 +111,20 @@ export class FolderService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
+    let parentId = userId;
+    let parentUser = user;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+      parentUser = await this.userService.findById(parentId);
+    }
     const folder = await this.folderRepository.findById(id);
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
-
-    if (folder?.parentUser?.toString() !== userId) {
-      throw new ForbiddenException(
-        'You do not have permission to delete this folder',
-      );
-    }
-
     await this.folderRepository.delete(id);
-    await this.userService.updateUser(userId, {
-      folderCount: user?.folderCount - 1,
+    const newFolderCount = Math.max((parentUser.folderCount ?? 0) - 1, 0);
+    await this.userService.updateUser(parentId, {
+      folderCount: newFolderCount,
     });
   }
 
