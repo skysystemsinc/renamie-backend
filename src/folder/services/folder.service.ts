@@ -122,7 +122,10 @@ export class FolderService {
       );
     }
 
-    return this.folderRepository.delete(id);
+    await this.folderRepository.delete(id);
+    await this.userService.updateUser(userId, {
+      folderCount: user?.folderCount - 1,
+    });
   }
 
   async getALLFolders(userId: string) {

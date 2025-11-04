@@ -9,6 +9,9 @@ import {
   Get,
   Param,
   Delete,
+  Query,
+  Res,
+  Req,
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { AuthService } from '../services/auth.service';
@@ -38,12 +41,17 @@ import {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+  ) {}
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
     const result = await this.authService.register(registerDto);
-    return ApiResponseDto.success('User registered successfully', result);
+    return ApiResponseDto.success(
+      'Registration successful! Please verify your account via email',
+      result,
+    );
   }
 
   @ApiBody({ type: LoginDto })
@@ -53,7 +61,7 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto, @Request() req: ExpressRequest) {
     console.log('loginDto', loginDto);
     const result = await this.authService.login(loginDto);
-    return ApiResponseDto.success('Login successful', result);
+    return ApiResponseDto.success('Login Successful', result);
   }
 
   @Post('refresh')
@@ -104,7 +112,7 @@ export class AuthController {
       userId,
       updateUserDto,
     );
-    return ApiResponseDto.success('user profile updated !', result);
+    return ApiResponseDto.success('Profile Updated Successfully!', result);
   }
 
   // create invite user

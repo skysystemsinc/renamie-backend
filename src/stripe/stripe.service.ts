@@ -154,7 +154,7 @@ export class StripeService {
       };
 
       if (!previousSubs) {
-        subscriptionData.trial_period_days = 15;
+        subscriptionData.trial_period_days = 7;
       }
       return await this.stripe.checkout.sessions.create({
         customer: customerId,
@@ -408,7 +408,7 @@ export class StripeService {
       if (subscription && subscription?.trial_start) {
         const trailStartDate = new Date(subscription?.trial_start * 1000);
         const trialExpiresAt = new Date(trailStartDate);
-        trialExpiresAt.setDate(trailStartDate.getDate() + 15);
+        trialExpiresAt.setDate(trailStartDate.getDate() + 7);
 
         const updatedSubscription = await this.subscriptionRepository.update(
           existingSubscription.id,
