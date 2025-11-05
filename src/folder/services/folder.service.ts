@@ -5,8 +5,9 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  StreamableFile,
 } from '@nestjs/common';
-import { CreateFoldersDto } from '../dto/create-folder.dto';
+import { CreateFoldersDto, QuickBookFormatDto } from '../dto/create-folder.dto';
 import { UserService } from 'src/users/services/user.service';
 import { FolderRepository } from '../repositories/folder.repository';
 import { Types } from 'mongoose';
@@ -14,7 +15,7 @@ import { S3Service } from 'src/common/services/s3.service';
 import { SubscriptionService } from 'src/subscriptions/services/subscription.service';
 import archiver from 'archiver';
 import { Response } from 'express';
-import { FieldPath } from 'firebase-admin/firestore';
+import { tryCatch } from 'bullmq';
 
 @Injectable()
 export class FolderService {
@@ -220,7 +221,6 @@ export class FolderService {
   //     url: newKey,
   //     rename_at: new Date(),
   //   });
-
   //   const updatedFile = await this.folderRepository.findFileById(fileId);
   //   return updatedFile;
   // }
@@ -304,8 +304,6 @@ export class FolderService {
 
   // get All files that has completed status
   async getALLFiles(userId: string, page?: number, limit?: number) {
-    console.log('page', page);
-    console.log('limit', limit);
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -329,7 +327,6 @@ export class FolderService {
     } else {
       const allFiles =
         await this.folderRepository.getAllCompletedFiles(parentId);
-      console.log('files', allFiles);
       return allFiles;
     }
   }
@@ -476,5 +473,106 @@ export class FolderService {
     }
 
     await archive.finalize();
+  }
+
+  // create quick book
+
+  async createQuickBook(
+    userId: string,
+    folderId: string,
+    quickBookFormatDto: QuickBookFormatDto,
+  ) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const folder = await this.folderRepository.findById(folderId);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    const folderBelongsToUser =
+      await this.folderRepository.findByFolderIdAndParentId(folderId, parentId);
+    if (folderBelongsToUser?.length === 0) {
+      throw new ForbiddenException('Unauthorized');
+    }
+
+    const updatedFolder = await this.folderRepository.updateFolder(folderId, {
+      book: quickBookFormatDto,
+    });
+    return updatedFolder;
+  }
+
+  //  get Export files
+  async getExportFiles(userId: string, folderId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const folder = await this.folderRepository.findById(folderId);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+    console.log('folder', folder);
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    const bookData = folder?.book;
+    console.log('bookdata', bookData);
+    const allFiles = await this.folderRepository.getAllUploadedFiles(
+      parentId,
+      folderId,
+    );
+    console.log('all files', allFiles);
+
+    const bookSection = [
+      `Vendor Name:,${bookData?.vendorName ?? ''}`,
+      `Payment Account:,${bookData?.paymentAccount ?? ''}`,
+      `Description:,${bookData?.description ?? ''}`,
+      '',
+    ];
+    const metadataRows = allFiles.files.map((file) => {
+      const metadataObj: Record<string, any> = {};
+
+      if (Array.isArray(file.metadata)) {
+        file.metadata.forEach((meta: any) => {
+          Object.keys(meta).forEach((k) => {
+            if (!['_id', '__v'].includes(k)) {
+              metadataObj[k] = meta[k] ?? '';
+            }
+          });
+        });
+      }
+
+      return metadataObj;
+    });
+    const metadataHeaders = [
+      ...new Set(metadataRows.flatMap((obj) => Object.keys(obj))),
+    ];
+
+    const metadataCsv = [
+      metadataHeaders.join(','),
+      ...metadataRows.map((row) =>
+        metadataHeaders.map((h) => `"${row[h] ?? ''}"`).join(','),
+      ),
+    ];
+
+    const csvContent = [...bookSection, ...metadataCsv].join('\n');
+    return new StreamableFile(Buffer.from(csvContent), {
+      type: 'text/csv',
+      disposition: `attachment; filename="export_${folder?.name}.csv"`,
+    });
   }
 }

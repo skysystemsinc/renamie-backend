@@ -10,6 +10,7 @@ import {
   Query,
   NotFoundException,
   Res,
+  Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -18,6 +19,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   CreateFoldersDto,
   FormatDto,
+  QuickBookFormatDto,
   RenameFileDto,
 } from '../dto/create-folder.dto';
 import { FolderService } from '../services/folder.service';
@@ -118,6 +120,29 @@ export class FolderController {
     return this.folderService.streamZipFromS3(files, res);
   }
 
+  // export Files
+  @Get('export/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async exportFiles(
+    @CurrentUser('id') userId: string,
+    @Param('id') folderId: string,
+    @Res() res: Response,
+  ) {
+    const streamFile = await this.folderService.getExportFiles(
+      userId,
+      folderId,
+    );
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="export.csv"`,
+    );
+    streamFile.getStream().pipe(res);
+  }
+
+  //
   @Put(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBody({ type: CreateFoldersDto })
@@ -229,5 +254,24 @@ export class FolderController {
       formatDto.format,
     );
     return ApiResponseDto.success('Format Updated Successfully', result);
+  }
+
+  // Quickbook
+  @Post('book/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: RenameFileDto })
+  @ApiOperation({ summary: 'Save file format to folder' })
+  @ApiBearerAuth('JWT-auth')
+  async createQuickBook(
+    @Param('id') folderId: string,
+    @Body() quickBookFormatDto: QuickBookFormatDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const result = await this.folderService.createQuickBook(
+      userId,
+      folderId,
+      quickBookFormatDto,
+    );
+    return ApiResponseDto.success('Quick book saved successfully', result);
   }
 }
