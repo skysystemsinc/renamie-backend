@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Files, FilesSchema } from './files.schema';
+import { Book, BookSchema } from './book.schema';
 
 export type FolderDocument = Folder & Document;
 
@@ -23,6 +24,9 @@ export class Folder {
 
   @Prop({ type: String, default: '' })
   format?: string;
+
+  @Prop({ type: BookSchema })
+  book: Book;
 }
 
 export const FolderSchema = SchemaFactory.createForClass(Folder);

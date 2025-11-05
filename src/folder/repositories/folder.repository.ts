@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Folder, FolderDocument } from '../schema/folder.schema';
 import { format } from 'path';
+import { QuickBookFormatDto } from '../dto/create-folder.dto';
 
 @Injectable()
 export class FolderRepository {
@@ -11,7 +12,7 @@ export class FolderRepository {
   ) {}
 
   async create(FolderDocument: Partial<Folder>): Promise<FolderDocument> {
-    const createdFolder =  new this.folderModel(FolderDocument);
+    const createdFolder = new this.folderModel(FolderDocument);
     return createdFolder.save();
   }
 
@@ -424,7 +425,6 @@ export class FolderRepository {
     ]);
 
     const totalFiles = result.length;
-
     return {
       files: result.map((r) => r.file),
       totalFiles,
@@ -520,6 +520,40 @@ export class FolderRepository {
     return {
       files: files.map((f) => f.file),
       totalFiles: total,
+    };
+  }
+
+  async updateFolder(id: string, data: any) {
+    const updatedFolder = await this.folderModel.findByIdAndUpdate(
+      id,
+      { $set: data },
+      { new: true },
+    );
+    return updatedFolder;
+  }
+
+  // get all uploaded files of the folder
+  async getAllUploadedFiles(
+    parentId: string,
+    folderId: string,
+  ): Promise<{
+    files: any[];
+    totalFiles: number;
+  }> {
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(folderId),
+          parentUser: new Types.ObjectId(parentId),
+        },
+      },
+      { $unwind: '$files' },
+      { $project: { _id: 0, file: '$files' } },
+    ]);
+    const totalFiles = result.length;
+    return {
+      files: result.map((r) => r.file),
+      totalFiles,
     };
   }
 }
