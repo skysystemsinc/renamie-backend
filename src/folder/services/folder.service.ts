@@ -376,12 +376,14 @@ export class FolderService {
 
   // get files by date
 
-  async getFilesByDate(
-    userId: string,
-    date: string,
-    page?: number,
-    limit?: number,
-  ) {
+  async getFilesByDate(options: {
+    userId: string;
+    date: string;
+    page?: number;
+    limit?: number;
+    timezoneOffset?: string;
+  }) {
+    const { userId, date, page, limit, timezoneOffset } = options;
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
 
@@ -399,24 +401,28 @@ export class FolderService {
         page,
         limit,
         date,
+        timezoneOffset,
       );
       return folderFiles;
     } else {
       const folderFiles = await this.folderRepository.getFilesByDate(
         parentId,
         date,
+        timezoneOffset,
       );
       return folderFiles;
     }
   }
 
-  async getFilesByDateAndFolder(
-    userId: string,
-    folderId: string,
-    date: string,
-    page?: number,
-    limit?: number,
-  ) {
+  async getFilesByDateAndFolder(options: {
+    userId: string;
+    folderId: string;
+    date: string;
+    page?: number;
+    limit?: number;
+    timezoneOffset?: string;
+  }) {
+    const { userId, folderId, date, page, limit, timezoneOffset } = options;
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
     const folder = folderId && (await this.folderRepository.findById(folderId));
@@ -446,6 +452,7 @@ export class FolderService {
           page,
           limit,
           date,
+          timezoneOffset,
         );
       return folderFiles;
     } else {
@@ -453,6 +460,7 @@ export class FolderService {
         parentId,
         folderId,
         date,
+        timezoneOffset,
       );
       return folderFiles;
     }
