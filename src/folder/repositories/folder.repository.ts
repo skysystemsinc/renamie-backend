@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { Folder, FolderDocument } from '../schema/folder.schema';
 import { format } from 'path';
 import { QuickBookFormatDto } from '../dto/create-folder.dto';
+import { FileStatus } from '../schema/files.schema';
 
 @Injectable()
 export class FolderRepository {
@@ -579,5 +580,32 @@ export class FolderRepository {
       files: result.map((r) => r.file),
       totalFiles,
     };
+  }
+
+  async markOldFilesAsDeleted() {
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - 7);
+    const result = await this.folderModel.updateMany(
+      {
+        'files.status': FileStatus.COMPLETED,
+        'files.createdAt': { $lte: cutoff },
+      },
+      {
+        $set: {
+          'files.$[elem].status': FileStatus.DELETED,
+          'files.$[elem].deletedAt': now,
+        },
+      },
+      {
+        arrayFilters: [
+          {
+            'elem.status': FileStatus.COMPLETED,
+            'elem.createdAt': { $lte: cutoff },
+          },
+        ],
+      },
+    );
+    return result.modifiedCount;
   }
 }

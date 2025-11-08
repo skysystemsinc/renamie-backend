@@ -9,6 +9,7 @@ export enum FileStatus {
   COMPLETED = 'completed',
   PROCESSING = 'processing',
   FAILED = 'failed',
+  DELETED = 'deleted'
 }
 
 @Schema({ timestamps: true })
@@ -44,7 +45,6 @@ export class Files {
   @Prop()
   batchId: string;
 
-
   @Prop({ type: String, default: '' })
   invoiceId: string;
 
@@ -53,6 +53,14 @@ export class Files {
   
    @Prop({ type: String, default: null })
   reason: string | null;
+
+  @Prop({ type: Boolean, default: false })
+  isDeleted: boolean;
+
+  
+  @Prop({ type: Date, default: null })
+  deletedAt: Date | null;
+
 }
 
 export const FilesSchema = SchemaFactory.createForClass(Files);
