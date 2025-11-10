@@ -59,7 +59,6 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
   async login(@Body() loginDto: LoginDto, @Request() req: ExpressRequest) {
-    console.log('loginDto', loginDto);
     const result = await this.authService.login(loginDto);
     return ApiResponseDto.success('Login Successful', result);
   }

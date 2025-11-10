@@ -45,6 +45,9 @@ export class AuthService {
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Account not found!');
+    }
     if (user && (await this.userService.validatePassword(user, password))) {
       const { password, ...result } = (user as UserDocument).toObject();
       return result;

@@ -63,6 +63,7 @@ export class FolderController {
     @Query('limit') limit: number,
     @Query('folderId') folderId?: string,
     @Query('date') date?: string,
+    @Query('timezoneOffset') timezoneOffset?: string,
   ) {
     const userFiles =
       folderId && !date
@@ -73,15 +74,22 @@ export class FolderController {
             limit,
           )
         : date && !folderId
-          ? await this.folderService.getFilesByDate(userId, date, page, limit)
+          ? await this.folderService.getFilesByDate({
+              userId,
+              date,
+              page,
+              limit,
+              timezoneOffset,
+            })
           : folderId && date
-            ? await this.folderService.getFilesByDateAndFolder(
+            ? await this.folderService.getFilesByDateAndFolder({
                 userId,
                 folderId,
                 date,
                 page,
                 limit,
-              )
+                timezoneOffset,
+              })
             : await this.folderService.getALLFiles(userId, page, limit);
     return ApiResponseDto.success('Files fetched successfully', userFiles);
   }
@@ -95,18 +103,24 @@ export class FolderController {
     @Res() res: Response,
     @Query('folderId') folderId?: string,
     @Query('date') date?: string,
+    @Query('timezoneOffset') timezoneOffset?: string,
   ) {
     const userFiles =
       folderId && !date
         ? await this.folderService.getFilesByFolder(userId, folderId)
         : date && !folderId
-          ? await this.folderService.getFilesByDate(userId, date)
+          ? await this.folderService.getFilesByDate({
+              userId,
+              date,
+              timezoneOffset,
+            })
           : folderId && date
-            ? await this.folderService.getFilesByDateAndFolder(
+            ? await this.folderService.getFilesByDateAndFolder({
                 userId,
                 folderId,
                 date,
-              )
+                timezoneOffset,
+              })
             : await this.folderService.getALLFiles(userId);
     const files = userFiles.files;
     if (!files?.length) {
@@ -135,10 +149,7 @@ export class FolderController {
     );
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="export.csv"`,
-    );
+    res.setHeader('Content-Disposition', `attachment; filename="export.csv"`);
     streamFile.getStream().pipe(res);
   }
 

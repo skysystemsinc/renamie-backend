@@ -256,12 +256,13 @@ export class FolderRepository {
     };
   }
 
-  // get files by date  (with pagination)
+  // // get files by date  (with pagination)
   async getPaginatedFilesByDate(
     userId: string,
     page = 1,
     limit = 10,
     date: string,
+    timezoneOffset?: string,
   ): Promise<{
     files: any[];
     totalFiles: number;
@@ -269,10 +270,20 @@ export class FolderRepository {
     limit: number;
   }> {
     const skip = (page - 1) * limit;
-    const startDate = new Date(date);
-    startDate.setUTCHours(0, 0, 0, 0);
-    const endDate = new Date(date);
-    endDate.setUTCHours(23, 59, 59, 999);
+    // const startDate = new Date(date);
+    // startDate.setUTCHours(0, 0, 0, 0);
+    // const endDate = new Date(date);
+    // endDate.setUTCHours(23, 59, 59, 999);
+
+    // 1. Get the local start of the selected day
+    const localDate = new Date(date);
+    localDate.setHours(0, 0, 0, 0);
+    const offsetMinutes = timezoneOffset ? parseInt(timezoneOffset, 10) : 0;
+    const startDateUTC = new Date(localDate.getTime() + offsetMinutes * 60000);
+    const endDateUTC = new Date(
+      startDateUTC.getTime() + 24 * 60 * 60 * 1000 - 1,
+    );
+
     const result = await this.folderModel.aggregate([
       {
         $match: {
@@ -284,8 +295,8 @@ export class FolderRepository {
         $match: {
           'files.status': 'completed',
           'files.createdAt': {
-            $gte: startDate,
-            $lte: endDate,
+            $gte: startDateUTC,
+            $lte: endDateUTC,
           },
         },
       },
@@ -305,8 +316,8 @@ export class FolderRepository {
         $match: {
           'files.status': 'completed',
           'files.createdAt': {
-            $gte: startDate,
-            $lte: endDate,
+            $gte: startDateUTC,
+            $lte: endDateUTC,
           },
         },
       },
@@ -322,20 +333,25 @@ export class FolderRepository {
   }
 
   // get by both folder and date
+
   async getPaginatedFilesByFolderAndDate(
     userId: string,
     folderId: string,
     page = 1,
     limit = 10,
     date: string,
+    timezoneOffset?: string,
   ) {
     const skip = (page - 1) * limit;
 
-    const startDate = new Date(date);
-    startDate.setUTCHours(0, 0, 0, 0);
-
-    const endDate = new Date(date);
-    endDate.setUTCHours(23, 59, 59, 999);
+    // 1. Get the local start of the selected day
+    const localDate = new Date(date);
+    localDate.setHours(0, 0, 0, 0);
+    const offsetMinutes = timezoneOffset ? parseInt(timezoneOffset, 10) : 0;
+    const startDateUTC = new Date(localDate.getTime() + offsetMinutes * 60000);
+    const endDateUTC = new Date(
+      startDateUTC.getTime() + 24 * 60 * 60 * 1000 - 1,
+    );
 
     const files = await this.folderModel.aggregate([
       {
@@ -348,7 +364,7 @@ export class FolderRepository {
       {
         $match: {
           'files.status': 'completed',
-          'files.createdAt': { $gte: startDate, $lte: endDate },
+          'files.createdAt': { $gte: startDateUTC, $lte: endDateUTC },
         },
       },
       { $sort: { 'files.createdAt': -1 } },
@@ -368,7 +384,7 @@ export class FolderRepository {
       {
         $match: {
           'files.status': 'completed',
-          'files.createdAt': { $gte: startDate, $lte: endDate },
+          'files.createdAt': { $gte: startDateUTC, $lte: endDateUTC },
         },
       },
       { $count: 'total' },
@@ -435,14 +451,19 @@ export class FolderRepository {
   async getFilesByDate(
     userId: string,
     date: string,
+    timezoneOffset?: string,
   ): Promise<{
     files: any[];
     totalFiles: number;
   }> {
-    const startDate = new Date(date);
-    startDate.setUTCHours(0, 0, 0, 0);
-    const endDate = new Date(date);
-    endDate.setUTCHours(23, 59, 59, 999);
+    // 1. Get the local start of the selected day
+    const localDate = new Date(date);
+    localDate.setHours(0, 0, 0, 0);
+    const offsetMinutes = timezoneOffset ? parseInt(timezoneOffset, 10) : 0;
+    const startDateUTC = new Date(localDate.getTime() + offsetMinutes * 60000);
+    const endDateUTC = new Date(
+      startDateUTC.getTime() + 24 * 60 * 60 * 1000 - 1,
+    );
     const result = await this.folderModel.aggregate([
       {
         $match: {
@@ -454,8 +475,8 @@ export class FolderRepository {
         $match: {
           'files.status': 'completed',
           'files.createdAt': {
-            $gte: startDate,
-            $lte: endDate,
+            $gte: startDateUTC,
+            $lte: endDateUTC,
           },
         },
       },
@@ -472,8 +493,8 @@ export class FolderRepository {
         $match: {
           'files.status': 'completed',
           'files.createdAt': {
-            $gte: startDate,
-            $lte: endDate,
+            $gte: startDateUTC,
+            $lte: endDateUTC,
           },
         },
       },
@@ -492,12 +513,15 @@ export class FolderRepository {
     userId: string,
     folderId: string,
     date: string,
+    timezoneOffset?: string,
   ) {
-    const startDate = new Date(date);
-    startDate.setUTCHours(0, 0, 0, 0);
-
-    const endDate = new Date(date);
-    endDate.setUTCHours(23, 59, 59, 999);
+    const localDate = new Date(date);
+    localDate.setHours(0, 0, 0, 0);
+    const offsetMinutes = timezoneOffset ? parseInt(timezoneOffset, 10) : 0;
+    const startDateUTC = new Date(localDate.getTime() + offsetMinutes * 60000);
+    const endDateUTC = new Date(
+      startDateUTC.getTime() + 24 * 60 * 60 * 1000 - 1,
+    );
 
     const files = await this.folderModel.aggregate([
       {
@@ -510,7 +534,7 @@ export class FolderRepository {
       {
         $match: {
           'files.status': 'completed',
-          'files.createdAt': { $gte: startDate, $lte: endDate },
+          'files.createdAt': { $gte: startDateUTC, $lte: endDateUTC },
         },
       },
       { $project: { _id: 0, file: '$files' } },

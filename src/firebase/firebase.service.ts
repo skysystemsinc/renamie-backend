@@ -50,7 +50,7 @@ export class FirebaseService {
   async createUser(userId: string, data: FirebaseUserDto): Promise<void> {
     try {
       await this.db.ref(`users/${userId}`).set(data);
-      console.log(`✅ User stored in Firebase at users/${userId}`);
+      // console.log(` User stored in Firebase at users/${userId}`);
     } catch (error) {
       console.error('Data that failed to store:', data);
     }
