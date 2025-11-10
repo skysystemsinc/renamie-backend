@@ -11,7 +11,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { SendgridService } from 'src/common/services/sendgrid';
 import { StripeModule } from 'src/stripe/stripe.module';
-import { SSEModule } from 'src/sse/controllers/sse.module';
+import { SSEModule } from 'src/sse/sse.module';
 
 @Module({
   imports: [

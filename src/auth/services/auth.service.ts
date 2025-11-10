@@ -27,7 +27,7 @@ import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { StripeService } from 'src/stripe/stripe.service';
 import { CreateInvitedUserDto } from 'src/users/dto/create-user.dto';
 import { randomGenerator } from 'src/utils/helper';
-import { SSEService } from 'src/sse/controllers/services/sse.service';
+import { SSEService } from 'src/sse/services/sse.service';
 
 @Injectable()
 export class AuthService {

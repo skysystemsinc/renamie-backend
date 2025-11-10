@@ -1,6 +1,13 @@
-import { Controller, Get, Query, Req, Res } from '@nestjs/common';
-import { SSEService } from './services/sse.service';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import type { Response, Request } from 'express';
+import { SSEService } from '../services/sse.service';
 
 @Controller('sse')
 export class SSEController {
@@ -13,8 +20,7 @@ export class SSEController {
     @Req() req: Request,
   ) {
     if (!userId) {
-      res.status(400).send('userId required');
-      return;
+      if (!userId) throw new NotFoundException('User not found');
     }
 
     res.setHeader('Content-Type', 'text/event-stream');
