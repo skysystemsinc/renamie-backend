@@ -8,6 +8,7 @@ import { FileQueueModule } from 'src/queue/file-queue.module';
 import { Folder, FolderSchema } from './schema/folder.schema';
 import { S3Service } from 'src/common/services/s3.service';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
+import { JobService } from './services/job.service';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
     SubscriptionsModule,
   ],
   controllers: [FolderController],
-  providers: [FolderService, FolderRepository, S3Service],
+  providers: [FolderService, FolderRepository, S3Service, JobService],
   exports: [FolderService, FolderRepository, S3Service],
 })
 export class FoldersModule {}
