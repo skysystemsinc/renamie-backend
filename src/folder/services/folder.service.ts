@@ -587,10 +587,6 @@ export class FolderService {
 
   // delete files in s3
   async permanentlyDeleteOldFiles() {
-    const now = new Date();
-    const cutoff = new Date(now);
-    cutoff.setDate(now.getDate() - 30);
-
     const deletedFiles =
       await this.folderRepository.findFilesHasStatusDeleted();
 
