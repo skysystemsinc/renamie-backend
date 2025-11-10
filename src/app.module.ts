@@ -23,6 +23,7 @@ import { FoldersModule } from './folder/folders.module';
 import { SendgridService } from './common/services/sendgrid';
 import { TasksModule } from './tasks/tasks.module';
 import { QueueModule } from './queue/queue.module';
+import { SSEModule } from './sse/sse.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { QueueModule } from './queue/queue.module';
     FoldersModule,
     TasksModule,
     QueueModule,
+    SSEModule,
   ],
   controllers: [AppController],
   providers: [
