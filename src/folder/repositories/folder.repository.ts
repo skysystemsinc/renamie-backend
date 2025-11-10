@@ -582,11 +582,13 @@ export class FolderRepository {
     };
   }
 
-  async markOldFilesAsDeleted() {
+  // update file status to soft delete
+
+  async updatedFileStatus() {
     const now = new Date();
     const cutoff = new Date(now);
     cutoff.setDate(now.getDate() - 7);
-    const result = await this.folderModel.updateMany(
+    await this.folderModel.updateMany(
       {
         'files.status': FileStatus.COMPLETED,
         'files.createdAt': { $lte: cutoff },
@@ -606,6 +608,57 @@ export class FolderRepository {
         ],
       },
     );
-    return result.modifiedCount;
+  }
+
+  //
+  async findFilesHasStatusDeleted() {
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - 30);
+
+    const filesToDelete = await this.folderModel.aggregate([
+      { $unwind: '$files' },
+      {
+        $match: {
+          'files.status': 'deleted',
+          'files.createdAt': { $lte: cutoff },
+        },
+      },
+      {
+        $replaceRoot: { newRoot: '$files' },
+      },
+    ]);
+    return filesToDelete;
+  }
+
+  async deleteFilesPermanently() {
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - 30);
+
+    await this.folderModel.updateMany(
+      {},
+      {
+        $pull: {
+          files: {
+            status: FileStatus.DELETED,
+            createdAt: { $lte: cutoff },
+          },
+        },
+      },
+    );
+  }
+
+  // get files by key
+
+  async getFileByKey(parentId: string, key: string) {
+    const folder = await this.folderModel.findOne(
+      {
+        parentUser: new Types.ObjectId(parentId),
+        files: { $elemMatch: { url: key } },
+      },
+      { 'files.$': 1 },
+    );
+    return folder?.files[0] ?? null;
   }
 }

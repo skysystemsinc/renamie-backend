@@ -23,6 +23,7 @@ import {
   ApiResponse,
   ApiConsumes,
   ApiParam,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { S3Service } from '../common/services/s3.service';
 import {
@@ -163,6 +164,8 @@ export class S3Controller {
 
   // download url
   @Get('presigned-download-url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Generate pre-signed URL for file download' })
   @ApiResponse({
     status: 200,
@@ -173,6 +176,7 @@ export class S3Controller {
     @CurrentUser('id') userId: string,
   ) {
     try {
+      await this.s3Service.downloadUrl(userId, query.key);
       const url = await this.s3Service.getPresignedDownloadUrl(query.key, {
         expiresIn: query.expiresIn,
         mode: query.mode,
@@ -198,7 +202,6 @@ export class S3Controller {
   async deleteFile(@Param('key') key: string) {
     try {
       await this.s3Service.deleteFile(key);
-
       return {
         message: 'File deleted successfully',
         data: { key },

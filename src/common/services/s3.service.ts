@@ -182,8 +182,7 @@ export class S3Service {
       });
 
       await this.s3Client.send(command);
-
-      this.logger.log(`File deleted successfully: ${key}`);
+      console.log('`File deleted successfully: ${key}`');
     } catch (error) {
       this.logger.error(`Failed to delete file ${key}:`, error);
       throw new Error(`Failed to delete file: ${error.message}`);
@@ -609,6 +608,37 @@ export class S3Service {
       }
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  //
+  async downloadUrl(id: string, key: string) {
+    const user = await this.userService.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    let parentId = id;
+    if (user?.isCollaborator && user?.inviteAccepted) {
+      parentId = user?.userId.toString();
+    }
+
+    const parent = await this.userService.findById(parentId);
+    if (!parent) {
+      throw new NotFoundException('User not found');
+    }
+
+    const getFileByKey = await this.folderRepository.getFileByKey(
+      parentId,
+      key,
+    );
+
+    if (!getFileByKey) {
+      throw new NotFoundException('File not found');
+    }
+
+    if (getFileByKey?.status === FileStatus.DELETED) {
+      throw new HttpException('File has been deleted', HttpStatus.FORBIDDEN);
     }
   }
 }

@@ -9,7 +9,7 @@ export enum FileStatus {
   COMPLETED = 'completed',
   PROCESSING = 'processing',
   FAILED = 'failed',
-  DELETED = 'deleted'
+  DELETED = 'deleted',
 }
 
 @Schema({ timestamps: true })
@@ -50,17 +50,15 @@ export class Files {
 
   @Prop({ type: String, default: '' })
   invoiceDate: string;
-  
-   @Prop({ type: String, default: null })
+
+  @Prop({ type: String, default: null })
   reason: string | null;
 
-  @Prop({ type: Boolean, default: false })
-  isDeleted: boolean;
+  // @Prop({ type: Boolean, default: false })
+  // isDeleted: boolean;
 
-  
   @Prop({ type: Date, default: null })
   deletedAt: Date | null;
-
 }
 
 export const FilesSchema = SchemaFactory.createForClass(Files);

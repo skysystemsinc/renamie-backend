@@ -24,7 +24,6 @@ export class SSEController {
 
     res.write(`event: connected\n`);
     res.write(`data: ${JSON.stringify({ userId })}\n\n`);
-
     this.sseService.addClient(userId, res);
 
     req.on('close', () => {

@@ -528,7 +528,6 @@ export class FolderService {
     if (!folder) {
       throw new NotFoundException('Folder not found');
     }
-    console.log('folder', folder);
     let parentId = userId;
     if (user.isCollaborator && user.inviteAccepted) {
       parentId = user.userId.toString();
@@ -538,13 +537,10 @@ export class FolderService {
       throw new NotFoundException('User not found');
     }
     const bookData = folder?.book;
-    console.log('bookdata', bookData);
     const allFiles = await this.folderRepository.getAllUploadedFiles(
       parentId,
       folderId,
     );
-    console.log('all files', allFiles);
-
     const bookSection = [
       `Vendor Name:,${bookData?.vendorName ?? ''}`,
       `Payment Account:,${bookData?.paymentAccount ?? ''}`,
@@ -582,5 +578,30 @@ export class FolderService {
       type: 'text/csv',
       disposition: `attachment; filename="export_${folder?.name}.csv"`,
     });
+  }
+
+  // soft delete
+  async markOldFilesAsDeleted() {
+    await this.folderRepository.updatedFileStatus();
+  }
+
+  // delete files in s3
+  async permanentlyDeleteOldFiles() {
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(now.getDate() - 30);
+
+    const deletedFiles =
+      await this.folderRepository.findFilesHasStatusDeleted();
+
+    for (const file of deletedFiles) {
+      try {
+        await this.s3Service.deleteFile(file.url);
+      } catch (error) {
+        console.log('`Failed to delete S3 file ${file.url}:`, error');
+      }
+    }
+
+    await this.folderRepository.deleteFilesPermanently();
   }
 }

@@ -19,11 +19,5 @@ export class SSEService {
       client.write(`event: logout\ndata: "USER_LOGOUT"\n\n`);
     }
   }
-  sendFileStatusUpdate(userId: string, files: any[]) {
-    const client = this.clients.get(userId);
-    if (client) {
-      client.write(`event: file-status-update\n`);
-      client.write(`data: ${JSON.stringify({ message: 'Files marked as deleted', files })}\n\n`);
-    }
-  }
+  
 }
