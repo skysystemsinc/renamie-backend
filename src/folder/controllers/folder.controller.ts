@@ -10,7 +10,6 @@ import {
   Query,
   NotFoundException,
   Res,
-  Req,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';

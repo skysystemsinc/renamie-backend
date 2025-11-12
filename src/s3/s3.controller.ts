@@ -27,9 +27,7 @@ import {
 } from '@nestjs/swagger';
 import { S3Service } from '../common/services/s3.service';
 import {
-  UploadFileDto,
   PresignedUrlDto,
-  FileOperationDto,
   ListFilesDto,
   CopyFileDto,
   GenerateUniqueKeyDto,
@@ -38,10 +36,8 @@ import { FolderService } from 'src/folder/services/folder.service';
 import { ExtractedInvoiceDataDto } from 'src/common/dto/llm.dto';
 import { LLMService } from 'src/common/services/llm.service';
 import { TextractService } from 'src/common/services/textract.service';
-import { FileStatus } from 'src/folder/schema/files.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { FileQueueService } from 'src/queue/services/file.queue.service';
-import AdmZip from 'adm-zip';
 import { ApiResponseDto } from 'src/common/dto/api-response.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';

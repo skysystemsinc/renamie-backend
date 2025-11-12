@@ -72,6 +72,10 @@ export class User {
   // userId  self  relation
   @Prop({ type: Types.ObjectId, ref: 'User' })
   userId: Types.ObjectId;
+
+  // is email sent
+  @Prop({ default: false })
+  emailNotification?: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
