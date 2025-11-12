@@ -70,10 +70,15 @@ export class SendgridService {
     verificationUrl: string,
   ) {
     try {
-      await this.sendTemplateMail(to, emailConstant.emailTemplateId, {
-        userName: userName,
-        verificationLink: verificationUrl,
-      });
+      await this.sendTemplateMail(
+        to,
+        emailConstant.emailTemplateId,
+        {
+          userName: userName,
+          verificationLink: verificationUrl,
+        },
+        true,
+      );
       // console.log(`Verification email successfully sent to ${to}.`);
     } catch (error) {
       console.error(`Failed to send verification email to ${to}.`);
@@ -83,10 +88,15 @@ export class SendgridService {
 
   async sendResetPasswordEmail(to: string, userName: string, resetUrl: string) {
     try {
-      await this.sendTemplateMail(to, emailConstant.resetPassTempId, {
-        userName: userName,
-        verificationLink: resetUrl,
-      });
+      await this.sendTemplateMail(
+        to,
+        emailConstant.resetPassTempId,
+        {
+          userName: userName,
+          verificationLink: resetUrl,
+        },
+        true,
+      );
       // console.log(`Password reset email successfully sent to ${to}.`);
     } catch (error) {
       console.error(`Failed to send password reset email to ${to}.`);
@@ -100,10 +110,15 @@ export class SendgridService {
     loginUrl: string,
   ) {
     try {
-      await this.sendTemplateMail(to, emailConstant.changedPasswordTempId, {
-        userName: userName,
-        verificationLink: loginUrl,
-      });
+      await this.sendTemplateMail(
+        to,
+        emailConstant.changedPasswordTempId,
+        {
+          userName: userName,
+          verificationLink: loginUrl,
+        },
+        true,
+      );
     } catch (error) {
       console.error(`Failed to send changed password email to ${to}.`);
       throw error;
@@ -148,12 +163,17 @@ export class SendgridService {
     plan: string,
   ) {
     try {
-      await this.sendTemplateMail(to, emailConstant.trialTempId, {
-        userName: userName,
-        trailStartDate: trailStartDate,
-        trialExpiresAt: trialExpiresAt,
-        plan: plan,
-      });
+      await this.sendTemplateMail(
+        to,
+        emailConstant.trialTempId,
+        {
+          userName: userName,
+          trailStartDate: trailStartDate,
+          trialExpiresAt: trialExpiresAt,
+          plan: plan,
+        },
+        true,
+      );
     } catch (error) {
       console.error(`Failed to send changed password email to ${to}.`);
       throw error;
@@ -169,12 +189,17 @@ export class SendgridService {
     plan: string,
   ) {
     try {
-      await this.sendTemplateMail(to, emailConstant.subsActiveTempId, {
-        userName: userName,
-        startDate: startDate,
-        expiresAt: expiresAt,
-        plan: plan,
-      });
+      await this.sendTemplateMail(
+        to,
+        emailConstant.subsActiveTempId,
+        {
+          userName: userName,
+          startDate: startDate,
+          expiresAt: expiresAt,
+          plan: plan,
+        },
+        true,
+      );
     } catch (error) {
       console.error(`Failed to send changed password email to ${to}.`);
       throw error;
@@ -210,11 +235,16 @@ export class SendgridService {
     invitationUrl: string,
   ) {
     try {
-      await this.sendTemplateMail(to, emailConstant.inviteUserTempId, {
-        userName: userName,
-        senderName: senderName,
-        invitationUrl: invitationUrl,
-      });
+      await this.sendTemplateMail(
+        to,
+        emailConstant.inviteUserTempId,
+        {
+          userName: userName,
+          senderName: senderName,
+          invitationUrl: invitationUrl,
+        },
+        true,
+      );
     } catch (error) {
       console.error(`Failed to send Collaboration email to ${to}.`);
       throw error;
