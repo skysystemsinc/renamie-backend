@@ -206,26 +206,31 @@ export class SendgridService {
     }
   }
 
-  // Trial ended and subscription activated
-  // async sendSubsUpdatedEmail(
-  //   to: string,
-  //   userName: string,
-  //   startDate: string,
-  //   expiresAt: string,
-  //   plan: string,
-  // ) {
-  //   try {
-  //     await this.sendTemplateMail(to, emailConstant.subsActiveTempId, {
-  //       userName: userName,
-  //       startDate: startDate,
-  //       expiresAt: expiresAt,
-  //       plan: plan,
-  //     });
-  //   } catch (error) {
-  //     console.error(`Failed to send changed password email to ${to}.`);
-  //     throw error;
-  //   }
-  // }
+  // Trial ended and subscription updated
+  async sendSubsUpdatedEmail(
+    to: string,
+    userName: string,
+    startDate: string,
+    expiresAt: string,
+    plan: string,
+  ) {
+    try {
+      await this.sendTemplateMail(
+        to,
+        emailConstant.subsUpdateTempId,
+        {
+          userName: userName,
+          startDate: startDate,
+          expiresAt: expiresAt,
+          plan: plan,
+        },
+        true,
+      );
+    } catch (error) {
+      console.error(`Failed to send subscription update email to ${to}.`);
+      throw error;
+    }
+  }
 
   // Invite User Email
   async sendInviteEmail(
@@ -247,6 +252,54 @@ export class SendgridService {
       );
     } catch (error) {
       console.error(`Failed to send Collaboration email to ${to}.`);
+      throw error;
+    }
+  }
+
+  // subscription canceled
+  async sendSubCanceledEmail(
+    to: string,
+    userName: string,
+    expiresAt: string,
+    plan: string,
+  ) {
+    try {
+      await this.sendTemplateMail(
+        to,
+        emailConstant.subsCanceledTempId,
+        {
+          userName: userName,
+          expiresAt: expiresAt,
+          plan: plan,
+        },
+        true,
+      );
+    } catch (error) {
+      console.error(`Failed to send subscription update email to ${to}.`);
+      throw error;
+    }
+  }
+
+  // Trial ended and subscription updated
+  async sendSubCancelReqEmail(
+    to: string,
+    userName: string,
+    expiresAt: string ,
+    plan: string,
+  ) {
+    try {
+      await this.sendTemplateMail(
+        to,
+        emailConstant.subsCancelReqTempId,
+        {
+          userName: userName,
+          expiresAt: expiresAt,
+          plan: plan,
+        },
+        true,
+      );
+    } catch (error) {
+      console.error(`Failed to send subscription update email to ${to}.`);
       throw error;
     }
   }
