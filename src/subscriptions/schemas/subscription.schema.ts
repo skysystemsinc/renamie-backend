@@ -54,6 +54,9 @@ export class Subscription {
 
   @Prop({ type: PlanFeatures, default: {} })
   features: PlanFeatures;
+
+  @Prop({ default: false })
+  cancelAtPeriodEnd: boolean;
 }
 
 export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);

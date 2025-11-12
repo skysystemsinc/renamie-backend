@@ -320,6 +320,7 @@ export class StripeService {
     ) {
       const stripePriceId = subscription.items?.data?.[0]?.price?.id;
       const plan = await this.planService.findByStripePriceId(stripePriceId);
+      if (!plan) return;
       const startAt = new Date();
       const expiresAt = new Date(startAt);
       expiresAt.setMonth(expiresAt.getMonth() + 1);
@@ -333,16 +334,7 @@ export class StripeService {
           features: plan?.features,
         },
       );
-      if (!updatedSubscription) {
-        this.logger.log(
-          `Subscription not updated at Active: ${subscription.id} for customer ${subscription.customer}`,
-        );
-        return;
-      }
-
-      this.logger.log(
-        `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
-      );
+      if (!updatedSubscription) return;
 
       // send trailing email
       const getUser = await this.userService.findById(
@@ -354,14 +346,13 @@ export class StripeService {
       );
       if (!getplan) return;
 
-      // send subsc Updated email
-      // await this.sendgridService.sendSubsUpdatedEmail(
-      //   getUser?.email,
-      //   getUser?.firstName,
-      //   formatDate(updatedSubscription?.startedAt),
-      //   formatDate(updatedSubscription?.expiresAt),
-      //   getplan?.name,
-      // );
+      await this.sendgridService.sendSubsUpdatedEmail(
+        getUser?.email,
+        getUser?.firstName,
+        formatDate(startAt),
+        formatDate(expiresAt),
+        plan?.name,
+      );
 
       //   // Save subscription in Firebase
       try {
@@ -491,13 +482,13 @@ export class StripeService {
     // TODO: Update user access permissions
     // console.log('update');
     // console.log('subs at stripe', subscription);
-    this.logger.log(
-      `Subscription updated: ${subscription.id} for customer ${subscription.customer}`,
-    );
+    console.log('subs', subscription);
     const metadata = subscription.metadata;
+    console.log('metadata', metadata?.subscriptionId);
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
-
+    console.log('subscriptiom', subscription);
+    console.log('existig subs', existingSubscription);
     if (!existingSubscription) {
       this.logger.log(`Subscription not found in DB: ${subscription.id}`);
       return;
@@ -509,21 +500,50 @@ export class StripeService {
     console.log('get user', getUser);
     if (!getUser) return;
     const userId = (getUser as any)._id.toString();
-    // if (!getUser) {
-    //   throw new NotFoundException('User not found');
-    // }
-
     const getplan = await this.planService.findById(
       existingSubscription?.plan.toString(),
     );
     if (!getplan) return;
 
+    // subscription cancellation request
+    if (
+      subscription.cancel_at_period_end &&
+      subscription.cancellation_details?.reason === 'cancellation_requested'
+    ) {
+      console.log('cance; requ tue');
+      console.log('get user', getUser);
+      const cancelAtDate: Date | undefined = subscription.cancel_at
+        ? new Date(subscription.cancel_at * 1000)
+        : undefined;
+
+      const canceledAtDate: Date | undefined = subscription.canceled_at
+        ? new Date(subscription.canceled_at * 1000)
+        : undefined;
+        
+      await this.sendgridService.sendSubCancelReqEmail(
+        getUser.email,
+        getUser.firstName,
+        formatDate(cancelAtDate),
+        getplan?.name,
+      );
+
+      await this.subscriptionRepository.update(existingSubscription.id, {
+        status: mapStripeStatus(subscription?.status),
+        cancelAtPeriodEnd: subscription?.cancel_at_period_end,
+      });
+      return;
+    }
+
     if (
       existingSubscription?.status === SubscriptionStatus.ACTIVE &&
-      subscription?.status === SubscriptionStatus.ACTIVE
+      subscription?.status === SubscriptionStatus.ACTIVE &&
+      !subscription?.cancel_at_period_end
     ) {
+      console.log('true 1');
       const stripePriceId = subscription.items?.data?.[0]?.price?.id;
       const plan = await this.planService.findByStripePriceId(stripePriceId);
+      if (!plan) return;
+      console.log('plan', plan);
       //  Update the subscription record in  DB
       const startAt = new Date();
       const expiresAt = new Date(startAt);
@@ -538,7 +558,7 @@ export class StripeService {
           features: plan?.features,
         },
       );
-
+      console.log('updatedSubscription ', updatedSubscription);
       await this.userService.updateUser(userId, {
         fileCount: 0,
         folderCount: 0,
@@ -546,13 +566,13 @@ export class StripeService {
       });
 
       // send subsc Updated email
-      // await this.sendgridService.sendSubsUpdatedEmail(
-      //   getUser?.email,
-      //   getUser?.firstName,
-      //   formatDate(updatedSubscription?.startedAt),
-      //   formatDate(updatedSubscription?.expiresAt),
-      //   getplan?.name,
-      // );
+      await this.sendgridService.sendSubsUpdatedEmail(
+        getUser?.email,
+        getUser?.firstName,
+        formatDate(startAt),
+        formatDate(expiresAt),
+        plan?.name,
+      );
 
       // Update subscription in Firebase as well
       try {
@@ -592,10 +612,14 @@ export class StripeService {
       existingSubscription?.status === SubscriptionStatus.TRIALING &&
       subscription?.status === SubscriptionStatus.ACTIVE
     ) {
+      console.log('actiavting');
+      console.log('getplan', getplan);
       const stripePriceId = subscription.items?.data?.[0]?.price?.id;
       const plan = await this.planService.findByStripePriceId(stripePriceId);
       //
-      const subsStartAt = existingSubscription?.trialExpiresAt;
+      if (!plan) return;
+      console.log('plan', plan);
+      const subsStartAt = new Date();
       let subsEndAt = new Date();
       if (subscription.items.data[0].plan.interval === 'month') {
         subsStartAt && subsEndAt.setDate(subsStartAt.getDate() + 30);
@@ -611,15 +635,13 @@ export class StripeService {
           features: plan?.features,
         },
       );
+      console.log('updated subs', updatedSubscription);
       if (!updatedSubscription) {
         this.logger.log(
           `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
         );
         return;
       }
-      this.logger.log(
-        `Subscription updated: ${updatedSubscription.id} for customer ${subscription.customer}`,
-      );
       await this.userService.updateUser(userId, {
         fileCount: 0,
         folderCount: 0,
@@ -629,9 +651,9 @@ export class StripeService {
       await this.sendgridService.sendSubsActivationEmail(
         getUser?.email,
         getUser?.firstName,
-        formatDate(updatedSubscription?.startedAt),
-        formatDate(updatedSubscription?.expiresAt),
-        getplan?.name,
+        formatDate(subsStartAt),
+        formatDate(subsEndAt),
+        plan?.name,
       );
 
       // save to firebase
@@ -690,7 +712,7 @@ export class StripeService {
       );
       return;
     }
-
+    console.log('existing', existingSubscription);
     const updatedSubscription = await this.subscriptionRepository.update(
       existingSubscription.id,
       {
@@ -711,19 +733,19 @@ export class StripeService {
     const getplan = await this.planService.findById(
       updatedSubscription?.plan.toString(),
     );
+    console.log('gteplan', getplan);
     if (!getplan) return;
     this.logger.log(
       `Subscription ${updatedSubscription.id} successfully marked as CANCELED in DB.`,
     );
 
     // send subsc Cancel email
-    // await this.sendgridService.sendSubsUpdatedEmail(
-    //   getUser?.email,
-    //   getUser?.firstName,
-    //   formatDate(updatedSubscription?.startedAt),
-    //   formatDate(updatedSubscription?.canceledAt),
-    //   getplan?.name,
-    // );
+    await this.sendgridService.sendSubCanceledEmail(
+      getUser?.email,
+      getUser?.firstName,
+      formatDate(new Date()),
+      getplan?.name,
+    );
 
     try {
       const db = this.firebaseService.getDb();
