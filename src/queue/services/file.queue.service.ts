@@ -87,7 +87,6 @@ export class FileQueueService implements OnModuleInit {
         status: FileStatus.PROCESSING,
       });
     } catch (error) {
-      console.log('error', error);
       db.ref(`folders/${folderId}/files/${fileId}`).update({
         url: fileUrl,
         status: FileStatus.FAILED,
@@ -129,6 +128,7 @@ export class FileQueueService implements OnModuleInit {
             totalFiles,
             completedFiles,
             failedFiles,
+            user?.emailNotification
           );
           // console.log(`Email sent for folder ${folderId}, batch ${batchId}`);
         }

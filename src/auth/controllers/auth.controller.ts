@@ -37,13 +37,12 @@ import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import {
   CollaboratorResponseDto,
   CreateInvitedUserDto,
+  UserNotificationDto,
 } from 'src/users/dto/create-user.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
@@ -66,7 +65,9 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    console.log('refreshToken', refreshTokenDto?.refreshToken);
     const result = await this.authService.refreshToken(refreshTokenDto);
+    console.log('result', result);
     return ApiResponseDto.success('Token refreshed successfully', result);
   }
 
@@ -127,7 +128,16 @@ export class AuthController {
       userId,
       createInvitedUserDto,
     );
-    return ApiResponseDto.success('Collaborator created successfully', user);
+    return ApiResponseDto.success('Collaborator registered successfully', user);
+  }
+
+  // get login user data
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getLoggedInUser(@CurrentUser('id') userId: string) {
+    const user = await this.authService.getUserById(userId);
+    return ApiResponseDto.success('User fetched successfully!', user);
   }
 
   @Get('invite-accept/:id')
@@ -162,6 +172,25 @@ export class AuthController {
     return ApiResponseDto.success(
       'Collaborator deleted successfully!',
       collaboartor,
+    );
+  }
+
+  // notification
+  @Post('email-notification')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async userNotification(
+    @Body() userNotificationDto: UserNotificationDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    const result = await this.authService.userNotifications(
+      userId,
+      userNotificationDto,
+    );
+    // console.log('res', result);
+    return ApiResponseDto.success(
+      'Notification save successfully!',
+      result?.emailNotification,
     );
   }
 }

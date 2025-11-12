@@ -25,7 +25,10 @@ import { FirebaseService } from 'src/firebase/firebase.service';
 import { SendgridService } from 'src/common/services/sendgrid';
 import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { StripeService } from 'src/stripe/stripe.service';
-import { CreateInvitedUserDto } from 'src/users/dto/create-user.dto';
+import {
+  CreateInvitedUserDto,
+  UserNotificationDto,
+} from 'src/users/dto/create-user.dto';
 import { randomGenerator } from 'src/utils/helper';
 import { SSEService } from 'src/sse/services/sse.service';
 
@@ -102,6 +105,7 @@ export class AuthService {
     );
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
+    // console.log('result',)
     await this.sendgridService.sendVerificationEmail(
       result.email,
       result.firstName,
@@ -120,7 +124,6 @@ export class AuthService {
           secret: this.configService.get<string>('jwt.refreshSecret'),
         },
       );
-
       const user = await this.userService.findById(payload.sub);
       if (!user || user.refreshToken !== refreshTokenDto.refreshToken) {
         throw new UnauthorizedException('Invalid refresh token');
@@ -131,7 +134,6 @@ export class AuthService {
         (user as UserDocument)._id as string,
         tokens.refreshToken,
       );
-
       return tokens;
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
@@ -358,5 +360,30 @@ export class AuthService {
     });
 
     return collaboartor;
+  }
+
+  // user notifications
+  async userNotifications(
+    userId: string,
+    userNotificationDto: UserNotificationDto,
+  ) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return await this.userService.SaveEmailNotification(
+      userId,
+      userNotificationDto?.emailNotification,
+    );
+  }
+
+  // get login user by id
+
+  async getUserById(id: string) {
+    const user = await this.userService.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
   }
 }

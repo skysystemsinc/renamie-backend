@@ -114,7 +114,6 @@ export class CreateInviteUserDataDto {
   userId: string;
 }
 
-
 export class CollaboratorResponseDto {
   @ApiProperty()
   _id: string;
@@ -142,4 +141,13 @@ export class CollaboratorResponseDto {
 
   @ApiProperty()
   userId: string;
+}
+
+// User notification dto
+export class UserNotificationDto {
+  @ApiProperty({
+    required: true,
+  })
+  @IsBoolean()
+  emailNotification: boolean;
 }

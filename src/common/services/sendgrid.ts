@@ -37,6 +37,7 @@ export class SendgridService {
     to: string,
     templateId: string,
     dynamicData: DynamicDataType,
+    emailNotification?: boolean,
   ): Promise<void> {
     try {
       const msg: SendGrid.MailDataRequired = {
@@ -45,8 +46,9 @@ export class SendgridService {
         templateId,
         dynamicTemplateData: dynamicData,
       };
+      if (!emailNotification) return;
       const result = await SendGrid.send(msg);
-      const response = result[0];
+      // const response = result[0];
       // console.log(
       //   `Email accepted by SendGrid (Status: ${response.statusCode}) for recipient ${to} using template ${templateId}.`,
       // );
@@ -116,15 +118,21 @@ export class SendgridService {
     totalFiles?: number,
     completedFiles?: number,
     failedFiles?: number,
+    emailNotification?: boolean,
   ) {
     try {
-      await this.sendTemplateMail(to, emailConstant.fileProcessedTempId, {
-        userName: userName,
-        totalFiles: totalFiles,
-        folderName: folderName,
-        completedFiles: completedFiles,
-        failedFiles: failedFiles,
-      });
+      await this.sendTemplateMail(
+        to,
+        emailConstant.fileProcessedTempId,
+        {
+          userName: userName,
+          totalFiles: totalFiles,
+          folderName: folderName,
+          completedFiles: completedFiles,
+          failedFiles: failedFiles,
+        },
+        emailNotification,
+      );
     } catch (error) {
       console.error(`Failed to send changed password email to ${to}.`);
       throw error;

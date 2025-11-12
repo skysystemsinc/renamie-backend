@@ -182,7 +182,6 @@ export class S3Service {
       });
 
       await this.s3Client.send(command);
-      console.log('`File deleted successfully: ${key}`');
     } catch (error) {
       this.logger.error(`Failed to delete file ${key}:`, error);
       throw new Error(`Failed to delete file: ${error.message}`);

@@ -1,4 +1,10 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -26,15 +32,16 @@ export class UpdateUserDto {
   @IsString()
   folderCount?: number;
 
-  
   @IsOptional()
   @IsString()
   fileCount?: number;
 
-    @IsOptional()
+  @IsOptional()
   @IsString()
   userCount?: number;
+
+  //
+  @IsOptional()
+  @IsBoolean()
+  emailNotification?: boolean;
 }
-
-
-

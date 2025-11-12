@@ -133,4 +133,10 @@ export class UserService {
   async removeCollaborators(id: string) {
     return this.userRepository.removeUserById(id);
   }
+
+  async SaveEmailNotification(userId: string, emailNotification: boolean) {
+    return this.userRepository.update(userId, {
+      emailNotification: emailNotification,
+    });
+  }
 }
