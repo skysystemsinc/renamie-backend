@@ -13,6 +13,7 @@ import { SendgridService } from 'src/common/services/sendgrid';
 import { UserSchema } from 'src/users/schemas/user.schema';
 import { UsersModule } from 'src/users/users.module';
 import { PlansModule } from 'src/plans/plans.module';
+import { SSEService } from 'src/sse/services/sse.service';
 
 @Module({
   imports: [
@@ -24,7 +25,7 @@ import { PlansModule } from 'src/plans/plans.module';
      UsersModule,
      PlansModule
   ],
-  providers: [StripeService, SubscriptionRepository, SendgridService,],
+  providers: [StripeService, SubscriptionRepository, SendgridService, SSEService],
   controllers: [StripeController],
   exports: [StripeService],
 })

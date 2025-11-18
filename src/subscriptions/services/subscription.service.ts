@@ -59,7 +59,7 @@ export class SubscriptionService {
       await this.subscriptionRepository.findBySubsWithActiveAndTrialingStatus(
         userId,
       );
-    // if found update subscription
+    // if already has subs, update it
     if (userSubs) {
       const allPriceAndProducts =
         await this.planService.findAllPriceAndProduct();

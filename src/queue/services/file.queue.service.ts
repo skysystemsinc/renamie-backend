@@ -68,6 +68,10 @@ export class FileQueueService implements OnModuleInit {
     folderId: string,
     fileId: string,
     batchId: string,
+    userEmail: string,
+    userName: string,
+    emailNotification?: boolean,
+    collaborator?: boolean,
   ) {
     const db = this.firebaseService.getDb();
     try {
@@ -76,6 +80,10 @@ export class FileQueueService implements OnModuleInit {
         folderId,
         fileId,
         batchId,
+        userEmail,
+        emailNotification,
+        userName,
+        collaborator,
       });
       await this.folderModel.updateOne(
         { _id: folderId, 'files._id': fileId },
@@ -87,18 +95,26 @@ export class FileQueueService implements OnModuleInit {
         status: FileStatus.PROCESSING,
       });
     } catch (error) {
+      console.log('que error', error);
       db.ref(`folders/${folderId}/files/${fileId}`).update({
         url: fileUrl,
         status: FileStatus.FAILED,
       });
+
       throw new Error(`Failed to add file to queue: ${error}`);
     }
   }
 
-  async handleBatchCompletion(folderId: string, batchId: string) {
+  async handleBatchCompletion(
+    folderId: string,
+    batchId: string,
+    userEmail: string,
+    emailNotification: boolean,
+    userName: string,
+    collaborator: boolean,
+  ) {
     const folder = await this.folderModel.findById(folderId);
     if (!folder) return;
-
     const batchFiles = folder.files.filter((f) => f.batchId === batchId);
     const totalFiles = batchFiles.length;
     const completedFiles = batchFiles.filter(
@@ -117,20 +133,50 @@ export class FileQueueService implements OnModuleInit {
         { $push: { emailSentBatches: batchId } },
         { new: true },
       );
+      if (updated && updated.parentUser) {
+        const owner = await this.userService.findById(
+          updated.parentUser.toString(),
+        );
+        try {
+          if (collaborator && !owner?.isCollaborator) {
+            // send email to owner
+            await this.sendgridService.sendExtractionCompletedEmailToOwner(
+              owner?.email, //owner email
+              owner?.firstName,
+              userName,
+              folder.name,
+              totalFiles,
+              completedFiles,
+              failedFiles,
+              owner?.emailNotification,
+            );
 
-      if (updated) {
-        const user = await this.userService.findById(folder.userId.toString());
-        if (user) {
-          await this.sendgridService.sendExtractionCompletedEmail(
-            user.email,
-            user.firstName,
-            folder.name,
-            totalFiles,
-            completedFiles,
-            failedFiles,
-            user?.emailNotification
+            // send email to collaboratoer
+            await this.sendgridService.sendExtractionCompletedEmail(
+              userEmail, //collaborator email
+              userName,
+              folder.name,
+              totalFiles,
+              completedFiles,
+              failedFiles,
+              emailNotification,
+            );
+          } else {
+            await this.sendgridService.sendExtractionCompletedEmail(
+              userEmail,
+              userName,
+              folder.name,
+              totalFiles,
+              completedFiles,
+              failedFiles,
+              emailNotification,
+            );
+          }
+        } catch (emailError) {
+          console.error(
+            `Failed to send batch completion email for folder ${folderId}, batch ${batchId}:`,
+            emailError.message,
           );
-          // console.log(`Email sent for folder ${folderId}, batch ${batchId}`);
         }
       }
     }

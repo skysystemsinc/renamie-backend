@@ -44,4 +44,8 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   emailNotification?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isSubscriptionCancelled?: boolean;
 }

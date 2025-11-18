@@ -83,8 +83,18 @@ export class FileProcessor2 extends WorkerHost {
   }
 
   async process(job: Job) {
-    const { fileUrl, folderId, fileId, batchId } = job.data;
+    const {
+      fileUrl,
+      folderId,
+      fileId,
+      batchId,
+      userEmail,
+      emailNotification,
+      userName,
+      collaborator,
+    } = job.data;
     // console.log('in work 2');
+    console.log('email in job2 ', userEmail);
     try {
       const folder = await this.folderRepository.findById(folderId);
       const jobId = await this.textractService.startInvoiceAnalysis(fileUrl);
@@ -191,7 +201,14 @@ export class FileProcessor2 extends WorkerHost {
         }
       }
 
-      await this.fileQueueService.handleBatchCompletion(folderId, batchId);
+      await this.fileQueueService.handleBatchCompletion(
+        folderId,
+        batchId,
+        userEmail,
+        emailNotification,
+        userName,
+        collaborator,
+      );
       return results;
     } catch (error) {
       await this.folderModel.updateOne(
@@ -207,7 +224,7 @@ export class FileProcessor2 extends WorkerHost {
       db.ref(`folders/${folderId}/files/${fileId}`).update({
         status: FileStatus.FAILED,
       });
-      console.error(`Worker2 failed `, error.message);
+      // console.error(`Worker2 failed `, error.message);
     }
   }
 }

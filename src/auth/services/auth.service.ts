@@ -31,6 +31,7 @@ import {
 } from 'src/users/dto/create-user.dto';
 import { randomGenerator } from 'src/utils/helper';
 import { SSEService } from 'src/sse/services/sse.service';
+import { tryCatch } from 'bullmq';
 
 @Injectable()
 export class AuthService {
@@ -106,11 +107,15 @@ export class AuthService {
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
     // console.log('result',)
-    await this.sendgridService.sendVerificationEmail(
-      result.email,
-      result.firstName,
-      verifyUrl,
-    );
+    try {
+      await this.sendgridService.sendVerificationEmail(
+        result.email,
+        result.firstName,
+        verifyUrl,
+      );
+    } catch (error) {
+      console.log('email sending error', error);
+    }
     return {
       user: result,
     };
@@ -190,11 +195,15 @@ export class AuthService {
     let userId = id.toString();
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}/renamie.com/resetPassword/${userId}`;
-    await this.sendgridService.sendResetPasswordEmail(
-      user?.email,
-      user?.firstName,
-      verifyUrl,
-    );
+    try {
+      await this.sendgridService.sendResetPasswordEmail(
+        user?.email,
+        user?.firstName,
+        verifyUrl,
+      );
+    } catch (error) {
+      console.log('emial sending error', error);
+    }
 
     return user;
   }
@@ -223,11 +232,15 @@ export class AuthService {
     const loginUrl = `${appUrl}/login`;
     if (updatedUser) {
       if (!updatePasswordDto?.currentPassword) {
-        await this.sendgridService.sendPasswordChangedEmail(
-          updatedUser?.email,
-          updatedUser?.firstName,
-          loginUrl,
-        );
+        try {
+          await this.sendgridService.sendPasswordChangedEmail(
+            updatedUser?.email,
+            updatedUser?.firstName,
+            loginUrl,
+          );
+        } catch (error) {
+          console.log('err', error);
+        }
       }
 
       return {
