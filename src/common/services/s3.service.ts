@@ -429,9 +429,9 @@ export class S3Service {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     return await this.renameFileInFolder(fileId, newName);
   }
+
   // file upload
   async uploadFiles(
     id: string,
@@ -439,10 +439,11 @@ export class S3Service {
     files: Array<Express.Multer.File>,
   ) {
     const user = await this.userService.findById(id);
+    console.log('user', user);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
+    console.log('user', user);
     let parentId = id;
     if (user?.isCollaborator && user?.inviteAccepted) {
       parentId = user?.userId.toString();
@@ -598,6 +599,10 @@ export class S3Service {
             folderId,
             (file as any)._id.toString(),
             batchId,
+            user?.email,
+            user?.firstName,
+            user?.emailNotification,
+            user?.isCollaborator,
           );
         }
         return {
@@ -606,6 +611,7 @@ export class S3Service {
         };
       }
     } catch (error) {
+      console.log('err in file upload', error);
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }

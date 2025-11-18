@@ -4,6 +4,7 @@ import { default as SendGrid } from '@sendgrid/mail';
 import { emailConstant } from 'src/utils/constant';
 
 interface DynamicDataType {
+  ownerName?: string;
   userName: string;
   verificationLink?: string;
   totalFiles?: number;
@@ -50,7 +51,7 @@ export class SendgridService {
       const result = await SendGrid.send(msg);
       // const response = result[0];
       // console.log(
-      //   `Email accepted by SendGrid (Status: ${response.statusCode}) for recipient ${to} using template ${templateId}.`,
+      //   `Email accepted by SendGrid (Status: ${result.statusCode}) for recipient ${to} using template ${templateId}.`,
       // );
     } catch (error) {
       const errorDetails = error.response?.body?.errors || error.message;
@@ -77,7 +78,7 @@ export class SendgridService {
           userName: userName,
           verificationLink: verificationUrl,
         },
-        true,
+        false,
       );
       // console.log(`Verification email successfully sent to ${to}.`);
     } catch (error) {
@@ -188,6 +189,9 @@ export class SendgridService {
     expiresAt: string,
     plan: string,
   ) {
+    console.log('startd ate', startDate);
+    console.log('expires', expiresAt);
+    console.log('plan', plan);
     try {
       await this.sendTemplateMail(
         to,
@@ -284,7 +288,7 @@ export class SendgridService {
   async sendSubCancelReqEmail(
     to: string,
     userName: string,
-    expiresAt: string ,
+    expiresAt: string,
     plan: string,
   ) {
     try {
@@ -300,6 +304,37 @@ export class SendgridService {
       );
     } catch (error) {
       console.error(`Failed to send subscription update email to ${to}.`);
+      throw error;
+    }
+  }
+
+  // send extraction complete email to owner
+  async sendExtractionCompletedEmailToOwner(
+    to: string,
+    ownerName: string,
+    userName: string,
+    folderName?: string,
+    totalFiles?: number,
+    completedFiles?: number,
+    failedFiles?: number,
+    emailNotification?: boolean,
+  ) {
+    try {
+      await this.sendTemplateMail(
+        to,
+        emailConstant.uploadFileToOwnerTempId,
+        {
+          ownerName: ownerName,
+          userName: userName,
+          totalFiles: totalFiles,
+          folderName: folderName,
+          completedFiles: completedFiles,
+          failedFiles: failedFiles,
+        },
+        emailNotification,
+      );
+    } catch (error) {
+      console.error(`Failed to send changed password email to ${to}.`);
       throw error;
     }
   }

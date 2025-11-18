@@ -19,6 +19,8 @@ import { SendgridService } from 'src/common/services/sendgrid';
 import { UserService } from 'src/users/services/user.service';
 import { PlanService } from 'src/plans/services/plan/plan.service';
 import { formatDate } from 'src/utils/helper';
+import { tryCatch } from 'bullmq';
+import { SSEService } from 'src/sse/services/sse.service';
 
 const mapStripeStatus = (status: string): SubscriptionStatus => {
   switch (status) {
@@ -47,6 +49,7 @@ export class StripeService {
     private readonly sendgridService: SendgridService,
     private readonly userService: UserService,
     private readonly planService: PlanService,
+    private readonly sseService: SSEService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -298,6 +301,7 @@ export class StripeService {
     this.logger.log(
       `Subscription created: ${subscription.id} for customer ${subscription.customer}`,
     );
+    console.log('subsription ins create', subscription);
     const metadata = subscription.metadata;
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
@@ -314,10 +318,13 @@ export class StripeService {
       this.logger.log(`Subscription not found in DB: ${subscription.id}`);
       return;
     }
+    console.log('existing subs', existingSubscription);
     if (
       existingSubscription?.status === SubscriptionStatus.PENDING &&
       subscription?.status === SubscriptionStatus.ACTIVE
     ) {
+      console.log('when second  time user subscribed create  to a plan');
+
       const stripePriceId = subscription.items?.data?.[0]?.price?.id;
       const plan = await this.planService.findByStripePriceId(stripePriceId);
       if (!plan) return;
@@ -346,13 +353,17 @@ export class StripeService {
       );
       if (!getplan) return;
 
-      await this.sendgridService.sendSubsUpdatedEmail(
-        getUser?.email,
-        getUser?.firstName,
-        formatDate(startAt),
-        formatDate(expiresAt),
-        plan?.name,
-      );
+      try {
+        await this.sendgridService.sendSubsUpdatedEmail(
+          getUser?.email,
+          getUser?.firstName,
+          formatDate(startAt),
+          formatDate(expiresAt),
+          plan?.name,
+        );
+      } catch (error) {
+        console.log('email sending error', error);
+      }
 
       //   // Save subscription in Firebase
       try {
@@ -389,8 +400,10 @@ export class StripeService {
     // when first time user subscribed to a plan
     if (
       existingSubscription?.status === SubscriptionStatus.PENDING &&
-      subscription?.status === SubscriptionStatus.TRIALING
+      subscription?.status === SubscriptionStatus.TRIALING &&
+      !subscription?.trial_start
     ) {
+      console.log('when first time user subscribed to a plan trialing starts');
       const subsStartAt = new Date(subscription.start_date * 1000);
       let subsEndAt = new Date();
       if (subscription.items.data[0].plan.interval === 'month') {
@@ -406,7 +419,7 @@ export class StripeService {
           {
             status: mapStripeStatus(subscription?.status),
             startedAt: subsStartAt,
-            expiresAt: subsEndAt,
+            expiresAt: trialExpiresAt,
             trialStartedAt: trailStartDate,
             trialExpiresAt: trialExpiresAt,
             stripeSubscriptionId: subscription?.id,
@@ -432,13 +445,18 @@ export class StripeService {
           existingSubscription?.plan.toString(),
         );
         if (!getplan) return;
-        await this.sendgridService.sendTrailingEmail(
-          getUser?.email,
-          getUser?.firstName,
-          formatDate(trailStartDate),
-          formatDate(trialExpiresAt),
-          getplan?.name,
-        );
+        try {
+          console.log('senidnd');
+          await this.sendgridService.sendTrailingEmail(
+            getUser?.email,
+            getUser?.firstName,
+            formatDate(trailStartDate),
+            formatDate(trialExpiresAt),
+            getplan?.name,
+          );
+        } catch (error) {
+          console.log('email sending error', error);
+        }
 
         //   // Save subscription in Firebase
         try {
@@ -484,10 +502,11 @@ export class StripeService {
     // console.log('subs at stripe', subscription);
     console.log('subs', subscription);
     const metadata = subscription.metadata;
-    console.log('metadata', metadata?.subscriptionId);
+    console.log('metadta', metadata);
+    const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
-    console.log('subscriptiom', subscription);
     console.log('existig subs', existingSubscription);
     if (!existingSubscription) {
       this.logger.log(`Subscription not found in DB: ${subscription.id}`);
@@ -497,7 +516,6 @@ export class StripeService {
     const getUser = await this.userService.findById(
       existingSubscription?.user.toString(),
     );
-    console.log('get user', getUser);
     if (!getUser) return;
     const userId = (getUser as any)._id.toString();
     const getplan = await this.planService.findById(
@@ -505,41 +523,165 @@ export class StripeService {
     );
     if (!getplan) return;
 
+    // Optional: update Stripe subscription metadata with current plan
+    await this.stripe.subscriptions.update(subscription.id, {
+      metadata: {
+        ...subscription.metadata,
+        priceId: stripePriceId,
+      },
+    });
+
+    //
+    const startedAt = subscription.start_date
+      ? new Date(subscription.start_date * 1000)
+      : undefined;
+
+    const trialStartedAt = subscription.trial_start
+      ? new Date(subscription.trial_start * 1000)
+      : undefined;
+
+    const trialExpiresAt = subscription.trial_end
+      ? new Date(subscription.trial_end * 1000)
+      : undefined;
+
+    console.log('startedAt', startedAt);
+    console.log('trialStartedAt', trialStartedAt);
+    console.log('trialExpiresAt', trialExpiresAt);
+    //
+    // subscription updated after cancellation request
+
+    if (
+      !subscription?.cancel_at_period_end &&
+      existingSubscription?.cancelReqAt &&
+      existingSubscription?.cancelAtPeriodEnd
+    ) {
+      console.log('subscription updated after cancellation request');
+      console.log('subscriotion', subscription);
+      console.log('stripe Price Id', stripePriceId);
+      const plan = await this.planService.findByStripePriceId(stripePriceId);
+      if (!plan) return;
+      console.log('plan', plan);
+      const startAt = new Date();
+      const expiresAt = new Date(startAt);
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+      const updatedSubscription = await this.subscriptionRepository.update(
+        existingSubscription.id,
+        {
+          plan: new Types.ObjectId(plan?.id),
+          status: mapStripeStatus(subscription?.status),
+          cancelAtPeriodEnd: subscription?.cancel_at_period_end,
+          // cancelReqAt: canceledAtDate,
+          startedAt: startAt,
+          expiresAt: expiresAt,
+          features: plan?.features,
+        },
+      );
+      await this.userService.updateUser(userId, {
+        fileCount: 0,
+        folderCount: 0,
+        userCount: 0,
+      });
+      if (updatedSubscription) {
+        console.log('updatedSubscription', updatedSubscription);
+        const getupdatedplan = await this.planService.findById(
+          updatedSubscription?.plan.toString(),
+        );
+        if (!getupdatedplan) return;
+        console.log('getupdatedplan', getupdatedplan);
+        try {
+          await this.sendgridService.sendSubsUpdatedEmail(
+            getUser?.email,
+            getUser?.firstName,
+            formatDate(startAt),
+            formatDate(expiresAt),
+            plan?.name,
+          );
+        } catch (error) {
+          console.log('email sending error', error);
+        }
+
+        // Update subscription in Firebase as well
+        try {
+          const db = this.firebaseService.getDb();
+          const userId: string =
+            updatedSubscription?.user instanceof Types.ObjectId
+              ? updatedSubscription.user.toString()
+              : String(updatedSubscription?.user);
+
+          const subscriptionId: string =
+            updatedSubscription?._id instanceof Types.ObjectId
+              ? updatedSubscription._id.toString()
+              : String(updatedSubscription?._id);
+
+          const planId: string =
+            updatedSubscription?.plan instanceof Types.ObjectId
+              ? updatedSubscription?.plan.toString()
+              : String(updatedSubscription?.plan);
+
+          await db.ref(`users/${userId}/subscription`).set({
+            _id: subscriptionId,
+            plan: planId,
+            userId: userId,
+            status: subscription?.status,
+          });
+
+          this.logger.log(
+            ` Subscription updated in Firebase for user ${userId}`,
+          );
+        } catch (err) {
+          this.logger.error(
+            ` Failed to update subscription in Firebase: ${err.message}`,
+          );
+        }
+      }
+
+      return;
+    }
+
     // subscription cancellation request
     if (
       subscription.cancel_at_period_end &&
       subscription.cancellation_details?.reason === 'cancellation_requested'
     ) {
-      console.log('cance; requ tue');
+      console.log('subscription cancellation request');
       console.log('get user', getUser);
       const cancelAtDate: Date | undefined = subscription.cancel_at
         ? new Date(subscription.cancel_at * 1000)
         : undefined;
-
       const canceledAtDate: Date | undefined = subscription.canceled_at
         ? new Date(subscription.canceled_at * 1000)
         : undefined;
-        
-      await this.sendgridService.sendSubCancelReqEmail(
-        getUser.email,
-        getUser.firstName,
-        formatDate(cancelAtDate),
-        getplan?.name,
-      );
+
+      console.log('canlcelAT', cancelAtDate);
+      console.log('canceledAtDate', canceledAtDate);
 
       await this.subscriptionRepository.update(existingSubscription.id, {
         status: mapStripeStatus(subscription?.status),
         cancelAtPeriodEnd: subscription?.cancel_at_period_end,
+        cancelReqAt: canceledAtDate,
       });
+
+      try {
+        await this.sendgridService.sendSubCancelReqEmail(
+          getUser.email,
+          getUser.firstName,
+          formatDate(cancelAtDate),
+          getplan?.name,
+        );
+      } catch (error) {
+        console.log('email sending email', error);
+      }
       return;
     }
 
+    // subscription update after one active plan
     if (
       existingSubscription?.status === SubscriptionStatus.ACTIVE &&
       subscription?.status === SubscriptionStatus.ACTIVE &&
       !subscription?.cancel_at_period_end
     ) {
-      console.log('true 1');
+      console.log('subscription update after one active plan');
       const stripePriceId = subscription.items?.data?.[0]?.price?.id;
       const plan = await this.planService.findByStripePriceId(stripePriceId);
       if (!plan) return;
@@ -564,67 +706,87 @@ export class StripeService {
         folderCount: 0,
         userCount: 0,
       });
-
-      // send subsc Updated email
-      await this.sendgridService.sendSubsUpdatedEmail(
-        getUser?.email,
-        getUser?.firstName,
-        formatDate(startAt),
-        formatDate(expiresAt),
-        plan?.name,
-      );
-
-      // Update subscription in Firebase as well
-      try {
-        const db = this.firebaseService.getDb();
-        const userId: string =
-          updatedSubscription?.user instanceof Types.ObjectId
-            ? updatedSubscription.user.toString()
-            : String(updatedSubscription?.user);
-
-        const subscriptionId: string =
-          updatedSubscription?._id instanceof Types.ObjectId
-            ? updatedSubscription._id.toString()
-            : String(updatedSubscription?._id);
-
-        const planId: string =
-          updatedSubscription?.plan instanceof Types.ObjectId
-            ? updatedSubscription?.plan.toString()
-            : String(updatedSubscription?.plan);
-
-        await db.ref(`users/${userId}/subscription`).set({
-          _id: subscriptionId,
-          plan: planId,
-          userId: userId,
-          status: subscription?.status,
-        });
-
-        this.logger.log(` Subscription updated in Firebase for user ${userId}`);
-      } catch (err) {
-        this.logger.error(
-          ` Failed to update subscription in Firebase: ${err.message}`,
+      if (updatedSubscription) {
+        const getupdatedplan = await this.planService.findById(
+          updatedSubscription?.plan.toString(),
         );
+        if (!getupdatedplan) return;
+        console.log('getupdatedplan', getupdatedplan);
+
+        // send subsc Updated email
+        try {
+          await this.sendgridService.sendSubsUpdatedEmail(
+            getUser?.email,
+            getUser?.firstName,
+            formatDate(startAt),
+            formatDate(expiresAt),
+            getupdatedplan?.name,
+          );
+        } catch (error) {
+          console.log('email sending error', error);
+        }
+
+        // Update subscription in Firebase as well
+        try {
+          const db = this.firebaseService.getDb();
+          const userId: string =
+            updatedSubscription?.user instanceof Types.ObjectId
+              ? updatedSubscription.user.toString()
+              : String(updatedSubscription?.user);
+
+          const subscriptionId: string =
+            updatedSubscription?._id instanceof Types.ObjectId
+              ? updatedSubscription._id.toString()
+              : String(updatedSubscription?._id);
+
+          const planId: string =
+            updatedSubscription?.plan instanceof Types.ObjectId
+              ? updatedSubscription?.plan.toString()
+              : String(updatedSubscription?.plan);
+
+          await db.ref(`users/${userId}/subscription`).set({
+            _id: subscriptionId,
+            plan: planId,
+            userId: userId,
+            status: subscription?.status,
+          });
+
+          this.logger.log(
+            ` Subscription updated in Firebase for user ${userId}`,
+          );
+        } catch (err) {
+          this.logger.error(
+            ` Failed to update subscription in Firebase: ${err.message}`,
+          );
+        }
       }
     }
 
     // when updating subs in trial period
     if (
       existingSubscription?.status === SubscriptionStatus.TRIALING &&
-      subscription?.status === SubscriptionStatus.ACTIVE
+      subscription?.status === SubscriptionStatus.ACTIVE &&
+      !existingSubscription?.cancelReqAt &&
+      !subscription?.cancel_at_period_end &&
+      subscription?.trial_start
     ) {
-      console.log('actiavting');
-      console.log('getplan', getplan);
-      const stripePriceId = subscription.items?.data?.[0]?.price?.id;
-      const plan = await this.planService.findByStripePriceId(stripePriceId);
-      //
+      console.log('getplan?.stripePriceId', getplan?.stripePriceId);
+      console.log('subs.price id', subscription.items?.data?.[0]?.price);
+      console.log(' when updating subs in trial period');
+      const stripePrice = subscription.items?.data?.[0]?.price;
+      if (!stripePrice) return;
+      const plan = await this.planService.findByStripePriceId(stripePrice.id);
       if (!plan) return;
+
       console.log('plan', plan);
       const subsStartAt = new Date();
       let subsEndAt = new Date();
+
       if (subscription.items.data[0].plan.interval === 'month') {
         subsStartAt && subsEndAt.setDate(subsStartAt.getDate() + 30);
       }
-
+      console.log(' subsStartAt ', subsStartAt);
+      console.log(' subsEndAt', subsEndAt);
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
         {
@@ -633,59 +795,65 @@ export class StripeService {
           startedAt: subsStartAt,
           expiresAt: subsEndAt,
           features: plan?.features,
+          // activationEmailSent: false,
         },
       );
       console.log('updated subs', updatedSubscription);
-      if (!updatedSubscription) {
-        this.logger.log(
-          `Subscription not updated: ${subscription.id} for customer ${subscription.customer}`,
-        );
-        return;
-      }
-      await this.userService.updateUser(userId, {
-        fileCount: 0,
-        folderCount: 0,
-        userCount: 0,
-      });
-      // send subsc Active email
-      await this.sendgridService.sendSubsActivationEmail(
-        getUser?.email,
-        getUser?.firstName,
-        formatDate(subsStartAt),
-        formatDate(subsEndAt),
-        plan?.name,
-      );
-
-      // save to firebase
-
-      try {
-        const db = this.firebaseService.getDb();
-        const userId: string =
-          updatedSubscription.user instanceof Types.ObjectId
-            ? updatedSubscription.user.toString()
-            : String(updatedSubscription.user);
-        const subscriptionId: string =
-          updatedSubscription._id instanceof Types.ObjectId
-            ? updatedSubscription._id.toString()
-            : String(updatedSubscription._id);
-
-        const planId: string =
-          updatedSubscription.plan instanceof Types.ObjectId
-            ? updatedSubscription.plan.toString()
-            : String(updatedSubscription.plan);
-
-        await db.ref(`users/${userId}/subscription`).set({
-          _id: subscriptionId,
-          plan: planId,
-          userId: userId,
-          status: subscription?.status,
+      if (updatedSubscription) {
+        await this.userService.updateUser(userId, {
+          fileCount: 0,
+          folderCount: 0,
+          userCount: 0,
         });
+        // send subsc Active email
+        try {
+          // if (!updatedSubscription?.activationEmailSent) {
+          await this.sendgridService.sendSubsActivationEmail(
+            getUser?.email,
+            getUser?.firstName,
+            formatDate(updatedSubscription.startedAt),
+            formatDate(updatedSubscription.expiresAt),
+            plan?.name,
+          );
+          // await this.subscriptionRepository.update(updatedSubscription.id, {
+          //   activationEmailSent: true,
+          // });
+          // }
+        } catch (error) {
+          console.log('email sending error', error);
+        }
 
-        this.logger.log(`Subscription stored in Firebase for user ${userId}`);
-      } catch (err) {
-        this.logger.error(
-          `Failed to save subscription in   Firebase: ${err.message}`,
-        );
+        // save to firebase
+
+        try {
+          const db = this.firebaseService.getDb();
+          const userId: string =
+            updatedSubscription.user instanceof Types.ObjectId
+              ? updatedSubscription.user.toString()
+              : String(updatedSubscription.user);
+          const subscriptionId: string =
+            updatedSubscription._id instanceof Types.ObjectId
+              ? updatedSubscription._id.toString()
+              : String(updatedSubscription._id);
+
+          const planId: string =
+            updatedSubscription.plan instanceof Types.ObjectId
+              ? updatedSubscription.plan.toString()
+              : String(updatedSubscription.plan);
+
+          await db.ref(`users/${userId}/subscription`).set({
+            _id: subscriptionId,
+            plan: planId,
+            userId: userId,
+            status: subscription?.status,
+          });
+
+          this.logger.log(`Subscription stored in Firebase for user ${userId}`);
+        } catch (err) {
+          this.logger.error(
+            `Failed to save subscription in   Firebase: ${err.message}`,
+          );
+        }
       }
     }
   }
@@ -693,10 +861,8 @@ export class StripeService {
   private async handleSubscriptionDeleted(
     subscription: Stripe.Subscription,
   ): Promise<void> {
-    this.logger.log(
-      `Subscription deleted: ${subscription.id} for customer ${subscription.customer}`,
-    );
-    console.log('delete');
+    console.log('in delete');
+    console.log('subscription cancelled');
     console.log('subs', subscription);
     // TODO: Revoke premium access
     // TODO: Update user subscription status to inactive
@@ -720,12 +886,8 @@ export class StripeService {
         canceledAt: new Date(),
       },
     );
-    if (!updatedSubscription) {
-      this.logger.error(
-        `Failed to update local subscription status for deleted ID: ${existingSubscription.id}`,
-      );
-      return;
-    }
+    if (!updatedSubscription) return;
+
     const getUser = await this.userService.findById(
       updatedSubscription?.user.toString(),
     );
@@ -739,14 +901,36 @@ export class StripeService {
       `Subscription ${updatedSubscription.id} successfully marked as CANCELED in DB.`,
     );
 
-    // send subsc Cancel email
-    await this.sendgridService.sendSubCanceledEmail(
-      getUser?.email,
-      getUser?.firstName,
-      formatDate(new Date()),
-      getplan?.name,
+    const collaborators = await this.userService.findCollaboratorsByParentId(
+      updatedSubscription?.user.toString(),
     );
+    console.log('collaborator', collaborators);
+    if (collaborators?.length > 0) {
+      for (const col of collaborators) {
+        // this.sseService.sendLogout((col as any)._id.toString());
+        await this.userService.updateUser((col as any)._id.toString(), {
+          isSubscriptionCancelled: true,
+        });
+        this.sseService.sendSubscriptionCancelled((col as any)._id.toString());
+      }
+    }
 
+    // await this.userService.updateUser(updatedSubscription?.user.toString(), {
+    //   fileCount: 0,
+    //   folderCount: 0,
+    //   userCount: 0,
+    // });
+    // send subsc Cancel email
+    try {
+      await this.sendgridService.sendSubCanceledEmail(
+        getUser?.email,
+        getUser?.firstName,
+        formatDate(new Date()),
+        getplan?.name,
+      );
+    } catch (error) {
+      console.log('email sending error', error);
+    }
     try {
       const db = this.firebaseService.getDb();
       const userId: string =

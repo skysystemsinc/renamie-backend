@@ -57,6 +57,13 @@ export class Subscription {
 
   @Prop({ default: false })
   cancelAtPeriodEnd: boolean;
+
+  @Prop({ default: null })
+  cancelReqAt?: Date;
+
+  @Prop({ default: null })
+  activationEmailSent?: boolean;
+
 }
 
 export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);
