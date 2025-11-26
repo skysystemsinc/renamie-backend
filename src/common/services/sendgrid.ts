@@ -279,7 +279,10 @@ export class SendgridService {
         true,
       );
     } catch (error) {
-      console.error(`Failed to send subscription update email to ${to}.`);
+      console.error(
+        `Failed to send subscription update email to ${to}.`,
+        error,
+      );
       throw error;
     }
   }

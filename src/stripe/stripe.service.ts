@@ -770,15 +770,14 @@ export class StripeService {
       !subscription?.cancel_at_period_end &&
       subscription?.trial_start
     ) {
-      console.log('getplan?.stripePriceId', getplan?.stripePriceId);
-      console.log('subs.price id', subscription.items?.data?.[0]?.price);
-      console.log(' when updating subs in trial period');
+      // console.log('getplan?.stripePriceId', getplan?.stripePriceId);
+      // console.log('subs.price id', subscription.items?.data?.[0]?.price);
+      // console.log(' when updating subs in trial period');
       const stripePrice = subscription.items?.data?.[0]?.price;
       if (!stripePrice) return;
       const plan = await this.planService.findByStripePriceId(stripePrice.id);
       if (!plan) return;
 
-      console.log('plan', plan);
       const subsStartAt = new Date();
       let subsEndAt = new Date();
 
@@ -895,7 +894,6 @@ export class StripeService {
     const getplan = await this.planService.findById(
       updatedSubscription?.plan.toString(),
     );
-    console.log('gteplan', getplan);
     if (!getplan) return;
     this.logger.log(
       `Subscription ${updatedSubscription.id} successfully marked as CANCELED in DB.`,
@@ -904,22 +902,20 @@ export class StripeService {
     const collaborators = await this.userService.findCollaboratorsByParentId(
       updatedSubscription?.user.toString(),
     );
-    console.log('collaborator', collaborators);
     if (collaborators?.length > 0) {
       for (const col of collaborators) {
-        // this.sseService.sendLogout((col as any)._id.toString());
-        await this.userService.updateUser((col as any)._id.toString(), {
+        const colId = (col as any)._id.toString();
+        // Update flag in DB
+        await this.userService.updateUser(colId, {
           isSubscriptionCancelled: true,
         });
-        this.sseService.sendSubscriptionCancelled((col as any)._id.toString());
+        // console.log(`Collaborator ${colId} flagged as subscription cancelled.`);
+        // Send SSE event
+        this.sseService.sendSubscriptionCancelled(colId);
       }
+    } else {
+      console.log('No collaborators found to notify.');
     }
-
-    // await this.userService.updateUser(updatedSubscription?.user.toString(), {
-    //   fileCount: 0,
-    //   folderCount: 0,
-    //   userCount: 0,
-    // });
     // send subsc Cancel email
     try {
       await this.sendgridService.sendSubCanceledEmail(

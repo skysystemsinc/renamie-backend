@@ -31,7 +31,6 @@ import {
 } from 'src/users/dto/create-user.dto';
 import { randomGenerator } from 'src/utils/helper';
 import { SSEService } from 'src/sse/services/sse.service';
-import { tryCatch } from 'bullmq';
 
 @Injectable()
 export class AuthService {
@@ -67,9 +66,20 @@ export class AuthService {
     if (user && user?.isCollaborator && !user?.inviteAccepted) {
       throw new UnauthorizedException('Please Accept The Invitation.');
     }
-    if (user && !user?.emailVerified) {
-      throw new UnauthorizedException('Please Verify Your Email.');
+    if (
+      user &&
+      user?.isCollaborator &&
+      user?.emailVerified &&
+      user?.inviteAccepted &&
+      user?.isSubscriptionCancelled
+    ) {
+      throw new UnauthorizedException(
+        'Your access has been restricted because the owner’s subscription is no longer active.',
+      );
     }
+    // if (user && !user?.emailVerified) {
+    //   throw new UnauthorizedException('Please Verify Your Email.');
+    // }
     await this.userService.updateLastLogin(user._id);
     // const subscription = await this.subscriptionService.findByUserId(user._id);
     const subscription =
