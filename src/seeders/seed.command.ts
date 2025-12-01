@@ -5,29 +5,32 @@ import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
   const logger = new Logger('SeederCommand');
-  
+
   try {
     logger.log('Initializing NestJS application...');
     const app = await NestFactory.createApplicationContext(AppModule);
-    
+
     const seederService = app.get(SeederService);
-    
+
     // Parse command line arguments
     const args = process.argv.slice(2);
     const command = args[0] || 'seed'; // Default to 'seed' if no command provided
     const clearFirst = args.includes('--clear');
-    
+
     logger.log(`Running seeder command: ${command}`);
     logger.log(`Clear first: ${clearFirst}`);
-    
+
     let results;
-    
+
     switch (command) {
       case 'seed':
         results = await seederService.runSeeders({ clearFirst });
         break;
       case 'seed:plans':
         results = await seederService.runPlanSeeder(clearFirst);
+        break;
+      case 'seed:users':
+        results = await seederService.runUserSeeder(clearFirst);
         break;
       case 'clear':
         results = await seederService.clearAllSeeders();
@@ -64,7 +67,7 @@ async function bootstrap() {
         await app.close();
         return;
     }
-    
+
     // Display results
     logger.log('\n=== Seeder Results ===');
     results.forEach((result, index) => {
@@ -74,15 +77,16 @@ async function bootstrap() {
         logger.error(`   Error: ${result.error}`);
       }
     });
-    
-    const successCount = results.filter(r => r.success).length;
+
+    const successCount = results.filter((r) => r.success).length;
     const totalCount = results.length;
-    
-    logger.log(`\nCompleted: ${successCount}/${totalCount} operations successful`);
-    
+
+    logger.log(
+      `\nCompleted: ${successCount}/${totalCount} operations successful`,
+    );
+
     await app.close();
     process.exit(successCount === totalCount ? 0 : 1);
-    
   } catch (error) {
     logger.error('Failed to run seeder command:', error);
     process.exit(1);

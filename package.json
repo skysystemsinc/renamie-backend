@@ -23,6 +23,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node -r tsconfig-paths/register src/seeders/seed.command.ts",
     "seed:plans": "ts-node -r tsconfig-paths/register src/seeders/seed.command.ts seed:plans",
+    "seed:users": "ts-node -r tsconfig-paths/register src/seeders/seed.command.ts seed:users",
     "seed:clear": "ts-node -r tsconfig-paths/register src/seeders/seed.command.ts clear",
     "seed:reset": "ts-node -r tsconfig-paths/register src/seeders/seed.command.ts seed --clear",
     "seed:status": "ts-node -r tsconfig-paths/register src/seeders/seed.command.ts status",

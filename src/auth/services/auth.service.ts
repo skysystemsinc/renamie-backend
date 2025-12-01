@@ -77,9 +77,9 @@ export class AuthService {
         'Your access has been restricted because the owner’s subscription is no longer active.',
       );
     }
-    // if (user && !user?.emailVerified) {
-    //   throw new UnauthorizedException('Please Verify Your Email.');
-    // }
+    if (user && !user?.emailVerified) {
+      throw new UnauthorizedException('Please Verify Your Email.');
+    }
     await this.userService.updateLastLogin(user._id);
     // const subscription = await this.subscriptionService.findByUserId(user._id);
     const subscription =
