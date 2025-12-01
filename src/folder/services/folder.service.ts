@@ -545,16 +545,60 @@ export class FolderService {
       parentId,
       folderId,
     );
+    if (!bookData || allFiles.files.length === 0) {
+      throw new NotFoundException('No files or book data available for export');
+    }
     console.log('book data', bookData);
-    const bookSection = [
-      `Vendor Name:,${bookData?.vendorName ?? ''}`,
-      `Payment Account:,${bookData?.paymentAccount ?? ''}`,
-      `Description:,${bookData?.description ?? ''}`,
-      '',
-    ];
-    const metadataRows = allFiles.files.map((file) => {
-      const metadataObj: Record<string, any> = {};
+    console.log('all files', allFiles);
+    const isExpense = bookData?.transactionType === 'Expense';
+    const manualFields: Record<string, any> = {
+      'Vendor Name': bookData?.vendorName ?? '',
+      'Payment Account': bookData?.paymentAccount ?? '',
+      'Customer/Project Name': bookData?.customerName ?? '',
+      'Product/Service Class': bookData?.product ?? '',
+      'Discount GL Account': bookData?.discount ?? '',
+      'Transaction Type': bookData?.transactionType ?? '',
+      'Vendor Net Type': bookData?.vendorNetTerm ?? '',
+      Description: bookData?.description ?? '',
+    };
+    if (isExpense) {
+      manualFields['Expense GL Account'] = bookData?.expense ?? '';
+      // manualFields['Expense Discount Account'] = bookData?.discountAmount ?? '';
+    } else {
+      manualFields['Bill GL Account'] = bookData?.expense ?? '';
+      // manualFields['Bill Discount Account'] = bookData?.discountAmount ?? '';
+    }
+    // const metadataRows = allFiles.files.map((file) => {
+    //   const metadataObj: Record<string, any> = { ...manualFields };
 
+    //   if (Array.isArray(file.metadata)) {
+    //     file.metadata.forEach((meta: any) => {
+    //       Object.keys(meta).forEach((k) => {
+    //         if (!['_id', '__v'].includes(k)) {
+    //           metadataObj[k] = meta[k] ?? '';
+    //         }
+    //       });
+    //     });
+    //   }
+
+    //   return metadataObj;
+    // });
+
+    const metadataRows = allFiles.files.map((file) => {
+      // Start with the manual fields
+      const metadataObj: Record<string, any> = { ...manualFields };
+      // Add discountAmount from file
+      if (isExpense) {
+        metadataObj['Expense Discount Account'] = file.discountAmount
+          ? +(+file.discountAmount).toFixed(2)
+          : '';
+      } else {
+        metadataObj['Bill Discount Account'] = file.discountAmount
+          ? +(+file.discountAmount).toFixed(2)
+          : '';
+      }
+
+      // Merge all metadata from file
       if (Array.isArray(file.metadata)) {
         file.metadata.forEach((meta: any) => {
           Object.keys(meta).forEach((k) => {
@@ -567,6 +611,7 @@ export class FolderService {
 
       return metadataObj;
     });
+
     const metadataHeaders = [
       ...new Set(metadataRows.flatMap((obj) => Object.keys(obj))),
     ];
@@ -578,7 +623,8 @@ export class FolderService {
       ),
     ];
 
-    const csvContent = [...bookSection, ...metadataCsv].join('\n');
+    // const csvContent = [...bookSection, ...metadataCsv].join('\n');
+    const csvContent = metadataCsv.join('\n');
     return new StreamableFile(Buffer.from(csvContent), {
       type: 'text/csv',
       disposition: `attachment; filename="export_${folder?.name}.csv"`,

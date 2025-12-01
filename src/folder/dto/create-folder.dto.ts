@@ -62,6 +62,6 @@ export class QuickBookFormatDto {
   transactionType: string;
 
   @ApiProperty()
-  @IsString()
-  vendorNetType: string;
+  @IsNumber()
+  vendorNetTerm: number;
 }

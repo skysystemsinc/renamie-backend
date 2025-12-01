@@ -49,8 +49,8 @@ export class Subscription {
   @Prop()
   trialExpiresAt?: Date;
 
-  @Prop({ type: [HistroySchema], default: [] })
-  histroy: History[];
+  // @Prop({ type: [HistroySchema], default: [] })
+  // histroy: History[];
 
   @Prop({ type: PlanFeatures, default: {} })
   features: PlanFeatures;
@@ -63,6 +63,7 @@ export class Subscription {
 
   @Prop({ default: null })
   activationEmailSent?: boolean;
+
 
 }
 

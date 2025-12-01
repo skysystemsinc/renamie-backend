@@ -59,6 +59,12 @@ export class Files {
 
   @Prop({ type: Date, default: null })
   deletedAt: Date | null;
+
+  @Prop()
+  discountAmount: string;
+
+  @Prop()
+  totalAmount: string;
 }
 
 export const FilesSchema = SchemaFactory.createForClass(Files);

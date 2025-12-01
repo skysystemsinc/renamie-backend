@@ -28,7 +28,8 @@ export class Book {
   transactionType: string;
 
   @Prop({ required: true })
-  vendorNetType: string;
+  vendorNetTerm: number;
+
 }
 
 export const BookSchema = SchemaFactory.createForClass(Book);

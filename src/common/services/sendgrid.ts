@@ -50,9 +50,9 @@ export class SendgridService {
       if (!emailNotification) return;
       const result = await SendGrid.send(msg);
       // const response = result[0];
-      // console.log(
-      //   `Email accepted by SendGrid (Status: ${result.statusCode}) for recipient ${to} using template ${templateId}.`,
-      // );
+      console.log(
+        `Email accepted by SendGrid recipient ${to} using template ${templateId}.`,
+      );
     } catch (error) {
       const errorDetails = error.response?.body?.errors || error.message;
       console.error(
@@ -189,9 +189,6 @@ export class SendgridService {
     expiresAt: string,
     plan: string,
   ) {
-    console.log('startd ate', startDate);
-    console.log('expires', expiresAt);
-    console.log('plan', plan);
     try {
       await this.sendTemplateMail(
         to,
@@ -267,6 +264,7 @@ export class SendgridService {
     expiresAt: string,
     plan: string,
   ) {
+   
     try {
       await this.sendTemplateMail(
         to,

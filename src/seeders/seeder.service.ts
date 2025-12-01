@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PlanSeeder } from './plan.seeder';
 import { SeederResult } from './base.seeder';
+import { UserSeeder } from './user.seeder';
 
 export interface SeederOptions {
   clearFirst?: boolean;
@@ -11,7 +12,10 @@ export interface SeederOptions {
 export class SeederService {
   private readonly logger = new Logger(SeederService.name);
 
-  constructor(private readonly planSeeder: PlanSeeder) {}
+  constructor(
+    private readonly planSeeder: PlanSeeder,
+    private readonly userSeeder: UserSeeder,
+  ) {}
 
   async runSeeders(options: SeederOptions = {}): Promise<SeederResult[]> {
     const { clearFirst = false, seeders = ['plans'] } = options;
@@ -68,6 +72,9 @@ export class SeederService {
   async runPlanSeeder(clearFirst = false): Promise<SeederResult[]> {
     return this.runSeeders({ clearFirst, seeders: ['plans'] });
   }
+  async runUserSeeder(clearFirst = false): Promise<SeederResult[]> {
+  return this.runSeeders({ clearFirst, seeders: ['user'] });
+}
 
   async clearAllSeeders(): Promise<SeederResult[]> {
     const results: SeederResult[] = [];
@@ -102,6 +109,8 @@ export class SeederService {
     switch (seederName) {
       case 'plans':
         return this.planSeeder;
+      case 'user':
+        return this.userSeeder;
       default:
         return null;
     }

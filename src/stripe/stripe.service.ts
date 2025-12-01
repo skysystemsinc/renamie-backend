@@ -303,6 +303,7 @@ export class StripeService {
     );
     console.log('subsription ins create', subscription);
     const metadata = subscription.metadata;
+    console.log('metaddat', metadata);
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
     if (!existingSubscription && metadata?.subscriptionId) {
@@ -323,7 +324,9 @@ export class StripeService {
       existingSubscription?.status === SubscriptionStatus.PENDING &&
       subscription?.status === SubscriptionStatus.ACTIVE
     ) {
-      console.log('when second  time user subscribed create  to a plan');
+      console.log(
+        'when second  time after cancelled user subscribed create  to a plan',
+      );
 
       const stripePriceId = subscription.items?.data?.[0]?.price?.id;
       const plan = await this.planService.findByStripePriceId(stripePriceId);
@@ -401,7 +404,7 @@ export class StripeService {
     if (
       existingSubscription?.status === SubscriptionStatus.PENDING &&
       subscription?.status === SubscriptionStatus.TRIALING &&
-      !subscription?.trial_start
+      subscription?.trial_start
     ) {
       console.log('when first time user subscribed to a plan trialing starts');
       const subsStartAt = new Date(subscription.start_date * 1000);
@@ -499,19 +502,33 @@ export class StripeService {
     // TODO: Handle plan changes (upgrade/downgrade)
     // TODO: Update user access permissions
     // console.log('update');
-    // console.log('subs at stripe', subscription);
-    console.log('subs', subscription);
+    console.log('subs at stripe update', subscription);
+    const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+    console.log('stripePriceId', stripePriceId);
+    console.log('plan', subscription?.metadata?.priceId);
+    await this.stripe.subscriptions.update(subscription.id, {
+      metadata: {
+        ...subscription.metadata,
+        priceId: stripePriceId,
+      },
+    });
+
+    const now = Date.now();
+    const trialEnded = subscription.trial_end
+      ? now >= subscription.trial_end * 1000
+      : true;
+    const trialActive = subscription.trial_end
+      ? now < subscription.trial_end * 1000
+      : false;
     const metadata = subscription.metadata;
     console.log('metadta', metadata);
-    const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+    // console.log('trialActive', trialActive);
+    // console.log('trialEnded', trialEnded);
 
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
     console.log('existig subs', existingSubscription);
-    if (!existingSubscription) {
-      this.logger.log(`Subscription not found in DB: ${subscription.id}`);
-      return;
-    }
+    if (!existingSubscription) return;
 
     const getUser = await this.userService.findById(
       existingSubscription?.user.toString(),
@@ -523,13 +540,7 @@ export class StripeService {
     );
     if (!getplan) return;
 
-    // Optional: update Stripe subscription metadata with current plan
-    await this.stripe.subscriptions.update(subscription.id, {
-      metadata: {
-        ...subscription.metadata,
-        priceId: stripePriceId,
-      },
-    });
+    console.log('get plan outeside', getplan);
 
     //
     const startedAt = subscription.start_date
@@ -544,12 +555,11 @@ export class StripeService {
       ? new Date(subscription.trial_end * 1000)
       : undefined;
 
-    console.log('startedAt', startedAt);
+    // console.log('startedAt', startedAt);
     console.log('trialStartedAt', trialStartedAt);
     console.log('trialExpiresAt', trialExpiresAt);
     //
     // subscription updated after cancellation request
-
     if (
       !subscription?.cancel_at_period_end &&
       existingSubscription?.cancelReqAt &&
@@ -558,12 +568,15 @@ export class StripeService {
       console.log('subscription updated after cancellation request');
       console.log('subscriotion', subscription);
       console.log('stripe Price Id', stripePriceId);
+      // Optional: update Stripe subscription metadata with current plan
+
       const plan = await this.planService.findByStripePriceId(stripePriceId);
       if (!plan) return;
       console.log('plan', plan);
-      const startAt = new Date();
-      const expiresAt = new Date(startAt);
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
+
+      const subsStartAt = new Date(subscription.start_date * 1000);
+      const subsEndAt = new Date(subsStartAt);
+      subsEndAt.setMonth(subsEndAt.getMonth() + 1);
 
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
@@ -572,8 +585,8 @@ export class StripeService {
           status: mapStripeStatus(subscription?.status),
           cancelAtPeriodEnd: subscription?.cancel_at_period_end,
           // cancelReqAt: canceledAtDate,
-          startedAt: startAt,
-          expiresAt: expiresAt,
+          startedAt: subsStartAt,
+          expiresAt: subsEndAt,
           features: plan?.features,
         },
       );
@@ -593,9 +606,9 @@ export class StripeService {
           await this.sendgridService.sendSubsUpdatedEmail(
             getUser?.email,
             getUser?.firstName,
-            formatDate(startAt),
-            formatDate(expiresAt),
-            plan?.name,
+            formatDate(subsStartAt),
+            formatDate(subsEndAt),
+            getupdatedplan?.name,
           );
         } catch (error) {
           console.log('email sending error', error);
@@ -646,6 +659,8 @@ export class StripeService {
     ) {
       console.log('subscription cancellation request');
       console.log('get user', getUser);
+      // Optional: update Stripe subscription metadata with current plan
+
       const cancelAtDate: Date | undefined = subscription.cancel_at
         ? new Date(subscription.cancel_at * 1000)
         : undefined;
@@ -676,27 +691,34 @@ export class StripeService {
     }
 
     // subscription update after one active plan
+    //  trialEnded &&
     if (
       existingSubscription?.status === SubscriptionStatus.ACTIVE &&
       subscription?.status === SubscriptionStatus.ACTIVE &&
-      !subscription?.cancel_at_period_end
+      !subscription?.cancel_at_period_end &&
+      stripePriceId !== getplan?.stripePriceId &&
+      trialEnded
     ) {
       console.log('subscription update after one active plan');
-      const stripePriceId = subscription.items?.data?.[0]?.price?.id;
+      console.log('subs', subscription);
+      // Optional: update Stripe subscription metadata with current plan
+
       const plan = await this.planService.findByStripePriceId(stripePriceId);
       if (!plan) return;
-      console.log('plan', plan);
+      const subsStartAt = new Date(subscription.start_date * 1000);
+      const subsEndAt = new Date(subsStartAt);
+      subsEndAt.setMonth(subsEndAt.getMonth() + 1);
+      console.log('Stripe Start Date: second', startedAt);
+      console.log('Ends At: second', subsEndAt);
+      //
       //  Update the subscription record in  DB
-      const startAt = new Date();
-      const expiresAt = new Date(startAt);
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
         {
           plan: new Types.ObjectId(plan?.id),
           status: mapStripeStatus(subscription?.status),
-          startedAt: startAt,
-          expiresAt: expiresAt,
+          startedAt: subsStartAt,
+          expiresAt: subsEndAt,
           features: plan?.features,
         },
       );
@@ -718,8 +740,8 @@ export class StripeService {
           await this.sendgridService.sendSubsUpdatedEmail(
             getUser?.email,
             getUser?.firstName,
-            formatDate(startAt),
-            formatDate(expiresAt),
+            formatDate(subsStartAt),
+            formatDate(subsEndAt),
             getupdatedplan?.name,
           );
         } catch (error) {
@@ -767,60 +789,67 @@ export class StripeService {
       existingSubscription?.status === SubscriptionStatus.TRIALING &&
       subscription?.status === SubscriptionStatus.ACTIVE &&
       !existingSubscription?.cancelReqAt &&
-      !subscription?.cancel_at_period_end &&
-      subscription?.trial_start
+      !subscription?.cancel_at_period_end
     ) {
       // console.log('getplan?.stripePriceId', getplan?.stripePriceId);
       // console.log('subs.price id', subscription.items?.data?.[0]?.price);
-      // console.log(' when updating subs in trial period');
+      console.log('subs', subscription);
+      console.log('when updating subs in trial period');
+      // Create a copy for end date
+      const subsStartAt = new Date(subscription.start_date * 1000);
+      const subsEndAt = new Date(subsStartAt);
+      subsEndAt.setMonth(subsEndAt.getMonth() + 1);
       const stripePrice = subscription.items?.data?.[0]?.price;
       if (!stripePrice) return;
-      const plan = await this.planService.findByStripePriceId(stripePrice.id);
-      if (!plan) return;
+      console.log('stripePriceId ', stripePriceId);
 
-      const subsStartAt = new Date();
-      let subsEndAt = new Date();
+      const newPlan = await this.planService.findByStripePriceId(
+        stripePrice.id,
+      );
+      if (!newPlan) return;
 
-      if (subscription.items.data[0].plan.interval === 'month') {
-        subsStartAt && subsEndAt.setDate(subsStartAt.getDate() + 30);
-      }
-      console.log(' subsStartAt ', subsStartAt);
-      console.log(' subsEndAt', subsEndAt);
+      console.log('Stripe Start Date:', startedAt);
+      console.log('Ends At:', subsEndAt);
+
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
         {
-          plan: new Types.ObjectId(plan?.id),
+          plan: new Types.ObjectId(newPlan?.id),
           status: mapStripeStatus(subscription?.status),
           startedAt: subsStartAt,
           expiresAt: subsEndAt,
-          features: plan?.features,
+          features: newPlan?.features,
           // activationEmailSent: false,
         },
       );
       console.log('updated subs', updatedSubscription);
+
       if (updatedSubscription) {
         await this.userService.updateUser(userId, {
           fileCount: 0,
           folderCount: 0,
           userCount: 0,
         });
-        // send subsc Active email
-        try {
-          // if (!updatedSubscription?.activationEmailSent) {
-          await this.sendgridService.sendSubsActivationEmail(
-            getUser?.email,
-            getUser?.firstName,
-            formatDate(updatedSubscription.startedAt),
-            formatDate(updatedSubscription.expiresAt),
-            plan?.name,
-          );
-          // await this.subscriptionRepository.update(updatedSubscription.id, {
-          //   activationEmailSent: true,
-          // });
-          // }
-        } catch (error) {
-          console.log('email sending error', error);
-        }
+
+        //  Re-fetch updated subscription to avoid race conditions
+        const freshSub = await this.subscriptionRepository.findById(
+          updatedSubscription.id,
+        );
+        if (!freshSub) return;
+        const getUser = await this.userService.findById(
+          freshSub.user.toString(),
+        );
+        if (!getUser) return;
+        console.log(' freshSub', freshSub);
+        console.log('getUser', getUser);
+        // Send correct email with correct plan name
+        await this.sendgridService.sendSubsActivationEmail(
+          getUser.email,
+          getUser.firstName,
+          formatDate(subsStartAt),
+          formatDate(subsEndAt),
+          newPlan.name,
+        );
 
         // save to firebase
 
@@ -870,13 +899,8 @@ export class StripeService {
     const metadata = subscription.metadata;
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
+    if (!existingSubscription) return;
 
-    if (!existingSubscription) {
-      this.logger.log(
-        `Subscription not found in DB for deleted Stripe ID: ${subscription.id}`,
-      );
-      return;
-    }
     console.log('existing', existingSubscription);
     const updatedSubscription = await this.subscriptionRepository.update(
       existingSubscription.id,
@@ -895,9 +919,6 @@ export class StripeService {
       updatedSubscription?.plan.toString(),
     );
     if (!getplan) return;
-    this.logger.log(
-      `Subscription ${updatedSubscription.id} successfully marked as CANCELED in DB.`,
-    );
 
     const collaborators = await this.userService.findCollaboratorsByParentId(
       updatedSubscription?.user.toString(),
@@ -913,8 +934,6 @@ export class StripeService {
         // Send SSE event
         this.sseService.sendSubscriptionCancelled(colId);
       }
-    } else {
-      console.log('No collaborators found to notify.');
     }
     // send subsc Cancel email
     try {
