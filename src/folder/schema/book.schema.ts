@@ -10,7 +10,25 @@ export class Book {
   paymentAccount: string;
 
   @Prop()
-  description: string;
+  description?: string;
+
+  @Prop({ required: true })
+  customerName: string;
+
+  @Prop({ required: true })
+  product: string;
+
+  @Prop({ required: true })
+  discount: string;
+
+  @Prop({ required: true })
+  expense: string;
+
+  @Prop({ required: true })
+  transactionType: string;
+
+  @Prop({ required: true })
+  vendorNetType: string;
 }
 
 export const BookSchema = SchemaFactory.createForClass(Book);

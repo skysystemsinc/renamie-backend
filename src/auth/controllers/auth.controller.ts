@@ -193,4 +193,11 @@ export class AuthController {
       result?.emailNotification,
     );
   }
+
+  @Get('me')
+  async getMe(@Req() req: any) {
+    const userId = req.query.userId || req.user?.id;
+    const user = await this.authService.getUserById(userId);
+    return ApiResponseDto.success('User fetched successfully!', user);
+  }
 }

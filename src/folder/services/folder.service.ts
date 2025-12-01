@@ -475,8 +475,12 @@ export class FolderService {
 
     for (const file of files) {
       const key = file.url;
-      const fileName = key.split('/').pop();
+      // const fileName = key.split('/').pop();
       const fileStream = await this.s3Service.downloadFile(key);
+      const fileName = key
+        .split('/')
+        .pop()
+        ?.replace(/_[a-z0-9]{6}\.pdf$/, '.pdf');
       archive.append(fileStream, { name: fileName });
     }
 
@@ -541,6 +545,7 @@ export class FolderService {
       parentId,
       folderId,
     );
+    console.log('book data', bookData);
     const bookSection = [
       `Vendor Name:,${bookData?.vendorName ?? ''}`,
       `Payment Account:,${bookData?.paymentAccount ?? ''}`,

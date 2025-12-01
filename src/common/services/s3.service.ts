@@ -321,12 +321,21 @@ export class S3Service {
     options: S3DownloadOptions = {},
   ): Promise<string> {
     try {
-      console.log('key', key);
       const { expiresIn = 3600, mode } = options; // 1 hour default
+      const originalName = key
+        .split('/')
+        .pop()
+        ?.replace(/_[a-z0-9]{6}\.pdf$/, '.pdf');
+      console.log('original name', originalName);
       const contentDisposition =
         mode === 'view'
-          ? `inline; filename="${key.split('/').pop()}"`
-          : `attachment; filename="${key.split('/').pop()}"`;
+          ? `inline; filename="${originalName}"`
+          : `attachment; filename="${originalName}"`;
+
+      // const contentDisposition =
+      //   mode === 'view'
+      //     ? `inline; filename="${key.split('/').pop()}"`
+      //     : `attachment; filename="${key.split('/').pop()}"`;
 
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
@@ -337,9 +346,6 @@ export class S3Service {
       const url = await getSignedUrl(this.s3Client, command, {
         expiresIn,
       });
-
-      this.logger.log(`Pre-signed download URL generated for: ${key}`);
-
       return url;
     } catch (error) {
       this.logger.error(
@@ -409,6 +415,7 @@ export class S3Service {
   // rename file
   async renameFileInFolder(fileId: string, newName: string) {
     const fileRecord = await this.folderRepository.findFileById(fileId);
+    console.log('fileRecord', fileRecord);
     if (!fileRecord) throw new NotFoundException('File not found');
     const oldKey = fileRecord.url;
     const fileExtension = oldKey.substring(oldKey.lastIndexOf('.'));
@@ -429,9 +436,9 @@ export class S3Service {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     return await this.renameFileInFolder(fileId, newName);
   }
+
   // file upload
   async uploadFiles(
     id: string,
@@ -439,10 +446,11 @@ export class S3Service {
     files: Array<Express.Multer.File>,
   ) {
     const user = await this.userService.findById(id);
+    console.log('user', user);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
+    console.log('user', user);
     let parentId = id;
     if (user?.isCollaborator && user?.inviteAccepted) {
       parentId = user?.userId.toString();
@@ -598,6 +606,10 @@ export class S3Service {
             folderId,
             (file as any)._id.toString(),
             batchId,
+            user?.email,
+            user?.firstName,
+            user?.emailNotification,
+            user?.isCollaborator,
           );
         }
         return {
@@ -606,6 +618,7 @@ export class S3Service {
         };
       }
     } catch (error) {
+      console.log('err in file upload', error);
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -639,5 +652,22 @@ export class S3Service {
     if (getFileByKey?.status === FileStatus.DELETED) {
       throw new HttpException('File has been deleted', HttpStatus.FORBIDDEN);
     }
+  }
+
+  // In your S3Service
+  async streamFileForView(key: string, res: any) {
+    const fileStream = await this.downloadFile(key); // downloadFile returns a Readable
+
+    const originalName = key
+      .split('/')
+      .pop()
+      ?.replace(/_[a-z0-9]{6}\.pdf$/, '.pdf');
+
+    // Set headers explicitly
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${originalName}"`);
+
+    // Pipe S3 stream to response
+    fileStream.pipe(res);
   }
 }

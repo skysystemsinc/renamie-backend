@@ -5,10 +5,8 @@ import { QueueModule } from '../queue/queue.module';
 
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(QueueModule);
-  console.log('✅ BullMQ Worker is running...');
 
   const shutdown = async () => {
-    console.log('🛑 Shutting down worker...');
     await app.close();
     process.exit(0);
   };

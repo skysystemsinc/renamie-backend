@@ -66,9 +66,20 @@ export class AuthService {
     if (user && user?.isCollaborator && !user?.inviteAccepted) {
       throw new UnauthorizedException('Please Accept The Invitation.');
     }
-    if (user && !user?.emailVerified) {
-      throw new UnauthorizedException('Please Verify Your Email.');
+    if (
+      user &&
+      user?.isCollaborator &&
+      user?.emailVerified &&
+      user?.inviteAccepted &&
+      user?.isSubscriptionCancelled
+    ) {
+      throw new UnauthorizedException(
+        'Your access has been restricted because the owner’s subscription is no longer active.',
+      );
     }
+    // if (user && !user?.emailVerified) {
+    //   throw new UnauthorizedException('Please Verify Your Email.');
+    // }
     await this.userService.updateLastLogin(user._id);
     // const subscription = await this.subscriptionService.findByUserId(user._id);
     const subscription =
@@ -106,11 +117,15 @@ export class AuthService {
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}/renamie.com/verify/${verificationHash}`;
     // console.log('result',)
-    await this.sendgridService.sendVerificationEmail(
-      result.email,
-      result.firstName,
-      verifyUrl,
-    );
+    try {
+      await this.sendgridService.sendVerificationEmail(
+        result.email,
+        result.firstName,
+        verifyUrl,
+      );
+    } catch (error) {
+      console.log('email sending error', error);
+    }
     return {
       user: result,
     };
@@ -190,11 +205,15 @@ export class AuthService {
     let userId = id.toString();
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}/renamie.com/resetPassword/${userId}`;
-    await this.sendgridService.sendResetPasswordEmail(
-      user?.email,
-      user?.firstName,
-      verifyUrl,
-    );
+    try {
+      await this.sendgridService.sendResetPasswordEmail(
+        user?.email,
+        user?.firstName,
+        verifyUrl,
+      );
+    } catch (error) {
+      console.log('emial sending error', error);
+    }
 
     return user;
   }
@@ -223,11 +242,15 @@ export class AuthService {
     const loginUrl = `${appUrl}/login`;
     if (updatedUser) {
       if (!updatePasswordDto?.currentPassword) {
-        await this.sendgridService.sendPasswordChangedEmail(
-          updatedUser?.email,
-          updatedUser?.firstName,
-          loginUrl,
-        );
+        try {
+          await this.sendgridService.sendPasswordChangedEmail(
+            updatedUser?.email,
+            updatedUser?.firstName,
+            loginUrl,
+          );
+        } catch (error) {
+          console.log('err', error);
+        }
       }
 
       return {

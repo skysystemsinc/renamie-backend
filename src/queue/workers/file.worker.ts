@@ -83,8 +83,18 @@ export class FileProcessor extends WorkerHost {
   }
 
   async process(job: Job) {
-    const { fileUrl, folderId, fileId, batchId } = job.data;
+    const {
+      fileUrl,
+      folderId,
+      fileId,
+      batchId,
+      userEmail,
+      emailNotification,
+      userName,
+      collaborator,
+    } = job.data;
     try {
+      console.log('emial in job 1', userEmail);
       const folder = await this.folderRepository.findById(folderId);
       const jobId = await this.textractService.startInvoiceAnalysis(fileUrl);
       const results = await this.textractService.getInvoiceAnalysis(jobId);
@@ -190,9 +200,17 @@ export class FileProcessor extends WorkerHost {
         }
       }
 
-      await this.fileQueueService.handleBatchCompletion(folderId, batchId);
+       await this.fileQueueService.handleBatchCompletion(
+        folderId,
+        batchId,
+        userEmail,
+        emailNotification,
+        userName,
+        collaborator,
+      );
       return results;
     } catch (error) {
+      console.log('file work 1 ', error);
       await this.folderModel.updateOne(
         { _id: folderId, 'files._id': fileId },
         {

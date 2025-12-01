@@ -76,6 +76,10 @@ export class User {
   // is email sent
   @Prop({ default: false })
   emailNotification?: boolean;
+
+  // is email sent
+  @Prop({ default: false })
+  isSubscriptionCancelled?: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
