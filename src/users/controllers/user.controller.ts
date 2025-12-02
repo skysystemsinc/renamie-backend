@@ -7,14 +7,23 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { UserService } from '../services/user.service';
-import {  CreateUserDto } from '../dto/create-user.dto';
+import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { UserRole } from '../schemas/user.schema';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
-import {  ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
 @ApiTags('Users')
 @Controller('users')
@@ -38,8 +47,18 @@ export class UserController {
 
   @Get()
   @Roles(UserRole.ADMIN)
-  async findAll() {
-    const users = await this.userService.findAll();
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async findAll(
+    @CurrentUser('id') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+  ) {
+    const users = await this.userService.findAllByPagination(
+      userId,
+      page,
+      limit,
+    );
     return ApiResponseDto.success('Users retrieved successfully', users);
   }
 
@@ -59,10 +78,12 @@ export class UserController {
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
   async remove(@Param('id') id: string) {
+    console.log('user id')
     await this.userService.delete(id);
+
     return ApiResponseDto.success('User deleted successfully');
   }
-
-
 }

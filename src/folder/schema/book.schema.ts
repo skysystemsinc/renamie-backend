@@ -9,6 +9,9 @@ export class Book {
   @Prop({ required: true })
   paymentAccount: string;
 
+  @Prop({ required: true })
+  paymentMethod: string;
+
   @Prop()
   description?: string;
 
@@ -21,15 +24,17 @@ export class Book {
   @Prop({ required: true })
   discount: string;
 
-  @Prop({ required: true })
-  expense: string;
+  @Prop()
+  expense: number;
+
+  @Prop()
+  bill: number;
 
   @Prop({ required: true })
   transactionType: string;
 
   @Prop({ required: true })
   vendorNetTerm: number;
-
 }
 
 export const BookSchema = SchemaFactory.createForClass(Book);

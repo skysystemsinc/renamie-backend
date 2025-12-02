@@ -99,6 +99,25 @@ export class UserRepository {
 
   //
   async removeUserById(id: string) {
-  await this.userModel.findByIdAndDelete(id);
+    await this.userModel.findByIdAndDelete(id);
+  }
+
+  async findAllPaginated(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{ users: User[]; total: number; page: number; limit: number }> {
+    const skip = (page - 1) * limit;
+    const filter = { role: 'user' };
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments().exec(),
+    ]);
+
+    return { users, total, page, limit };
   }
 }

@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsOptional, IsNumber } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsNumber,
+  ValidateIf,
+} from 'class-validator';
 
 export class CreateFoldersDto {
   @IsString()
@@ -38,6 +44,10 @@ export class QuickBookFormatDto {
 
   @ApiProperty()
   @IsString()
+  paymentMethod: string;
+
+  @ApiProperty()
+  @IsString()
   @IsOptional()
   description?: string;
 
@@ -54,8 +64,15 @@ export class QuickBookFormatDto {
   discount: number;
 
   @ApiProperty()
+  @ValidateIf((o) => o.transactionType === 'Expense')
   @IsNumber()
   expense: number;
+
+  // bill REQUIRED only when transactionType == "Bill"
+  @ApiProperty()
+  @ValidateIf((o) => o.transactionType === 'Bill')
+  @IsNumber()
+  bill: number;
 
   @ApiProperty()
   @IsString()
