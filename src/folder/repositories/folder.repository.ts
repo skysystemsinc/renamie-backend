@@ -575,6 +575,7 @@ export class FolderRepository {
       { $unwind: '$files' },
       { $project: { _id: 0, file: '$files' } },
     ]);
+
     const totalFiles = result.length;
     return {
       files: result.map((r) => r.file),

@@ -522,83 +522,71 @@ export class FolderService {
     return updatedFolder;
   }
 
-  //  get Export files
+  // //  get Export files
+
   async getExportFiles(userId: string, folderId: string) {
     const user = await this.userService.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    if (!user) throw new NotFoundException('User not found');
+
     const folder = await this.folderRepository.findById(folderId);
-    if (!folder) {
-      throw new NotFoundException('Folder not found');
-    }
+    if (!folder) throw new NotFoundException('Folder not found');
+
     let parentId = userId;
     if (user.isCollaborator && user.inviteAccepted) {
       parentId = user.userId.toString();
     }
+
     const parentUser = await this.userService.findById(parentId);
-    if (!parentUser) {
-      throw new NotFoundException('User not found');
-    }
+    if (!parentUser) throw new NotFoundException('User not found');
+
     const bookData = folder?.book;
     const allFiles = await this.folderRepository.getAllUploadedFiles(
       parentId,
       folderId,
     );
-    if (!bookData || allFiles.files.length === 0) {
+
+    if (!bookData && allFiles.files.length === 0) {
       throw new NotFoundException('No files or book data available for export');
     }
-    console.log('book data', bookData);
-    console.log('all files', allFiles);
-    const isExpense = bookData?.transactionType === 'Expense';
-    const manualFields: Record<string, any> = {
-      'Vendor Name': bookData?.vendorName ?? '',
-      'Payment Account': bookData?.paymentAccount ?? '',
-      'Customer/Project Name': bookData?.customerName ?? '',
-      'Product/Service Class': bookData?.product ?? '',
-      'Discount GL Account': bookData?.discount ?? '',
-      'Transaction Type': bookData?.transactionType ?? '',
-      'Vendor Net Type': bookData?.vendorNetTerm ?? '',
-      Description: bookData?.description ?? '',
-    };
-    if (isExpense) {
-      manualFields['Expense GL Account'] = bookData?.expense ?? '';
-      // manualFields['Expense Discount Account'] = bookData?.discountAmount ?? '';
-    } else {
-      manualFields['Bill GL Account'] = bookData?.expense ?? '';
-      // manualFields['Bill Discount Account'] = bookData?.discountAmount ?? '';
+
+    const manualFields: Record<string, any> = {};
+    let isExpense = false;
+    let isBill = false;
+
+    if (bookData) {
+      isExpense = bookData.transactionType === 'Expense';
+      isBill = bookData.transactionType === 'Bill';
+      manualFields['Payee'] = bookData.vendorName ?? '';
+      manualFields['Category/Account'] = bookData.paymentAccount ?? '';
+      manualFields['Payment Method'] = bookData.paymentMethod ?? '';
+      manualFields['Customer/Project'] = bookData.customerName ?? '';
+      manualFields['Class'] = bookData.product ?? '';
+      manualFields['Discount GL Account'] = bookData.discount ?? '';
+      manualFields['Type'] = bookData.transactionType ?? '';
+      manualFields['Vendor Net Type'] = bookData.vendorNetTerm ?? '';
+      manualFields['Description'] = bookData.description ?? '';
+      if (isExpense) {
+        manualFields['Expense GL Account'] = bookData.expense ?? '';
+      }
+      if (isBill) {
+        manualFields['Bill GL Account'] = bookData.expense ?? '';
+      }
     }
-    // const metadataRows = allFiles.files.map((file) => {
-    //   const metadataObj: Record<string, any> = { ...manualFields };
-
-    //   if (Array.isArray(file.metadata)) {
-    //     file.metadata.forEach((meta: any) => {
-    //       Object.keys(meta).forEach((k) => {
-    //         if (!['_id', '__v'].includes(k)) {
-    //           metadataObj[k] = meta[k] ?? '';
-    //         }
-    //       });
-    //     });
-    //   }
-
-    //   return metadataObj;
-    // });
 
     const metadataRows = allFiles.files.map((file) => {
-      // Start with the manual fields
       const metadataObj: Record<string, any> = { ...manualFields };
-      // Add discountAmount from file
+
       if (isExpense) {
         metadataObj['Expense Discount Account'] = file.discountAmount
           ? +(+file.discountAmount).toFixed(2)
           : '';
-      } else {
+      }
+      if (isBill) {
         metadataObj['Bill Discount Account'] = file.discountAmount
           ? +(+file.discountAmount).toFixed(2)
           : '';
       }
 
-      // Merge all metadata from file
       if (Array.isArray(file.metadata)) {
         file.metadata.forEach((meta: any) => {
           Object.keys(meta).forEach((k) => {
@@ -609,22 +597,50 @@ export class FolderService {
         });
       }
 
+      // CUSTOM HEADERS
+      // metadataObj['Payee'] = 'Blank';
+      metadataObj['Billable'] = 'False';
+
+      if (metadataObj['invoiceReceiptId']) {
+        metadataObj['Ref No'] = metadataObj['invoiceReceiptId'];
+        delete metadataObj['invoiceReceiptId'];
+      }
+
+      if (metadataObj['invoiceReceiptDate']) {
+        metadataObj['Date'] = metadataObj['invoiceReceiptDate'];
+        delete metadataObj['invoiceReceiptDate'];
+      }
+      if (metadataObj['invoiceDate']) {
+        metadataObj['Date'] = metadataObj['invoiceDate'];
+        delete metadataObj['invoiceDate'];
+      }
+
+      if (metadataObj['total']) {
+        metadataObj['Amount'] = metadataObj['total'];
+        delete metadataObj['total'];
+      }
+
       return metadataObj;
     });
 
+    if (metadataRows.length === 0 && bookData) {
+      metadataRows.push({ ...manualFields, Payee: 'Blank', Billable: 'False' });
+    }
+
+    // Generate CSV with uppercase headers and preserve values
     const metadataHeaders = [
       ...new Set(metadataRows.flatMap((obj) => Object.keys(obj))),
     ];
 
     const metadataCsv = [
-      metadataHeaders.join(','),
+      metadataHeaders.map((h) => h.toUpperCase()).join(','), // Header row
       ...metadataRows.map((row) =>
         metadataHeaders.map((h) => `"${row[h] ?? ''}"`).join(','),
       ),
     ];
 
-    // const csvContent = [...bookSection, ...metadataCsv].join('\n');
     const csvContent = metadataCsv.join('\n');
+
     return new StreamableFile(Buffer.from(csvContent), {
       type: 'text/csv',
       disposition: `attachment; filename="export_${folder?.name}.csv"`,

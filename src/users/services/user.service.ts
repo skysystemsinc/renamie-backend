@@ -8,11 +8,15 @@ import { UserRepository } from '../repositories/user.repository';
 import { CreateInviteUserDataDto, CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { User } from '../schemas/user.schema';
+import { SSEService } from 'src/sse/services/sse.service';
 // import { StripeService } from 'src/stripe/stripe.service';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly sseService: SSEService,
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findByEmail(
@@ -28,7 +32,15 @@ export class UserService {
     return this.userRepository.create(userData);
   }
 
-  async findAll(): Promise<User[]> {
+  async findAll(
+    userId: string,
+    page?: number,
+    limit?: number,
+  ): Promise<User[]> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     return this.userRepository.findAll();
   }
 
@@ -61,6 +73,7 @@ export class UserService {
     if (!deletedUser) {
       throw new NotFoundException('User not found');
     }
+    this.sseService.sendLogout(id);
   }
 
   async updateRefreshToken(id: string, refreshToken: string): Promise<void> {
@@ -138,5 +151,17 @@ export class UserService {
     return this.userRepository.update(userId, {
       emailNotification: emailNotification,
     });
+  }
+
+  async findAllByPagination(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{ users: User[]; total: number; page: number; limit: number }> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return this.userRepository.findAllPaginated(page, limit);
   }
 }

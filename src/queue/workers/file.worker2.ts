@@ -94,13 +94,10 @@ export class FileProcessor2 extends WorkerHost {
       collaborator,
     } = job.data;
     // console.log('in work 2');
-    console.log('email in job2 ', userEmail);
     try {
       const folder = await this.folderRepository.findById(folderId);
       const jobId = await this.textractService.startInvoiceAnalysis(fileUrl);
       const results = await this.textractService.getInvoiceAnalysis(jobId);
-      const bookData = folder?.book;
-      console.log('book data', bookData);
       const mappedMetadata = Array.isArray(results)
         ? results.map((r) => ({
             address: r.ADDRESS ?? '',
@@ -133,23 +130,6 @@ export class FileProcessor2 extends WorkerHost {
       const firstMetadata = mappedMetadata?.[0];
       const invoiceId = firstMetadata?.invoiceReceiptId?.trim();
       const invoiceDate = firstMetadata?.invoiceReceiptDate?.trim();
-
-      //
-      if (firstMetadata?.total != null && bookData?.vendorNetTerm != null) {
-        const total = Number(firstMetadata.total);
-        const discountRate = 1 / Number(bookData.vendorNetTerm);
-        // const discountAmount = total * discountRate;
-        const discountAmount = parseFloat((total * discountRate).toFixed(2));
-        console.log('discountAmount', discountAmount);
-        await this.folderModel.updateOne(
-          { _id: folderId, 'files._id': fileId },
-          {
-            $set: {
-              'files.$.discountAmount': discountAmount,
-            },
-          },
-        );
-      }
       //
       if (
         folder?.format === 'Invoice-Date' ||

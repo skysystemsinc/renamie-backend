@@ -94,11 +94,7 @@ export class FileProcessor extends WorkerHost {
       collaborator,
     } = job.data;
     try {
-      console.log('emial in job 1', userEmail);
       const folder = await this.folderRepository.findById(folderId);
-      console.log('fo;de', folder);
-      const bookData = folder?.book;
-      console.log('book data', bookData);
       const jobId = await this.textractService.startInvoiceAnalysis(fileUrl);
       const results = await this.textractService.getInvoiceAnalysis(jobId);
       const mappedMetadata = Array.isArray(results)
@@ -132,24 +128,6 @@ export class FileProcessor extends WorkerHost {
       const firstMetadata = mappedMetadata?.[0];
       const invoiceId = firstMetadata?.invoiceReceiptId?.trim();
       const invoiceDate = firstMetadata?.invoiceReceiptDate?.trim();
-      //
-      // const discountAmount = firstMetadata?.total;
-      if (firstMetadata?.total != null && bookData?.vendorNetTerm != null) {
-        const total = Number(firstMetadata.total);
-        const discountRate = 1 / Number(bookData.vendorNetTerm);
-        // const discountAmount = total * discountRate;
-      const discountAmount = parseFloat((total * discountRate).toFixed(2));
-
-        console.log('discountAmount', discountAmount);
-        await this.folderModel.updateOne(
-          { _id: folderId, 'files._id': fileId },
-          {
-            $set: {
-              'files.$.discountAmount': discountAmount,
-            },
-          },
-        );
-      }
 
       //
       if (
@@ -232,7 +210,6 @@ export class FileProcessor extends WorkerHost {
       );
       return results;
     } catch (error) {
-      console.log('file work 1 ', error);
       await this.folderModel.updateOne(
         { _id: folderId, 'files._id': fileId },
         {
