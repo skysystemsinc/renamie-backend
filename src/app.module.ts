@@ -24,6 +24,7 @@ import { SendgridService } from './common/services/sendgrid';
 import { TasksModule } from './tasks/tasks.module';
 import { QueueModule } from './queue/queue.module';
 import { SSEModule } from './sse/sse.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { SSEModule } from './sse/sse.module';
     TasksModule,
     QueueModule,
     SSEModule,
+    AdminModule
   ],
   controllers: [AppController],
   providers: [
