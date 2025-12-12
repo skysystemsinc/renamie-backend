@@ -149,14 +149,16 @@ export class AuthController {
     );
   }
 
-  @Get('collaborators/:id')
+  @Get('collaborators')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   async getCollaborators(
-    @Param('id') parentId: string,
+    // @Param('id') parentId: string,
     @CurrentUser('id') userId: string,
   ) {
-    const user = await this.authService.getCollaborators(userId, parentId);
+    // const user = await this.authService.getCollaborators(userId, parentId);
+    const user = await this.authService.getCollaborators(userId);
+
     return ApiResponseDto.success('Collaborator Fetched successfully', user);
   }
 
