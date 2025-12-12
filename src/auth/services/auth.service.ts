@@ -342,13 +342,13 @@ export class AuthService {
 
   // get Collaborators
 
-  async getCollaborators(userId: string, parentId: string) {
+  async getCollaborators(userId: string) {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
     const collaborators =
-      await this.userService.findCollaboratorsByParentId(parentId);
+      await this.userService.findCollaboratorsByParentId(userId);
     return collaborators;
   }
 

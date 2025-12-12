@@ -34,6 +34,7 @@ export class FormatDto {
 }
 
 export class QuickBookFormatDto {
+  
   @ApiProperty()
   @IsString()
   vendorName: string;
