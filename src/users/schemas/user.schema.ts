@@ -80,6 +80,13 @@ export class User {
   // is email sent
   @Prop({ default: false })
   isSubscriptionCancelled?: boolean;
+
+  @Prop({ required: true, default: false })
+  termsConditions: boolean;
+
+  // Privacy Policy accepted
+  @Prop({ required: true, default: false })
+  privacyPolicy: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
