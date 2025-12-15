@@ -1,4 +1,11 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import {
+  Equals,
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -17,4 +24,13 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   lastName: string;
+
+  @IsBoolean()
+  @Equals(true, { message: 'You must accept the Terms and Conditions' })
+  termsConditions: boolean;
+
+  // Privacy Policy acceptance
+  @IsBoolean()
+  @Equals(true, { message: 'You must acknowledge the Privacy Policy' })
+  privacyPolicy: boolean;
 }
