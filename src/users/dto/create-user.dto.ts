@@ -7,6 +7,7 @@ import {
   IsBoolean,
   IsMongoId,
   IsDate,
+  Equals,
 } from 'class-validator';
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 
@@ -35,6 +36,12 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   role?: string;
+
+  @IsBoolean()
+  termsConditions: boolean;
+
+  @IsBoolean()
+  privacyPolicy: boolean;
 }
 
 export class CreateInvitedUserDto {
