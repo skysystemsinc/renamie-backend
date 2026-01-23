@@ -27,6 +27,7 @@ import { UpdateUserDto } from 'src/users/dto/update-user.dto';
 import { StripeService } from 'src/stripe/stripe.service';
 import {
   CreateInvitedUserDto,
+  CreateUserDto,
   UserNotificationDto,
 } from 'src/users/dto/create-user.dto';
 import { randomGenerator } from 'src/utils/helper';
@@ -97,7 +98,15 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto) {
-    const user = await this.userService.create(registerDto);
+    const createUserDto: CreateUserDto = {
+      email: registerDto.email,
+      password: registerDto.password,
+      firstName: registerDto.firstName,
+      lastName: registerDto.lastName,
+      termsConditions: registerDto.termsConditions,
+      privacyPolicy: registerDto.privacyPolicy,
+    };
+    const user = await this.userService.create(createUserDto);
     const { password, ...result } = (user as UserDocument).toObject();
 
     await this.firebaseService.createUser(result._id.toString(), {
