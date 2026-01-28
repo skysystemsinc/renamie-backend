@@ -78,7 +78,7 @@ export class SendgridService {
           userName: userName,
           verificationLink: verificationUrl,
         },
-        false,
+        true,
       );
       // console.log(`Verification email successfully sent to ${to}.`);
     } catch (error) {
