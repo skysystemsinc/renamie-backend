@@ -27,6 +27,9 @@ export class Folder {
 
   @Prop({ type: BookSchema })
   book: Book;
+
+  @Prop({type: Boolean, default: false})
+  selectedForDowngrade: boolean;
 }
 
 export const FolderSchema = SchemaFactory.createForClass(Folder);
