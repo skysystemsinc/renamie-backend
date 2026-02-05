@@ -8,6 +8,7 @@ import {
   IsEmail,
   Min,
   IsObject,
+  IsArray,
 } from 'class-validator';
 
 export class CreateSubscriptionDto {
@@ -18,6 +19,15 @@ export class CreateSubscriptionDto {
     example: '66d9a4000000000000000000',
   })
   planId: string;
+
+  @IsOptional()
+  @IsArray()
+  @ApiProperty({
+    description: 'The IDs of the folders to subscribe to',
+    example: ['66d9a4000000000000000000', '66d9a4000000000000000001'],
+    required: false,
+  })
+  selectedFolderIds?: string[];
 }
 
 export class CancelSubscriptionDto {
