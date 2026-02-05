@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { FolderController } from './controllers/folder.controller';
 import { FolderService } from './services/folder.service';
@@ -19,7 +19,7 @@ import { DeletedFolder, DeletedFolderSchema } from './schema/deleted-folder.sche
     ]),
     UsersModule,
     FileQueueModule,
-    SubscriptionsModule,
+    forwardRef(() => SubscriptionsModule),
   ],
   controllers: [FolderController],
   providers: [FolderService, FolderRepository, S3Service, JobService],

@@ -24,6 +24,7 @@ export class FolderService {
     private readonly s3Service: S3Service,
     private readonly userService: UserService,
     private readonly folderRepository: FolderRepository,
+    @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
   ) {}
 
