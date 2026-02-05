@@ -15,10 +15,10 @@ export class SeederService {
   constructor(
     private readonly planSeeder: PlanSeeder,
     private readonly userSeeder: UserSeeder,
-  ) {}
+  ) { }
 
   async runSeeders(options: SeederOptions = {}): Promise<SeederResult[]> {
-    const { clearFirst = false, seeders = ['plans'] } = options;
+    const { clearFirst = false, seeders = ['plans', 'user'] } = options;
     const results: SeederResult[] = [];
 
     this.logger.log('Starting seeder process...');
@@ -73,8 +73,8 @@ export class SeederService {
     return this.runSeeders({ clearFirst, seeders: ['plans'] });
   }
   async runUserSeeder(clearFirst = false): Promise<SeederResult[]> {
-  return this.runSeeders({ clearFirst, seeders: ['user'] });
-}
+    return this.runSeeders({ clearFirst, seeders: ['user'] });
+  }
 
   async clearAllSeeders(): Promise<SeederResult[]> {
     const results: SeederResult[] = [];

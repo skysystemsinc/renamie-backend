@@ -7,7 +7,7 @@ import { UpdateUserDto } from '../dto/update-user.dto';
 
 @Injectable()
 export class UserRepository {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const createdUser = new this.userModel(createUserDto);
@@ -113,7 +113,8 @@ export class UserRepository {
         .find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
+        .limit(limit).
+        lean()
         .exec(),
       this.userModel.countDocuments().exec(),
     ]);

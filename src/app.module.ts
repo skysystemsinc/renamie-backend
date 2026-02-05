@@ -25,6 +25,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { QueueModule } from './queue/queue.module';
 import { SSEModule } from './sse/sse.module';
 import { AdminModule } from './admin/admin.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
   imports: [
@@ -48,7 +49,8 @@ import { AdminModule } from './admin/admin.module';
     TasksModule,
     QueueModule,
     SSEModule,
-    AdminModule
+    AdminModule,
+    ContactModule
   ],
   controllers: [AppController],
   providers: [

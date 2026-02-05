@@ -52,7 +52,7 @@ export class S3Controller {
     private readonly textractService: TextractService,
     private readonly firebaseService: FirebaseService,
     private readonly fileQueueService: FileQueueService,
-  ) {}
+  ) { }
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))

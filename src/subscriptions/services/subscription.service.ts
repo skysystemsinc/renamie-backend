@@ -22,7 +22,7 @@ export class SubscriptionService {
     private readonly planService: PlanService,
     private readonly userService: UserService,
     private readonly stripeService: StripeService,
-  ) {}
+  ) { }
 
   async createSubscription(
     createSubscriptionDto: CreateSubscriptionDto,
@@ -225,5 +225,9 @@ export class SubscriptionService {
       userCount: user?.userCount,
       features: subscription?.features,
     };
+  }
+
+  async getUserSubscriptionWithPlan(userId: string) {
+    return await this.subscriptionRepository.findUserSubsWithPlan(userId)
   }
 }

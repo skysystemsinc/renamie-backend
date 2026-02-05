@@ -45,7 +45,7 @@ export class AuthService {
     private firebaseService: FirebaseService,
     private readonly stripeService: StripeService,
     private readonly sseService: SSEService,
-  ) {}
+  ) { }
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userService.findByEmail(email);
@@ -417,5 +417,31 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
     return user;
+  }
+
+
+  // 
+  async getUserWithSubs(userId: string, page: number, limit: number) {
+    const userDetail = await this.userService.findAllByPagination(
+      userId,
+      page,
+      limit,
+    );
+    console.log("user detail", userDetail);
+    const usersWithSubscriptions = await Promise.all(
+      userDetail?.users?.map(async (usr) => {
+        const subscription = await this.subscriptionService.getUserSubscriptionWithPlan(
+          (usr as any)._id.toString()
+        );
+        return { ...usr, subscription };
+      }),
+    );
+    console.log("user with subscriptin", usersWithSubscriptions);
+    return {
+      users: usersWithSubscriptions,
+      total: userDetail.total,
+      page: userDetail?.page,
+      limit: userDetail?.limit,
+    };
   }
 }

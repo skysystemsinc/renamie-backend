@@ -9,5 +9,11 @@ export const emailConstant = {
   subsUpdateTempId: 'd-6912325231cb4faaa768563ef23fb74b',
   subsCanceledTempId: 'd-21147f6ce4ff4da99509c997fb46624c',
   subsCancelReqTempId:'d-da0cd5a53a4f4aa188ae4ffd31aa5c21',
-  uploadFileToOwnerTempId:'d-4f9783ddd1fe4af2b87709752ea1f71d'
+  uploadFileToOwnerTempId:'d-4f9783ddd1fe4af2b87709752ea1f71d',
+  contactTempId:"d-4a5baee86453487abcec87f7ceb5a1b1"
 };
+
+
+export const emial ={
+  contact:'contact@renamie.com'
+}
