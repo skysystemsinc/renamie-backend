@@ -143,10 +143,8 @@ export class FolderController {
     @CurrentUser('id') userId: string,
     @Param('id') folderId: string,
     @Query('date') date: string,
-    @Query('timezoneOffset') timezoneOffset: string,
     @Res() res: Response,
   ) {
-    console.log("date", date);
     const streamFile = await this.folderService.getExportFiles(
       userId,
       folderId,
