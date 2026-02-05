@@ -667,4 +667,24 @@ export class FolderService {
 
     await this.folderRepository.deleteFilesPermanently();
   }
+
+  async findAllByUserId(userId: string) {
+    return this.folderRepository.findAllByUserId(userId);
+  }
+
+  async markFoldersForDowngrade(folderIds: string[]): Promise<void> {
+    await this.folderRepository.markFoldersForDowngrade(folderIds);
+  }
+
+  async moveToDeletedFolders(folderIds: string[], reason?: string): Promise<void> {
+    await this.folderRepository.moveToDeletedFolders(folderIds, reason);
+  }
+
+  async deleteFoldersByIds(folderIds: string[]): Promise<void> {
+    await this.folderRepository.deleteFoldersByIds(folderIds);
+  }
+
+  async resetDowngradeFlags(folderIds: string[]): Promise<void> {
+    await this.folderRepository.resetDowngradeFlags(folderIds);
+  }
 }

@@ -5,11 +5,13 @@ import { Folder, FolderDocument } from '../schema/folder.schema';
 import { format } from 'path';
 import { QuickBookFormatDto } from '../dto/create-folder.dto';
 import { FileStatus } from '../schema/files.schema';
+import { DeletedFolder, DeletedFolderDocument } from '../schema/deleted-folder.schema';
 
 @Injectable()
 export class FolderRepository {
   constructor(
     @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
+    @InjectModel(DeletedFolder.name) private deletedFolderModel: Model<DeletedFolderDocument>,
   ) {}
 
   async create(FolderDocument: Partial<Folder>): Promise<FolderDocument> {
@@ -661,5 +663,52 @@ export class FolderRepository {
       { 'files.$': 1 },
     );
     return folder?.files[0] ?? null;
+  }
+
+  // Add this method to copy folders to deleted_folders collection:
+  async moveToDeletedFolders(
+    folderIds: string[],
+    reason: string = 'downgrade',
+  ): Promise<void> {
+    const folders = await this.folderModel.find({
+      _id: { $in: folderIds },
+    });
+
+    const deletedFolders = folders.map((folder) => ({
+      userId: folder.userId,
+      parentUser: folder.parentUser,
+      name: folder.name,
+      files: folder.files,
+      emailSentBatches: folder.emailSentBatches,
+      format: folder.format,
+      book: folder.book,
+      originalFolderId: folder._id,
+      deletedAt: new Date(),
+      deletedReason: reason,
+    }));
+
+    if (deletedFolders.length > 0) {
+      await this.deletedFolderModel.insertMany(deletedFolders);
+    }
+  }
+
+  async markFoldersForDowngrade(folderIds: string[]): Promise<void> {
+    await this.folderModel.updateMany(
+      { _id: { $in: folderIds.map(id => new Types.ObjectId(id)) } },
+      { $set: { selectedForDowngrade: true } }
+    );
+  }
+
+  async deleteFoldersByIds(folderIds: string[]): Promise<void> {
+    await this.folderModel.deleteMany({
+      _id: { $in: folderIds.map(id => new Types.ObjectId(id)) },
+    });
+  }
+
+  async resetDowngradeFlags(folderIds: string[]): Promise<void> {
+    await this.folderModel.updateMany(
+      { _id: { $in: folderIds.map(id => new Types.ObjectId(id)) } },
+      { $set: { selectedForDowngrade: false } }
+    );
   }
 }
