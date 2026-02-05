@@ -3,6 +3,8 @@ import {
   Logger,
   NotFoundException,
   RawBodyRequest,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
@@ -21,6 +23,7 @@ import { PlanService } from 'src/plans/services/plan/plan.service';
 import { formatDate } from 'src/utils/helper';
 import { tryCatch } from 'bullmq';
 import { SSEService } from 'src/sse/services/sse.service';
+import { FolderService } from 'src/folder/services/folder.service';
 
 const mapStripeStatus = (status: string): SubscriptionStatus => {
   switch (status) {
@@ -50,6 +53,8 @@ export class StripeService {
     private readonly userService: UserService,
     private readonly planService: PlanService,
     private readonly sseService: SSEService,
+    @Inject(forwardRef(() => FolderService))
+    private readonly folderService: FolderService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -530,6 +535,9 @@ export class StripeService {
     console.log('existig subs', existingSubscription);
     if (!existingSubscription) return;
 
+    // Handle scheduled downgrade execution
+    await this.executeScheduledDowngrade(existingSubscription);
+
     const getUser = await this.userService.findById(
       existingSubscription?.user.toString(),
     );
@@ -590,11 +598,11 @@ export class StripeService {
           features: plan?.features,
         },
       );
-      await this.userService.updateUser(userId, {
-        fileCount: 0,
-        folderCount: 0,
-        userCount: 0,
-      });
+      // await this.userService.updateUser(userId, {
+      //   fileCount: 0,
+      //   folderCount: 0,
+      //   userCount: 0,
+      // });
       if (updatedSubscription) {
         console.log('updatedSubscription', updatedSubscription);
         const getupdatedplan = await this.planService.findById(
@@ -1064,6 +1072,82 @@ export class StripeService {
       throw new Error(
         `Failed to create billing portal session: ${error.message}`,
       );
+    }
+  }
+
+  /**
+   * Execute scheduled downgrade when subscription period ends
+   */
+  private async executeScheduledDowngrade(
+    existingSubscription: SubscriptionDocument,
+  ): Promise<void> {
+    // Check if there's a scheduled downgrade in metadata
+    const metadata = existingSubscription.metadata || {};
+    
+    if (
+      metadata.downgradeScheduled === true &&
+      metadata.selectedFolderIds &&
+      metadata.pendingDowngradePlanId
+    ) {
+      this.logger.log(
+        `Executing scheduled downgrade for user ${existingSubscription.user.toString()}`,
+      );
+
+      try {
+        const selectedFolderIds = metadata.selectedFolderIds as string[];
+        const userId = existingSubscription.user.toString();
+        const targetPlanId = metadata.pendingDowngradePlanId as string;
+
+        // Get all user folders
+        const allFolders = await this.folderService.findAllByUserId(userId);
+        const selectedIds = selectedFolderIds.map((id: string) => new Types.ObjectId(id));
+
+        // Find non-selected folders
+        const nonSelectedFolders = allFolders.filter(
+          (folder: any) => !selectedIds.some((id: Types.ObjectId) => id.equals(folder._id))
+        );
+
+        if (nonSelectedFolders.length > 0) {
+          const nonSelectedIds = nonSelectedFolders.map((f: any) => f._id.toString());
+
+          // Move non-selected folders to deleted_folders
+          await this.folderService.moveToDeletedFolders(nonSelectedIds, 'downgrade');
+
+          // Delete non-selected folders from main collection
+          await this.folderService.deleteFoldersByIds(nonSelectedIds);
+        }
+
+        // Reset selectedForDowngrade flag on kept folders
+        if (selectedFolderIds.length > 0) {
+          await this.folderService.resetDowngradeFlags(selectedFolderIds);
+        }
+
+        // Get the target plan
+        const targetPlan = await this.planService.findById(targetPlanId);
+
+        if (targetPlan) {
+          // Update subscription with new plan and clear downgrade flags
+          await this.subscriptionRepository.update(existingSubscription.id, {
+            plan: new Types.ObjectId(targetPlan.id),
+            features: targetPlan.features,
+            metadata: {
+              ...metadata,
+              selectedFolderIds: undefined,
+              pendingDowngradePlanId: undefined,
+              downgradeScheduled: false,
+            },
+          });
+
+          this.logger.log(
+            `Downgrade executed: Subscription updated to ${targetPlan.name}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to execute downgrade: ${error.message}`,
+          error.stack,
+        );
+      }
     }
   }
 }
