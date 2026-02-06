@@ -332,6 +332,23 @@ export class FolderService {
     }
   }
 
+  // count all files irrespective of status
+  async countAllFiles(userId: string): Promise<number> {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    return await this.folderRepository.countAllFiles(parentId);
+  }
+
   async getFilesByFolder(
     userId: string,
     folderId: string,

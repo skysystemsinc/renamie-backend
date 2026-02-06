@@ -731,12 +731,14 @@ export class StripeService {
         },
       );
       console.log('updatedSubscription ', updatedSubscription);
-      await this.userService.updateUser(userId, {
-        fileCount: 0,
-        folderCount: 0,
-        userCount: 0,
-      });
       if (updatedSubscription) {
+        // Check if it's a downgrade (new plan order < current plan order)
+        const isDowngrade = plan.order && getplan.order && plan.order < getplan.order;
+        
+        if (isDowngrade) {
+          await this.updateUserCountsAfterDowngrade(userId, plan.features);
+        }
+        
         const getupdatedplan = await this.planService.findById(
           updatedSubscription?.plan.toString(),
         );
@@ -833,11 +835,12 @@ export class StripeService {
       console.log('updated subs', updatedSubscription);
 
       if (updatedSubscription) {
-        await this.userService.updateUser(userId, {
-          fileCount: 0,
-          folderCount: 0,
-          userCount: 0,
-        });
+        // Check if it's a downgrade
+        const isDowngrade = newPlan.order && getplan.order && newPlan.order < getplan.order;
+        
+        if (isDowngrade) {
+          await this.updateUserCountsAfterDowngrade(userId, newPlan.features);
+        }
 
         //  Re-fetch updated subscription to avoid race conditions
         const freshSub = await this.subscriptionRepository.findById(
@@ -1076,6 +1079,37 @@ export class StripeService {
   }
 
   /**
+   * Recalculate and update user counts after downgrade
+   * @param userId - The user ID to update counts for
+   * @param planFeatures - The new plan's features (limits)
+   */
+  private async updateUserCountsAfterDowngrade(
+    userId: string,
+    planFeatures: { folders: number; storage: number; users: number },
+  ): Promise<void> {
+    // Recalculate actual counts after downgrade
+    const allFolders = await this.folderService.findAllByUserId(userId);
+    const actualFolderCount = allFolders.length;
+
+    // Calculate actual file count from remaining folders (all files irrespective of status)
+    const actualFileCount = await this.folderService.countAllFiles(userId);
+
+    // Get actual collaborator count and cap at new plan limit
+    const collaborators = await this.userService.findCollaboratorsByParentId(userId);
+    const actualUserCount = Math.min(
+      collaborators.length,
+      planFeatures.users,
+    );
+
+    // Update user with actual counts (capped at plan limits)
+    await this.userService.updateUser(userId, {
+      folderCount: Math.min(actualFolderCount, planFeatures.folders),
+      fileCount: Math.min(actualFileCount, planFeatures.storage),
+      userCount: actualUserCount,
+    });
+  }
+
+  /**
    * Execute scheduled downgrade when subscription period ends
    */
   private async executeScheduledDowngrade(
@@ -1136,6 +1170,26 @@ export class StripeService {
               pendingDowngradePlanId: undefined,
               downgradeScheduled: false,
             },
+          });
+
+          // Recalculate actual counts after downgrade
+          const remainingFolders = await this.folderService.findAllByUserId(userId);
+          const actualFolderCount = remainingFolders.length;
+          
+          const allFiles = await this.folderService.getALLFiles(userId);
+          const actualFileCount = allFiles.totalFiles || 0;
+          
+          const collaborators = await this.userService.findCollaboratorsByParentId(userId);
+          const actualUserCount = Math.min(
+            collaborators.length,
+            targetPlan.features.users
+          );
+
+          // Update user with actual counts (capped at plan limits)
+          await this.userService.updateUser(userId, {
+            folderCount: Math.min(actualFolderCount, targetPlan.features.folders),
+            fileCount: Math.min(actualFileCount, targetPlan.features.storage),
+            userCount: actualUserCount,
           });
 
           this.logger.log(

@@ -450,6 +450,21 @@ export class FolderRepository {
     };
   }
 
+  // count all files irrespective of status
+  async countAllFiles(userId: string): Promise<number> {
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          parentUser: new Types.ObjectId(userId),
+        },
+      },
+      { $unwind: '$files' },
+      { $count: 'total' },
+    ]);
+
+    return result.length > 0 ? result[0].total : 0;
+  }
+
   //  get all by date
   async getFilesByDate(
     userId: string,
