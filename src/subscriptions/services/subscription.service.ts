@@ -81,13 +81,20 @@ export class SubscriptionService {
           createSubscriptionDto.selectedFolderIds,
         );
       }
-      const allPriceAndProducts =
-        await this.planService.findAllPriceAndProduct();
-      // create stripe configuration
-      const products = allPriceAndProducts.map((item) => ({
-        product: item.stripeProductId,
-        prices: [item.stripePriceId],
-      }));
+      // const allPriceAndProducts =
+      //   await this.planService.findAllPriceAndProduct();
+      // // create stripe configuration
+      // const products = allPriceAndProducts.map((item) => ({
+      //   product: item.stripeProductId,
+      //   prices: [item.stripePriceId],
+      // }));
+
+      // Only include the selected plan's product and price in billing portal
+      const products = [{
+        product: plan.stripeProductId,
+        prices: [plan.stripePriceId],
+      }];
+
       const config = {
         features: {
           subscription_update: {
