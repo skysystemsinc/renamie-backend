@@ -3,10 +3,10 @@ import { Document, Types } from 'mongoose';
 import { Files, FilesSchema } from './files.schema';
 import { Book, BookSchema } from './book.schema';
 
-export type FolderDocument = Folder & Document;
+export type DeletedFolderDocument = DeletedFolder & Document;
 
-@Schema({ timestamps: true })
-export class Folder {
+@Schema({ timestamps: true, collection: 'deleted_folders' })
+export class DeletedFolder {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   userId: Types.ObjectId;
 
@@ -28,8 +28,14 @@ export class Folder {
   @Prop({ type: BookSchema })
   book: Book;
 
-  @Prop({type: Boolean, default: false})
-  selectedForDowngrade: boolean;
+  @Prop({ type: Types.ObjectId, required: true })
+  originalFolderId: Types.ObjectId;
+
+  @Prop({ type: Date, default: Date.now })
+  deletedAt: Date;
+
+  @Prop({ type: String })
+  deletedReason?: string;
 }
 
-export const FolderSchema = SchemaFactory.createForClass(Folder);
+export const DeletedFolderSchema = SchemaFactory.createForClass(DeletedFolder);

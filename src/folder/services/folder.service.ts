@@ -24,6 +24,7 @@ export class FolderService {
     private readonly s3Service: S3Service,
     private readonly userService: UserService,
     private readonly folderRepository: FolderRepository,
+    @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
   ) { }
 
@@ -329,6 +330,23 @@ export class FolderService {
         await this.folderRepository.getAllCompletedFiles(parentId);
       return allFiles;
     }
+  }
+
+  // count all files irrespective of status
+  async countAllFiles(userId: string): Promise<number> {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    return await this.folderRepository.countAllFiles(parentId);
   }
 
   async getFilesByFolder(
@@ -663,5 +681,25 @@ export class FolderService {
     }
     return folder.book ?? null;
 
+  }
+
+  async findAllByUserId(userId: string) {
+    return this.folderRepository.findAllByUserId(userId);
+  }
+
+  async markFoldersForDowngrade(folderIds: string[]): Promise<void> {
+    await this.folderRepository.markFoldersForDowngrade(folderIds);
+  }
+
+  async moveToDeletedFolders(folderIds: string[], reason?: string): Promise<void> {
+    await this.folderRepository.moveToDeletedFolders(folderIds, reason);
+  }
+
+  async deleteFoldersByIds(folderIds: string[]): Promise<void> {
+    await this.folderRepository.deleteFoldersByIds(folderIds);
+  }
+
+  async resetDowngradeFlags(folderIds: string[]): Promise<void> {
+    await this.folderRepository.resetDowngradeFlags(folderIds);
   }
 }

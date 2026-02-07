@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  forwardRef,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -63,11 +65,13 @@ export class S3Service {
 
   constructor(
     private configService: ConfigService,
+    @Inject(forwardRef(() => FolderService))
     private readonly folderService: FolderService,
     private readonly firebaseService: FirebaseService,
     private readonly folderRepository: FolderRepository,
     private readonly fileQueueService: FileQueueService,
     private readonly userService: UserService,
+    @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
   ) {
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');

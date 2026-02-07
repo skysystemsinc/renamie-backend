@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { SubscriptionController } from './controllers/subscription.controller';
 import { SubscriptionService } from './services/subscription.service';
 import { SubscriptionRepository } from './repositories/subscription.repository';
@@ -8,6 +8,7 @@ import { PlansModule } from '../plans/plans.module';
 import { UsersModule } from '../users/users.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Subscription, SubscriptionSchema } from './schemas/subscription.schema';
+import { FoldersModule } from 'src/folder/folders.module';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { Subscription, SubscriptionSchema } from './schemas/subscription.schema'
     StripeModule,
     PaymentsModule,
     PlansModule,
-    UsersModule
+    UsersModule,
+    forwardRef(() => FoldersModule),
   ],
   controllers: [SubscriptionController],
   providers: [SubscriptionService, SubscriptionRepository],
