@@ -121,4 +121,26 @@ export class UserRepository {
 
     return { users, total, page, limit };
   }
+
+
+
+  async clearOtp(userId: string): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(userId, { $unset: { otp: "", otpExpires: "" } }, { new: true })
+      .exec();
+  }
+
+  async updateOtp(userId: string, otp: number, otpExpires: Date): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(userId, { otp, otpExpires }, { new: true })
+      .exec();
+  }
+
+  //
+  async findCollaborators(userId: string) {
+    return this.userModel.find({
+      userId: new Types.ObjectId(userId),
+      isCollaborator: true,
+    });
+  }
 }

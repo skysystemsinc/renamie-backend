@@ -8,7 +8,7 @@ import { Contact } from '../schema/contact.schema';
 import { CreateContactDto } from '../dto/contact-dto';
 import { ContactRepository } from '../repositories/contact.repository';
 import { SendgridService } from 'src/common/services/sendgrid';
-import { emial } from 'src/utils/constant';
+import { email } from 'src/utils/constant';
 
 @Injectable()
 export class ContactService {
@@ -23,7 +23,7 @@ export class ContactService {
         const contactResult = await this.contactRepository.create(createContactDto);
         // if (contactResult) {
         //     await this.sendgridService.sendContactEmail(
-        //         emial?.contact,
+        //         email?.contact,
         //         createContactDto.firstName,
         //         createContactDto.lastName,
         //         createContactDto.email,

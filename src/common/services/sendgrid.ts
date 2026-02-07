@@ -23,6 +23,7 @@ interface DynamicDataType {
   email?: string;
   message?: string;
   currentYear?: string
+  otp?: number
 
 }
 
@@ -372,6 +373,26 @@ export class SendgridService {
         },
         true,
         email
+      );
+
+    } catch (error) {
+      console.error(`Failed to send Contact email to ${to}.`);
+      throw error;
+    }
+  }
+
+  // send otp email
+  async sendOtpEmail(to: string,
+    firstName: string, otp: number) {
+    try {
+      await this.sendTemplateMail(
+        to,
+        emailConstant.otpTempId,
+        {
+          userName: firstName,
+          otp:otp
+        },
+        true,
       );
 
     } catch (error) {

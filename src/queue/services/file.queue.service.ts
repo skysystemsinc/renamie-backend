@@ -9,6 +9,7 @@ import { FileStatus } from 'src/folder/schema/files.schema';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { SendgridService } from 'src/common/services/sendgrid';
 import { UserService } from 'src/users/services/user.service';
+import { email } from 'src/utils/constant';
 
 @Injectable()
 export class FileQueueService implements OnModuleInit {
@@ -18,7 +19,7 @@ export class FileQueueService implements OnModuleInit {
     private readonly firebaseService: FirebaseService,
     private readonly sendgridService: SendgridService,
     private readonly userService: UserService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     console.log('start');
@@ -134,42 +135,65 @@ export class FileQueueService implements OnModuleInit {
         { new: true },
       );
       if (updated && updated.parentUser) {
-        const owner = await this.userService.findById(
-          updated.parentUser.toString(),
-        );
         try {
-          if (collaborator && !owner?.isCollaborator) {
-            // send email to owner
-            await this.sendgridService.sendExtractionCompletedEmailToOwner(
-              owner?.email, //owner email
-              owner?.firstName,
-              userName,
-              folder.name,
-              totalFiles,
-              completedFiles,
-              failedFiles,
-              owner?.emailNotification,
-            );
-
-            // send email to collaboratoer
+          const owner = await this.userService.findById(
+            updated.parentUser.toString(),
+          );
+          const collaborators = await this.userService.findAllCollaborators(
+            (owner as any)._id.toString(),
+          );
+          const recipientSet = new Set<string>();
+          if (owner?.email && owner?.emailNotification) {
+            recipientSet.add(owner.email);
             await this.sendgridService.sendExtractionCompletedEmail(
-              userEmail, //collaborator email
-              userName,
+              owner.email,
+              owner.firstName,
               folder.name,
               totalFiles,
               completedFiles,
               failedFiles,
-              emailNotification,
+              owner.emailNotification,
             );
-          } else {
+            // await this.sendgridService.sendExtractionCompletedEmailToOwner(
+            //   owner.email,
+            //   owner.firstName,
+            //   userName,
+            //   folder.name,
+            //   totalFiles,
+            //   completedFiles,
+            //   failedFiles,
+            //   owner.emailNotification,
+            // );
+          }
+          if (collaborators && collaborators.length > 0) {
+            for (const collab of collaborators) {
+              if (collab.email && collab.emailNotification) {
+                if (!recipientSet.has(collab.email)) {
+                  recipientSet.add(collab.email);
+                  await this.sendgridService.sendExtractionCompletedEmail(
+                    collab.email,
+                    collab.firstName,
+                    folder.name,
+                    totalFiles,
+                    completedFiles,
+                    failedFiles,
+                    collab.emailNotification,
+                  );
+                }
+              }
+            }
+          }
+          const adminEmail = email?.admin;
+          const admin = await this.userService.findByEmail(adminEmail);
+          if (adminEmail && !recipientSet.has(adminEmail)) {
             await this.sendgridService.sendExtractionCompletedEmail(
-              userEmail,
-              userName,
+              adminEmail,
+              'Admin',
               folder.name,
               totalFiles,
               completedFiles,
               failedFiles,
-              emailNotification,
+              admin?.emailNotification,
             );
           }
         } catch (emailError) {

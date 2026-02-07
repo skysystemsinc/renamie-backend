@@ -16,7 +16,7 @@ export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly sseService: SSEService,
-  ) {}
+  ) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findByEmail(
@@ -164,4 +164,27 @@ export class UserService {
     }
     return this.userRepository.findAllPaginated(page, limit);
   }
+
+
+
+  // 
+
+  async clearOtp(userId: string) {
+    return this.userRepository.clearOtp(userId);
+  }
+
+
+
+  async updateOtp(userId: string, otp: number, otpExpires: Date): Promise<User | null> {
+    return this.userRepository.updateOtp(userId, otp, otpExpires);
+  }
+
+  //
+
+  async findAllCollaborators(ownerId: string) {
+    return this.userRepository.findCollaborators(ownerId)
+  }
+
+
+
 }
