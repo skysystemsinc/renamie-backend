@@ -66,6 +66,15 @@ export class SubscriptionService {
       );
     }
 
+    // Handle downgrade user selection if provided
+    if (createSubscriptionDto.selectedUserIds && createSubscriptionDto.selectedUserIds.length > 0) {
+      await this.handleDowngradeUserSelection(
+        userId,
+        plan.id,
+        createSubscriptionDto.selectedUserIds,
+      );
+    }
+
     // Find User active subscription
     const userSubs =
       await this.subscriptionRepository.findBySubsWithActiveAndTrialingStatus(
@@ -73,12 +82,16 @@ export class SubscriptionService {
       );
     // if already has subs, update it
     if (userSubs) {
-      // If downgrade with folder selection, update subscription with downgrade info
-      if (createSubscriptionDto.selectedFolderIds && createSubscriptionDto.selectedFolderIds.length > 0) {
+      // If downgrade with folder/user selection, update subscription with downgrade info
+      if (
+        (createSubscriptionDto.selectedFolderIds && createSubscriptionDto.selectedFolderIds.length > 0) ||
+        (createSubscriptionDto.selectedUserIds && createSubscriptionDto.selectedUserIds.length > 0)
+      ) {
         await this.updateSubscriptionWithDowngradeInfo(
           userSubs,
           plan.id,
           createSubscriptionDto.selectedFolderIds,
+          createSubscriptionDto.selectedUserIds,
         );
       }
       // const allPriceAndProducts =
@@ -137,12 +150,16 @@ export class SubscriptionService {
         features: plan?.features,
       };
       
-      // If downgrade with folder selection, store metadata and schedule downgrade
-      if (createSubscriptionDto.selectedFolderIds && createSubscriptionDto.selectedFolderIds.length > 0) {
+      // If downgrade with folder/user selection, store metadata and schedule downgrade
+      if (
+        (createSubscriptionDto.selectedFolderIds && createSubscriptionDto.selectedFolderIds.length > 0) ||
+        (createSubscriptionDto.selectedUserIds && createSubscriptionDto.selectedUserIds.length > 0)
+      ) {
         const downgradeData = await this.prepareDowngradeSubscriptionData(
           existingSubscription,
           plan.id,
           createSubscriptionDto.selectedFolderIds,
+          createSubscriptionDto.selectedUserIds,
         );
         if (downgradeData) {
           Object.assign(subscriptionData, downgradeData);
@@ -301,12 +318,43 @@ export class SubscriptionService {
   }
 
   /**
+   * Handle downgrade user selection - marks selected users for downgrade
+   */
+  private async handleDowngradeUserSelection(
+    userId: string,
+    targetPlanId: string,
+    selectedUserIds: string[],
+  ): Promise<void> {
+    const existingSubscription = await this.subscriptionRepository.findSubsByUserId(userId);
+    
+    if (!existingSubscription) {
+      return; // No existing subscription, nothing to downgrade
+    }
+
+    const currentPlan = await this.planService.findById(existingSubscription.plan.toString());
+    const targetPlan = await this.planService.findById(targetPlanId);
+    
+    // Check if it's a downgrade (target plan order < current plan order)
+    if (
+      currentPlan &&
+      targetPlan &&
+      currentPlan.order &&
+      targetPlan.order &&
+      targetPlan.order < currentPlan.order
+    ) {
+      // Mark selected users with selectedForDowngrade: true
+      await this.userService.markUsersForDowngrade(selectedUserIds);
+    }
+  }
+
+  /**
    * Update existing subscription with downgrade information
    */
   private async updateSubscriptionWithDowngradeInfo(
     subscription: any,
     targetPlanId: string,
-    selectedFolderIds: string[],
+    selectedFolderIds?: string[],
+    selectedUserIds?: string[],
   ): Promise<void> {
     const currentPlan = await this.planService.findById(subscription.plan.toString());
     const targetPlan = await this.planService.findById(targetPlanId);
@@ -320,13 +368,22 @@ export class SubscriptionService {
       targetPlan.order < currentPlan.order
     ) {
       // Update existing subscription with downgrade info in metadata
+      const metadata: any = {
+        ...(subscription.metadata || {}),
+        pendingDowngradePlanId: targetPlanId,
+        downgradeScheduled: true,
+      };
+
+      if (selectedFolderIds && selectedFolderIds.length > 0) {
+        metadata.selectedFolderIds = selectedFolderIds;
+      }
+
+      if (selectedUserIds && selectedUserIds.length > 0) {
+        metadata.selectedUserIds = selectedUserIds;
+      }
+
       await this.subscriptionRepository.update(subscription.id, {
-        metadata: {
-          ...(subscription.metadata || {}),
-          selectedFolderIds: selectedFolderIds,
-          pendingDowngradePlanId: targetPlanId,
-          downgradeScheduled: true,
-        },
+        metadata,
       });
     }
   }
@@ -337,7 +394,8 @@ export class SubscriptionService {
   private async prepareDowngradeSubscriptionData(
     existingSubscription: any,
     targetPlanId: string,
-    selectedFolderIds: string[],
+    selectedFolderIds?: string[],
+    selectedUserIds?: string[],
   ): Promise<any | null> {
     if (!existingSubscription) {
       return null;
@@ -354,12 +412,21 @@ export class SubscriptionService {
       targetPlan.order &&
       targetPlan.order < currentPlan.order
     ) {
+      const metadata: any = {
+        pendingDowngradePlanId: targetPlanId,
+        downgradeScheduled: true,
+      };
+
+      if (selectedFolderIds && selectedFolderIds.length > 0) {
+        metadata.selectedFolderIds = selectedFolderIds;
+      }
+
+      if (selectedUserIds && selectedUserIds.length > 0) {
+        metadata.selectedUserIds = selectedUserIds;
+      }
+
       return {
-        metadata: {
-          selectedFolderIds: selectedFolderIds,
-          pendingDowngradePlanId: targetPlanId,
-          downgradeScheduled: true,
-        },
+        metadata,
       };
     }
 

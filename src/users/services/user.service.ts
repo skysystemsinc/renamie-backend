@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRepository } from '../repositories/user.repository';
+import { DeletedUserRepository } from '../repositories/deleted-user.repository';
 import { CreateInviteUserDataDto, CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { User } from '../schemas/user.schema';
@@ -15,6 +16,7 @@ import { SSEService } from 'src/sse/services/sse.service';
 export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly deletedUserRepository: DeletedUserRepository,
     private readonly sseService: SSEService,
   ) {}
 
@@ -142,8 +144,8 @@ export class UserService {
     return this.userRepository.findUserByIdAndAcceptInvite(userId);
   }
 
-  //
-  async removeCollaborators(id: string) {
+  // Remove single collaborator
+  async removeCollaborator(id: string) {
     return this.userRepository.removeUserById(id);
   }
 
@@ -163,5 +165,39 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
     return this.userRepository.findAllPaginated(page, limit);
+  }
+
+  // Mark users for downgrade
+  async markUsersForDowngrade(userIds: string[]): Promise<void> {
+    await this.userRepository.markUsersForDowngrade(userIds);
+  }
+
+  // Move users to deleted users collection
+  async moveToDeletedUsers(
+    userIds: string[],
+    parentUserId: string,
+    reason: string = 'downgrade',
+  ): Promise<void> {
+    // Fetch users to be deleted
+    const usersToDelete = await this.userRepository.findUsersByIds(userIds);
+    
+    if (usersToDelete.length > 0) {
+      // Move to deleted users collection
+      await this.deletedUserRepository.createManyDeletedUsers(
+        usersToDelete,
+        parentUserId,
+        reason,
+      );
+    }
+  }
+
+  // Remove collaborators (delete from main collection)
+  async removeCollaborators(userIds: string[]): Promise<void> {
+    await this.userRepository.deleteUsersByIds(userIds);
+  }
+
+  // Reset downgrade flags
+  async resetDowngradeFlags(userIds: string[]): Promise<void> {
+    await this.userRepository.resetDowngradeFlags(userIds);
   }
 }

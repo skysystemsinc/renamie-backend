@@ -385,7 +385,7 @@ export class AuthService {
       throw new NotFoundException('Collaborator not found');
     }
 
-    await this.userService.removeCollaborators(id);
+    await this.userService.removeCollaborator(id);
     this.sseService.sendLogout(id);
     await this.userService.updateUser(userId, {
       userCount: user?.userCount - 1,
