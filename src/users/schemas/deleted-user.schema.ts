@@ -1,16 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-export type UserDocument = User & Document;
+export type DeletedUserDocument = DeletedUser & Document;
 
 export enum UserRole {
   USER = 'user',
   ADMIN = 'admin',
 }
 
-@Schema({ timestamps: true })
-export class User {
-  @Prop({ required: true, unique: true })
+@Schema({ timestamps: true, collection: 'deleted_users' })
+export class DeletedUser {
+  @Prop({ required: true })
   email: string;
 
   @Prop({ required: true })
@@ -47,13 +47,13 @@ export class User {
   emailVerifiedAt?: Date;
 
   // property for folder count
-  @Prop({ default: 0 })
+  @Prop({ default: false })
   folderCount: number;
 
-  @Prop({ default: 0 })
+  @Prop({ default: false })
   fileCount: number;
 
-  @Prop({ default: 0 })
+  @Prop({ default: false })
   userCount: number;
 
   //
@@ -91,13 +91,18 @@ export class User {
   @Prop({ default: false})
   selectedForDowngrade?: boolean;
 
-  // OTP for login verification
-  @Prop()
-  otp?: number;
+  // Deletion tracking fields
+  @Prop({ type: Types.ObjectId, required: true })
+  originalUserId: Types.ObjectId;
 
-  @Prop()
-  otpExpires?: Date;
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  parentUserId: Types.ObjectId;
 
+  @Prop({ type: Date, default: Date.now })
+  deletedAt: Date;
+
+  @Prop({ type: String })
+  deletedReason?: string;
 }
 
-export const UserSchema = SchemaFactory.createForClass(User);
+export const DeletedUserSchema = SchemaFactory.createForClass(DeletedUser);

@@ -1120,40 +1120,67 @@ export class StripeService {
     
     if (
       metadata.downgradeScheduled === true &&
-      metadata.selectedFolderIds &&
-      metadata.pendingDowngradePlanId
+      metadata.pendingDowngradePlanId &&
+      (metadata.selectedFolderIds || metadata.selectedUserIds)
     ) {
       this.logger.log(
         `Executing scheduled downgrade for user ${existingSubscription.user.toString()}`,
       );
 
       try {
-        const selectedFolderIds = metadata.selectedFolderIds as string[];
+        const selectedFolderIds = (metadata.selectedFolderIds as string[]) || [];
+        const selectedUserIds = (metadata.selectedUserIds as string[]) || [];
         const userId = existingSubscription.user.toString();
         const targetPlanId = metadata.pendingDowngradePlanId as string;
 
-        // Get all user folders
-        const allFolders = await this.folderService.findAllByUserId(userId);
-        const selectedIds = selectedFolderIds.map((id: string) => new Types.ObjectId(id));
+        // Handle folder deletion if folders were selected
+        if (selectedFolderIds.length > 0) {
+          // Get all user folders
+          const allFolders = await this.folderService.findAllByUserId(userId);
+          const selectedIds = selectedFolderIds.map((id: string) => new Types.ObjectId(id));
 
-        // Find non-selected folders
-        const nonSelectedFolders = allFolders.filter(
-          (folder: any) => !selectedIds.some((id: Types.ObjectId) => id.equals(folder._id))
-        );
+          // Find non-selected folders
+          const nonSelectedFolders = allFolders.filter(
+            (folder: any) => !selectedIds.some((id: Types.ObjectId) => id.equals(folder._id))
+          );
 
-        if (nonSelectedFolders.length > 0) {
-          const nonSelectedIds = nonSelectedFolders.map((f: any) => f._id.toString());
+          if (nonSelectedFolders.length > 0) {
+            const nonSelectedIds = nonSelectedFolders.map((f: any) => f._id.toString());
 
-          // Move non-selected folders to deleted_folders
-          await this.folderService.moveToDeletedFolders(nonSelectedIds, 'downgrade');
+            // Move non-selected folders to deleted_folders
+            await this.folderService.moveToDeletedFolders(nonSelectedIds, 'downgrade');
 
-          // Delete non-selected folders from main collection
-          await this.folderService.deleteFoldersByIds(nonSelectedIds);
+            // Delete non-selected folders from main collection
+            await this.folderService.deleteFoldersByIds(nonSelectedIds);
+          }
+
+          // Reset selectedForDowngrade flag on kept folders
+          await this.folderService.resetDowngradeFlags(selectedFolderIds);
         }
 
-        // Reset selectedForDowngrade flag on kept folders
-        if (selectedFolderIds.length > 0) {
-          await this.folderService.resetDowngradeFlags(selectedFolderIds);
+        // Handle user deletion if users were selected
+        if (selectedUserIds.length > 0) {
+          // Get all collaborators
+          const allCollaborators = await this.userService.findCollaboratorsByParentId(userId);
+          const selectedUserObjectIds = selectedUserIds.map((id: string) => new Types.ObjectId(id));
+
+          // Find non-selected users
+          const nonSelectedUsers = allCollaborators.filter(
+            (user: any) => !selectedUserObjectIds.some((id: Types.ObjectId) => id.equals(user._id))
+          );
+
+          if (nonSelectedUsers.length > 0) {
+            const nonSelectedUserIds = nonSelectedUsers.map((u: any) => u._id.toString());
+
+            // Move non-selected users to deleted_users
+            await this.userService.moveToDeletedUsers(nonSelectedUserIds, userId, 'downgrade');
+
+            // Delete non-selected users from main collection
+            await this.userService.removeCollaborators(nonSelectedUserIds);
+          }
+
+          // Reset selectedForDowngrade flag on kept users
+          await this.userService.resetDowngradeFlags(selectedUserIds);
         }
 
         // Get the target plan
@@ -1167,6 +1194,7 @@ export class StripeService {
             metadata: {
               ...metadata,
               selectedFolderIds: undefined,
+              selectedUserIds: undefined,
               pendingDowngradePlanId: undefined,
               downgradeScheduled: false,
             },
@@ -1176,8 +1204,7 @@ export class StripeService {
           const remainingFolders = await this.folderService.findAllByUserId(userId);
           const actualFolderCount = remainingFolders.length;
           
-          const allFiles = await this.folderService.getALLFiles(userId);
-          const actualFileCount = allFiles.totalFiles || 0;
+          const actualFileCount = await this.folderService.countAllFiles(userId);
           
           const collaborators = await this.userService.findCollaboratorsByParentId(userId);
           const actualUserCount = Math.min(

@@ -23,11 +23,20 @@ export class CreateSubscriptionDto {
   @IsOptional()
   @IsArray()
   @ApiProperty({
-    description: 'The IDs of the folders to subscribe to',
+    description: 'The IDs of the folders to keep during downgrade',
     example: ['66d9a4000000000000000000', '66d9a4000000000000000001'],
     required: false,
   })
   selectedFolderIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ApiProperty({
+    description: 'The IDs of the collaborators to keep during downgrade',
+    example: ['66d9a4000000000000000000', '66d9a4000000000000000001'],
+    required: false,
+  })
+  selectedUserIds?: string[];
 }
 
 export class CancelSubscriptionDto {

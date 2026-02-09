@@ -122,6 +122,45 @@ export class UserRepository {
     return { users, total, page, limit };
   }
 
+  // Mark users for downgrade
+  async markUsersForDowngrade(userIds: string[]): Promise<void> {
+    await this.userModel.updateMany(
+      {
+        _id: { $in: userIds.map((id) => new Types.ObjectId(id)) },
+      },
+      {
+        $set: { selectedForDowngrade: true },
+      },
+    );
+  }
+
+  // Delete users by IDs
+  async deleteUsersByIds(userIds: string[]): Promise<void> {
+    await this.userModel.deleteMany({
+      _id: { $in: userIds.map((id) => new Types.ObjectId(id)) },
+    });
+  }
+
+  // Reset downgrade flags
+  async resetDowngradeFlags(userIds: string[]): Promise<void> {
+    await this.userModel.updateMany(
+      {
+        _id: { $in: userIds.map((id) => new Types.ObjectId(id)) },
+      },
+      {
+        $set: { selectedForDowngrade: false },
+      },
+    );
+  }
+
+  // Find users by IDs
+  async findUsersByIds(userIds: string[]): Promise<User[]> {
+    return this.userModel
+      .find({
+        _id: { $in: userIds.map((id) => new Types.ObjectId(id)) },
+      })
+      .exec();
+  }
 
 
   async clearOtp(userId: string): Promise<User | null> {
