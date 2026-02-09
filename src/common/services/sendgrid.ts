@@ -5,7 +5,7 @@ import { emailConstant } from 'src/utils/constant';
 
 interface DynamicDataType {
   ownerName?: string;
-  userName: string;
+  userName?: string;
   verificationLink?: string;
   totalFiles?: number;
   folderName?: string;
@@ -18,6 +18,13 @@ interface DynamicDataType {
   expiresAt?: string;
   senderName?: string;
   invitationUrl?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  message?: string;
+  currentYear?: string
+  otp?: number
+
 }
 
 @Injectable()
@@ -39,16 +46,19 @@ export class SendgridService {
     templateId: string,
     dynamicData: DynamicDataType,
     emailNotification?: boolean,
+    from?: string
   ): Promise<void> {
     try {
       const msg: SendGrid.MailDataRequired = {
         to: to,
-        from: this.fromEmail,
+        from: from ? from : this.fromEmail,
         templateId,
         dynamicTemplateData: dynamicData,
       };
+      console.log("from", from);
       if (!emailNotification) return;
       const result = await SendGrid.send(msg);
+      console.log("result", result);
       // const response = result[0];
       console.log(
         `Email accepted by SendGrid recipient ${to} using template ${templateId}.`,
@@ -64,6 +74,7 @@ export class SendgridService {
       );
     }
   }
+
 
   async sendVerificationEmail(
     to: string,
@@ -251,6 +262,7 @@ export class SendgridService {
         },
         true,
       );
+
     } catch (error) {
       console.error(`Failed to send Collaboration email to ${to}.`);
       throw error;
@@ -264,7 +276,7 @@ export class SendgridService {
     expiresAt: string,
     plan: string,
   ) {
-   
+
     try {
       await this.sendTemplateMail(
         to,
@@ -336,6 +348,55 @@ export class SendgridService {
       );
     } catch (error) {
       console.error(`Failed to send changed password email to ${to}.`);
+      throw error;
+    }
+  }
+
+  async sendContactEmail(
+    to: string,
+    firstName: string,
+    lastName: string,
+    email: string,
+    message: string,
+    currentYear: string
+  ) {
+    try {
+      await this.sendTemplateMail(
+        to,
+        emailConstant.contactTempId,
+        {
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          message: message,
+          currentYear: currentYear
+        },
+        true,
+        email
+      );
+
+    } catch (error) {
+      console.error(`Failed to send Contact email to ${to}.`);
+      throw error;
+    }
+  }
+
+  // send otp email
+  async sendOtpEmail(to: string,
+    firstName: string, otp: number) {
+    try {
+      await this.sendTemplateMail(
+        to,
+        emailConstant.otpTempId,
+        {
+          userName: firstName,
+          otp:otp
+        },
+        true,
+      );
+
+    } catch (error) {
+      console.error(`Failed to send Contact email to ${to}.`);
       throw error;
     }
   }

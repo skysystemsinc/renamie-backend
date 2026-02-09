@@ -1,8 +1,11 @@
 import {
   IsBoolean,
   IsEmail,
+  IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -48,4 +51,15 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isSubscriptionCancelled?: boolean;
+
+  // 
+  @IsOptional()
+  @IsNumber()
+  @Min(1000, { message: 'OTP must be a 4-digit number' })
+  @Max(9999, { message: 'OTP must be a 4-digit number' })
+  otp?: number;
+
+  @IsOptional()
+  otpExpires?: Date;
 }
+

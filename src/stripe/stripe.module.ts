@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { StripeService } from './stripe.service';
 import { StripeController } from './controllers/stripe.controller';
@@ -14,6 +14,7 @@ import { UserSchema } from 'src/users/schemas/user.schema';
 import { UsersModule } from 'src/users/users.module';
 import { PlansModule } from 'src/plans/plans.module';
 import { SSEService } from 'src/sse/services/sse.service';
+import { FoldersModule } from 'src/folder/folders.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { SSEService } from 'src/sse/services/sse.service';
     ]),
      FirebaseModule,
      UsersModule,
-     PlansModule
+     PlansModule,
+     forwardRef(() => FoldersModule),
   ],
   providers: [StripeService, SubscriptionRepository, SendgridService, SSEService],
   controllers: [StripeController],

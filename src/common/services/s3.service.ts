@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  forwardRef,
   HttpException,
   HttpStatus,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -63,11 +65,13 @@ export class S3Service {
 
   constructor(
     private configService: ConfigService,
+    @Inject(forwardRef(() => FolderService))
     private readonly folderService: FolderService,
     private readonly firebaseService: FirebaseService,
     private readonly folderRepository: FolderRepository,
     private readonly fileQueueService: FileQueueService,
     private readonly userService: UserService,
+    @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
   ) {
     const accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID');
@@ -415,7 +419,6 @@ export class S3Service {
   // rename file
   async renameFileInFolder(fileId: string, newName: string) {
     const fileRecord = await this.folderRepository.findFileById(fileId);
-    console.log('fileRecord', fileRecord);
     if (!fileRecord) throw new NotFoundException('File not found');
     const oldKey = fileRecord.url;
     const fileExtension = oldKey.substring(oldKey.lastIndexOf('.'));
@@ -426,6 +429,7 @@ export class S3Service {
       newName: `${newName}${fileExtension}`,
       url: newKey,
       rename_at: new Date(),
+      status: FileStatus.COMPLETED,
     });
     const updatedFile = await this.folderRepository.findFileById(fileId);
     return updatedFile;

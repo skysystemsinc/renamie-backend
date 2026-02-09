@@ -46,6 +46,8 @@ import {
   CreateInvitedUserDto,
 } from 'src/users/dto/create-user.dto';
 import { AuthService } from 'src/auth/services/auth.service';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { UserRole } from 'src/users/schemas/user.schema';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -54,7 +56,20 @@ export class AdminController {
     private readonly folderService: FolderService,
     private readonly s3Service: S3Service,
     private readonly authService: AuthService,
-  ) {}
+  ) { }
+
+  @Get('/users')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async findAll(
+    @CurrentUser('id') userId: string,
+    @Query('page') page: number,
+    @Query('limit') limit: number,
+  ) {
+    const users = await this.authService.getUserWithSubs(userId, page, limit);
+    return ApiResponseDto.success('Users retrieved successfully', users);
+  }
 
   @Get('/user/folders/:id')
   async getAll(@Param('id') id: string) {
@@ -123,7 +138,7 @@ export class AdminController {
     @Query('page') page: number,
     @Query('limit') limit: number,
   ) {
-    
+
     const folderDetail = await this.folderService.getFolderDetail(
       userId,
       folderId,
@@ -304,28 +319,28 @@ export class AdminController {
     const userFiles =
       folderId && !date
         ? await this.folderService.getFilesByFolder(
-            userId,
-            folderId,
-            page,
-            limit,
-          )
+          userId,
+          folderId,
+          page,
+          limit,
+        )
         : date && !folderId
           ? await this.folderService.getFilesByDate({
+            userId,
+            date,
+            page,
+            limit,
+            timezoneOffset,
+          })
+          : folderId && date
+            ? await this.folderService.getFilesByDateAndFolder({
               userId,
+              folderId,
               date,
               page,
               limit,
               timezoneOffset,
             })
-          : folderId && date
-            ? await this.folderService.getFilesByDateAndFolder({
-                userId,
-                folderId,
-                date,
-                page,
-                limit,
-                timezoneOffset,
-              })
             : await this.folderService.getALLFiles(userId, page, limit);
     return ApiResponseDto.success('Files fetched successfully', userFiles);
   }
@@ -346,17 +361,17 @@ export class AdminController {
         ? await this.folderService.getFilesByFolder(userId, folderId)
         : date && !folderId
           ? await this.folderService.getFilesByDate({
+            userId,
+            date,
+            timezoneOffset,
+          })
+          : folderId && date
+            ? await this.folderService.getFilesByDateAndFolder({
               userId,
+              folderId,
               date,
               timezoneOffset,
             })
-          : folderId && date
-            ? await this.folderService.getFilesByDateAndFolder({
-                userId,
-                folderId,
-                date,
-                timezoneOffset,
-              })
             : await this.folderService.getALLFiles(userId);
     const files = userFiles.files;
     if (!files?.length) {

@@ -24,8 +24,9 @@ export class FolderService {
     private readonly s3Service: S3Service,
     private readonly userService: UserService,
     private readonly folderRepository: FolderRepository,
+    @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
-  ) {}
+  ) { }
 
   async createFolder(createFoldersDto: CreateFoldersDto, userId: string) {
     const user = await this.userService.findById(userId);
@@ -331,6 +332,23 @@ export class FolderService {
     }
   }
 
+  // count all files irrespective of status
+  async countAllFiles(userId: string): Promise<number> {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    return await this.folderRepository.countAllFiles(parentId);
+  }
+
   async getFilesByFolder(
     userId: string,
     folderId: string,
@@ -522,9 +540,10 @@ export class FolderService {
     return updatedFolder;
   }
 
-  // //  get Export files
+  // get Export files
 
-  async getExportFiles(userId: string, folderId: string) {
+  async getExportFiles(userId: string, folderId: string, date?: string,
+  ) {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
 
@@ -540,105 +559,78 @@ export class FolderService {
     if (!parentUser) throw new NotFoundException('User not found');
 
     const bookData = folder?.book;
-    const allFiles = await this.folderRepository.getAllUploadedFiles(
-      parentId,
-      folderId,
-    );
-
-    if (!bookData && allFiles.files.length === 0) {
-      throw new NotFoundException('No files or book data available for export');
+    let allFiles;
+    if (date) {
+      allFiles = await this.folderRepository.getALLFilesByDateFilter(
+        parentId,
+        folderId,
+        date,
+      );
+    } else {
+      allFiles = await this.folderRepository.getAllUploadedFiles(
+        parentId,
+        folderId,
+      );
     }
-
-    const manualFields: Record<string, any> = {};
-    let isExpense = false;
-    let isBill = false;
-
+    const manualFields: Record<string, any> = {
+      'Vendor Name': 'NA',
+      'Payment Account': 'NA',
+      'Payment Method': 'NA',
+      'Customer/Project': 'NA',
+      'Class': 'NA',
+      'Type': 'NA',
+      'Vendor Net Term': 'NA',
+      'Description': 'NA',
+    };
     if (bookData) {
-      isExpense = bookData.transactionType === 'Expense';
-      isBill = bookData.transactionType === 'Bill';
-      manualFields['Payee'] = bookData.vendorName ?? '';
-      manualFields['Category/Account'] = bookData.paymentAccount ?? '';
-      manualFields['Payment Method'] = bookData.paymentMethod ?? '';
-      manualFields['Customer/Project'] = bookData.customerName ?? '';
-      manualFields['Class'] = bookData.product ?? '';
-      manualFields['Discount GL Account'] = bookData.discount ?? '';
-      manualFields['Type'] = bookData.transactionType ?? '';
-      manualFields['Vendor Net Type'] = bookData.vendorNetTerm ?? '';
-      manualFields['Description'] = bookData.description ?? '';
-      if (isExpense) {
-        manualFields['Expense GL Account'] = bookData.expense ?? '';
-      }
-      if (isBill) {
-        manualFields['Bill GL Account'] = bookData.expense ?? '';
-      }
+      manualFields['Vendor Name'] = bookData.vendorName ?? 'NA';
+      manualFields['Payment Account'] = bookData.paymentAccount ?? 'NA';
+      manualFields['Payment Method'] = bookData.paymentMethod ?? 'NA';
+      manualFields['Customer/Project'] = bookData.customerName ?? 'NA';
+      manualFields['Class'] = bookData.product ?? 'NA';
+      manualFields['Type'] = bookData.transactionType ?? 'NA';
+      manualFields['Vendor Net Type'] = bookData.vendorNetTerm ?? 'NA';
+      manualFields['Description'] = bookData.description ?? 'NA';
     }
 
-    const metadataRows = allFiles.files.map((file) => {
+    const metadataRows = allFiles?.files?.map((file) => {
       const metadataObj: Record<string, any> = { ...manualFields };
-
-      if (isExpense) {
-        metadataObj['Expense Discount Account'] = file.discountAmount
-          ? +(+file.discountAmount).toFixed(2)
-          : '';
-      }
-      if (isBill) {
-        metadataObj['Bill Discount Account'] = file.discountAmount
-          ? +(+file.discountAmount).toFixed(2)
-          : '';
-      }
-
       if (Array.isArray(file.metadata)) {
         file.metadata.forEach((meta: any) => {
           Object.keys(meta).forEach((k) => {
             if (!['_id', '__v'].includes(k)) {
-              metadataObj[k] = meta[k] ?? '';
+              metadataObj[k] =
+                meta[k] !== undefined && meta[k] !== null && meta[k] !== ''
+                  ? meta[k]
+                  : 'NA';
             }
           });
         });
       }
-
-      // CUSTOM HEADERS
-      // metadataObj['Payee'] = 'Blank';
       metadataObj['Billable'] = 'False';
-
-      if (metadataObj['invoiceReceiptId']) {
-        metadataObj['Ref No'] = metadataObj['invoiceReceiptId'];
-        delete metadataObj['invoiceReceiptId'];
+      if (metadataObj['vendorName']) {
+        metadataObj['Payee'] = metadataObj['vendorName'];
+        delete metadataObj['vendorName'];
       }
-
-      if (metadataObj['invoiceReceiptDate']) {
-        metadataObj['Date'] = metadataObj['invoiceReceiptDate'];
-        delete metadataObj['invoiceReceiptDate'];
-      }
-      if (metadataObj['invoiceDate']) {
-        metadataObj['Date'] = metadataObj['invoiceDate'];
-        delete metadataObj['invoiceDate'];
-      }
-
       if (metadataObj['total']) {
         metadataObj['Amount'] = metadataObj['total'];
         delete metadataObj['total'];
       }
-
       return metadataObj;
     });
 
-    if (metadataRows.length === 0 && bookData) {
-      metadataRows.push({ ...manualFields, Payee: 'Blank', Billable: 'False' });
+    if (metadataRows.length === 0) {
+      metadataRows.push({ ...manualFields, Billable: 'False' });
     }
-
-    // Generate CSV with uppercase headers and preserve values
     const metadataHeaders = [
       ...new Set(metadataRows.flatMap((obj) => Object.keys(obj))),
     ];
-
     const metadataCsv = [
-      metadataHeaders.map((h) => h.toUpperCase()).join(','), // Header row
+      metadataHeaders.map((h) => h.toUpperCase()).join(','),
       ...metadataRows.map((row) =>
         metadataHeaders.map((h) => `"${row[h] ?? ''}"`).join(','),
       ),
     ];
-
     const csvContent = metadataCsv.join('\n');
 
     return new StreamableFile(Buffer.from(csvContent), {
@@ -666,5 +658,48 @@ export class FolderService {
     }
 
     await this.folderRepository.deleteFilesPermanently();
+  }
+
+
+  // 
+  async getBookDetails(userId: string, folderId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    let parentId = userId;
+    if (user.isCollaborator && user.inviteAccepted) {
+      parentId = user.userId.toString();
+    }
+    const parentUser = await this.userService.findById(parentId);
+    if (!parentUser) {
+      throw new NotFoundException('User not found');
+    }
+    const folder = await this.folderRepository.findById(folderId);
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+    return folder.book ?? null;
+
+  }
+
+  async findAllByUserId(userId: string) {
+    return this.folderRepository.findAllByUserId(userId);
+  }
+
+  async markFoldersForDowngrade(folderIds: string[]): Promise<void> {
+    await this.folderRepository.markFoldersForDowngrade(folderIds);
+  }
+
+  async moveToDeletedFolders(folderIds: string[], reason?: string): Promise<void> {
+    await this.folderRepository.moveToDeletedFolders(folderIds, reason);
+  }
+
+  async deleteFoldersByIds(folderIds: string[]): Promise<void> {
+    await this.folderRepository.deleteFoldersByIds(folderIds);
+  }
+
+  async resetDowngradeFlags(folderIds: string[]): Promise<void> {
+    await this.folderRepository.resetDowngradeFlags(folderIds);
   }
 }

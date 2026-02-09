@@ -29,7 +29,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 @Controller('users')
 // @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({ status: 201, description: 'User created successfully' })
@@ -45,22 +45,22 @@ export class UserController {
     return ApiResponseDto.success('User created successfully', user);
   }
 
-  @Get()
-  @Roles(UserRole.ADMIN)
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  async findAll(
-    @CurrentUser('id') userId: string,
-    @Query('page') page: number,
-    @Query('limit') limit: number,
-  ) {
-    const users = await this.userService.findAllByPagination(
-      userId,
-      page,
-      limit,
-    );
-    return ApiResponseDto.success('Users retrieved successfully', users);
-  }
+  // @Get()
+  // @Roles(UserRole.ADMIN)
+  // @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth('JWT-auth')
+  // async findAll(
+  //   @CurrentUser('id') userId: string,
+  //   @Query('page') page: number,
+  //   @Query('limit') limit: number,
+  // ) {
+  //   const users = await this.userService.findAllByPagination(
+  //     userId,
+  //     page,
+  //     limit,
+  //   );
+  //   return ApiResponseDto.success('Users retrieved successfully', users);
+  // }
 
   @Get(':id')
   @Roles(UserRole.ADMIN)
@@ -86,4 +86,6 @@ export class UserController {
 
     return ApiResponseDto.success('User deleted successfully');
   }
+
+
 }

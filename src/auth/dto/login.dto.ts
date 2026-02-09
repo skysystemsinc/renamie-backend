@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEmail, IsNotEmpty, IsNumber, IsString, Max, Min } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({ description: 'Email', example: 'test@test.com' })
@@ -11,4 +12,21 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password: string;
+}
+
+
+export class VerifyOtpDto {
+  @IsEmail()
+  email: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1000)
+  @Max(9999)
+  otp: number;
+}
+
+export class ResendOtpDto {
+  @IsEmail()
+  email: string;
 }

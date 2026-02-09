@@ -47,13 +47,13 @@ export class User {
   emailVerifiedAt?: Date;
 
   // property for folder count
-  @Prop({ default: false })
+  @Prop({ default: 0 })
   folderCount: number;
 
-  @Prop({ default: false })
+  @Prop({ default: 0 })
   fileCount: number;
 
-  @Prop({ default: false })
+  @Prop({ default: 0 })
   userCount: number;
 
   //
@@ -87,6 +87,15 @@ export class User {
   // Privacy Policy accepted
   @Prop({ required: true, default: false })
   privacyPolicy: boolean;
+
+
+  // OTP for login verification
+  @Prop()
+  otp?: number;
+
+  @Prop()
+  otpExpires?: Date;
+
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

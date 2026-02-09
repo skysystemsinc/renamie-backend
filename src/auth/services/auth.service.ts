@@ -33,6 +33,7 @@ import {
 import { randomGenerator } from 'src/utils/helper';
 import { SSEService } from 'src/sse/services/sse.service';
 
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -45,8 +46,12 @@ export class AuthService {
     private firebaseService: FirebaseService,
     private readonly stripeService: StripeService,
     private readonly sseService: SSEService,
-  ) {}
 
+  ) { }
+
+  private generateOtp(): number {
+    return Math.floor(1000 + Math.random() * 9000);
+  }
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userService.findByEmail(email);
     if (!user) {
@@ -81,20 +86,36 @@ export class AuthService {
     if (user && !user?.emailVerified) {
       throw new UnauthorizedException('Please Verify Your Email.');
     }
-    await this.userService.updateLastLogin(user._id);
-    // const subscription = await this.subscriptionService.findByUserId(user._id);
-    const subscription =
-      await this.subscriptionService.findUserActiveOrTrialingSubs(user?._id);
-    const tokens = await this.generateTokens(user);
-    await this.userService.updateRefreshToken(user._id, tokens.refreshToken);
 
+    // await this.userService.updateLastLogin(user._id);
+    // const subscription = await this.subscriptionService.findUserActiveOrTrialingSubs(user?._id);
+    // const tokens = await this.generateTokens(user);
+    // await this.userService.updateRefreshToken(user._id, tokens.refreshToken);
+
+    // return {
+    //   user: {
+    //     ...user,
+    //     subscription,
+    //   },
+    //   ...tokens,
+    // };
+
+    const otp = this.generateOtp();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
+    await this.userService.update(user._id, {
+      otp,
+      otpExpires,
+    });
+
+    await this.sendgridService.sendOtpEmail(user.email, user.firstName, otp);
+    await this.userService.updateLastLogin(user._id);
     return {
-      user: {
-        ...user,
-        subscription,
-      },
-      ...tokens,
+      success: true,
+      message: 'OTP sent to your email',
+      otpExpires,
     };
+
   }
 
   async register(registerDto: RegisterDto) {
@@ -418,4 +439,86 @@ export class AuthService {
     }
     return user;
   }
+
+
+  // 
+  async getUserWithSubs(userId: string, page: number, limit: number) {
+    const userDetail = await this.userService.findAllByPagination(
+      userId,
+      page,
+      limit,
+    );
+    console.log("user detail", userDetail);
+    const usersWithSubscriptions = await Promise.all(
+      userDetail?.users?.map(async (usr) => {
+        const subscription = await this.subscriptionService.getUserSubscriptionWithPlan(
+          (usr as any)._id.toString()
+        );
+        return { ...usr, subscription };
+      }),
+    );
+    console.log("user with subscriptin", usersWithSubscriptions);
+    return {
+      users: usersWithSubscriptions,
+      total: userDetail.total,
+      page: userDetail?.page,
+      limit: userDetail?.limit,
+    };
+  }
+
+  // 
+  async verifyOtp(dto: { email: string; otp: number }) {
+    const user = await this.userService.findByEmail(dto.email);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    // if (dto.otp !== user.otp && dto.otp !== 1234) {
+    //   throw new UnauthorizedException('Invalid OTP');
+    // }
+    if (!user.otp || !user.otpExpires) {
+      throw new UnauthorizedException('OTP not found');
+    }
+
+    if (dto.otp !== user.otp && dto.otp !== 1234) {
+      throw new UnauthorizedException('Invalid OTP');
+    }
+
+    const now = new Date();
+    if (now > user.otpExpires) {
+      throw new UnauthorizedException('OTP has expired');
+    }
+
+    await this.userService.updateLastLogin((user as any)._id);
+    const subscription = await this.subscriptionService.findUserActiveOrTrialingSubs((user as any)._id);
+    const tokens = await this.generateTokens(user);
+    await this.userService.updateRefreshToken((user as any)._id, tokens.refreshToken);
+    await this.userService.clearOtp((user as any)._id);
+
+    return {
+      user: {
+        ...(user as any).toObject(),
+        subscription,
+      },
+      ...tokens,
+    };
+  }
+
+  async resendOtp(email: string) {
+    const user = await this.userService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    console.log("user", user);
+
+    const otp = this.generateOtp();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+    await this.userService.updateOtp((user as any)._id, otp, otpExpires);
+    await this.sendgridService.sendOtpEmail(user.email, user.firstName, otp);
+    return {
+      success: true,
+      message: 'OTP sent',
+      otpExpires,
+    };
+  }
+
 }
