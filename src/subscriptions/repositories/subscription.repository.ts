@@ -12,7 +12,7 @@ export class SubscriptionRepository {
   constructor(
     @InjectModel(Subscription.name)
     private subscriptionModel: Model<SubscriptionDocument>,
-  ) {}
+  ) { }
 
   async create(
     SubscriptionDocument: Partial<Subscription>,
@@ -93,4 +93,38 @@ export class SubscriptionRepository {
       })
       .exec();
   }
+
+  // async findUserSubsWithPlan(userId: string): Promise<SubscriptionDocument | null> {
+  //   return this.subscriptionModel
+  //     .findOne({ user: new Types.ObjectId(userId), status: { $in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] }, })
+  //     .select('status status plan')
+  //     .populate('plan', 'name ')
+  //     .lean()
+  //     .exec();
+  // }
+  async findUserSubsWithPlan(
+    userId: string,
+  ): Promise<SubscriptionDocument | null> {
+    const activeSub = await this.subscriptionModel
+      .findOne({
+        user: new Types.ObjectId(userId),
+        status: { $in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+      })
+      .sort({ createdAt: -1 })
+      .select('status plan')
+      .populate('plan', 'name')
+      .lean()
+      .exec();
+
+    if (activeSub) return activeSub;
+
+    return this.subscriptionModel
+      .findOne({ user: new Types.ObjectId(userId) })
+      .sort({ createdAt: -1 })
+      .select('status plan')
+      .populate('plan', 'name')
+      .lean()
+      .exec();
+  }
+
 }

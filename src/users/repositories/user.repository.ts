@@ -7,7 +7,7 @@ import { UpdateUserDto } from '../dto/update-user.dto';
 
 @Injectable()
 export class UserRepository {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) { }
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const createdUser = new this.userModel(createUserDto);
@@ -113,7 +113,8 @@ export class UserRepository {
         .find(filter)
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
+        .limit(limit).
+        lean()
         .exec(),
       this.userModel.countDocuments().exec(),
     ]);
@@ -159,5 +160,26 @@ export class UserRepository {
         _id: { $in: userIds.map((id) => new Types.ObjectId(id)) },
       })
       .exec();
+  }
+
+
+  async clearOtp(userId: string): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(userId, { $unset: { otp: "", otpExpires: "" } }, { new: true })
+      .exec();
+  }
+
+  async updateOtp(userId: string, otp: number, otpExpires: Date): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(userId, { otp, otpExpires }, { new: true })
+      .exec();
+  }
+
+  //
+  async findCollaborators(userId: string) {
+    return this.userModel.find({
+      userId: new Types.ObjectId(userId),
+      isCollaborator: true,
+    });
   }
 }

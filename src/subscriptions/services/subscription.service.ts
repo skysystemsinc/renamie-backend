@@ -25,7 +25,7 @@ export class SubscriptionService {
     private readonly stripeService: StripeService,
     @Inject(forwardRef(() => FolderService))
     private readonly folderService: FolderService,
-  ) {}
+  ) { }
 
   async createSubscription(
     createSubscriptionDto: CreateSubscriptionDto,
@@ -141,7 +141,7 @@ export class SubscriptionService {
       let existingSubscription =
         await this.subscriptionRepository.findSubsByUserId(userId);
       const previousSubs = existingSubscription ? true : false;
-      
+
       // Prepare subscription data with downgrade info if applicable
       const subscriptionData: any = {
         plan: new Types.ObjectId(plan.id),
@@ -165,7 +165,7 @@ export class SubscriptionService {
           Object.assign(subscriptionData, downgradeData);
         }
       }
-      
+
       const subscription = await this.subscriptionRepository.create(subscriptionData);
       const checkoutSession = await this.stripeService.createCheckoutSession(
         customer,
@@ -287,6 +287,10 @@ export class SubscriptionService {
     };
   }
 
+  async getUserSubscriptionWithPlan(userId: string) {
+    return await this.subscriptionRepository.findUserSubsWithPlan(userId)
+  }
+
   /**
    * Handle downgrade folder selection - marks selected folders for downgrade
    */
@@ -296,14 +300,14 @@ export class SubscriptionService {
     selectedFolderIds: string[],
   ): Promise<void> {
     const existingSubscription = await this.subscriptionRepository.findSubsByUserId(userId);
-    
+
     if (!existingSubscription) {
       return; // No existing subscription, nothing to downgrade
     }
 
     const currentPlan = await this.planService.findById(existingSubscription.plan.toString());
     const targetPlan = await this.planService.findById(targetPlanId);
-    
+
     // Check if it's a downgrade (target plan order < current plan order)
     if (
       currentPlan &&
@@ -358,7 +362,7 @@ export class SubscriptionService {
   ): Promise<void> {
     const currentPlan = await this.planService.findById(subscription.plan.toString());
     const targetPlan = await this.planService.findById(targetPlanId);
-    
+
     // Check if it's a downgrade
     if (
       currentPlan &&
@@ -403,7 +407,7 @@ export class SubscriptionService {
 
     const currentPlan = await this.planService.findById(existingSubscription.plan.toString());
     const targetPlan = await this.planService.findById(targetPlanId);
-    
+
     // Check if it's a downgrade
     if (
       currentPlan &&

@@ -34,7 +34,7 @@ export class FolderController {
     private readonly folderService: FolderService,
     private readonly fileQueueService: FileQueueService,
     private readonly S3Service: S3Service,
-  ) {}
+  ) { }
 
   @Post()
   @UseGuards(JwtAuthGuard)
@@ -52,6 +52,8 @@ export class FolderController {
     return ApiResponseDto.success('Folder created successfully', folder);
   }
 
+
+
   // get all files from folder module
   @Get('files')
   @UseGuards(JwtAuthGuard)
@@ -67,28 +69,28 @@ export class FolderController {
     const userFiles =
       folderId && !date
         ? await this.folderService.getFilesByFolder(
-            userId,
-            folderId,
-            page,
-            limit,
-          )
+          userId,
+          folderId,
+          page,
+          limit,
+        )
         : date && !folderId
           ? await this.folderService.getFilesByDate({
+            userId,
+            date,
+            page,
+            limit,
+            timezoneOffset,
+          })
+          : folderId && date
+            ? await this.folderService.getFilesByDateAndFolder({
               userId,
+              folderId,
               date,
               page,
               limit,
               timezoneOffset,
             })
-          : folderId && date
-            ? await this.folderService.getFilesByDateAndFolder({
-                userId,
-                folderId,
-                date,
-                page,
-                limit,
-                timezoneOffset,
-              })
             : await this.folderService.getALLFiles(userId, page, limit);
     return ApiResponseDto.success('Files fetched successfully', userFiles);
   }
@@ -109,17 +111,17 @@ export class FolderController {
         ? await this.folderService.getFilesByFolder(userId, folderId)
         : date && !folderId
           ? await this.folderService.getFilesByDate({
+            userId,
+            date,
+            timezoneOffset,
+          })
+          : folderId && date
+            ? await this.folderService.getFilesByDateAndFolder({
               userId,
+              folderId,
               date,
               timezoneOffset,
             })
-          : folderId && date
-            ? await this.folderService.getFilesByDateAndFolder({
-                userId,
-                folderId,
-                date,
-                timezoneOffset,
-              })
             : await this.folderService.getALLFiles(userId);
     const files = userFiles.files;
     if (!files?.length) {
@@ -140,16 +142,33 @@ export class FolderController {
   async exportFiles(
     @CurrentUser('id') userId: string,
     @Param('id') folderId: string,
+    @Query('date') date: string,
     @Res() res: Response,
   ) {
     const streamFile = await this.folderService.getExportFiles(
       userId,
       folderId,
+      date,
     );
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="export.csv"`);
     streamFile.getStream().pipe(res);
+  }
+
+  @Get('book/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  async getbookData(
+    @CurrentUser('id') userId: string,
+    @Param('id') folderId: string,
+  ) {
+    const bookData = await this.folderService.getBookDetails(
+      userId,
+      folderId,
+    );
+    console.log("bookdata", bookData);
+    return ApiResponseDto.success('Book Details fetched successfully', bookData);
   }
 
   //

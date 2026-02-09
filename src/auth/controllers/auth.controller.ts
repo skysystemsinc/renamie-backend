@@ -16,13 +16,13 @@ import {
 import type { Request as ExpressRequest } from 'express';
 import { AuthService } from '../services/auth.service';
 import { User } from '../../users/schemas/user.schema';
-import { LoginDto } from '../dto/login.dto';
+import { LoginDto, ResendOtpDto, VerifyOtpDto } from '../dto/login.dto';
 
 interface AuthenticatedRequest extends ExpressRequest {
   user: User & { _id: string };
 }
 import { RegisterDto } from '../dto/register.dto';
-import { RefreshTokenDto } from '../dto/refresh-token.dto';
+import { RefreshTokenDto, } from '../dto/refresh-token.dto';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
@@ -42,7 +42,7 @@ import {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
@@ -59,7 +59,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   async login(@Body() loginDto: LoginDto, @Request() req: ExpressRequest) {
     const result = await this.authService.login(loginDto);
-    return ApiResponseDto.success('Login Successful', result);
+    return ApiResponseDto.success('OTP Sent to your Email', result);
   }
 
   @Post('refresh')
@@ -196,10 +196,21 @@ export class AuthController {
     );
   }
 
-  @Get('me')
-  async getMe(@Req() req: any) {
-    const userId = req.query.userId || req.user?.id;
-    const user = await this.authService.getUserById(userId);
-    return ApiResponseDto.success('User fetched successfully!', user);
+
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    console.log("test")
+    const result = await this.authService.verifyOtp(verifyOtpDto);
+    console.log("res verify", result);
+    return ApiResponseDto.success('Login successful', result);
+  }
+
+
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  async resendOtp(@Body() resendOtpDto: ResendOtpDto) {
+    const result = await this.authService.resendOtp(resendOtpDto.email);
+    return ApiResponseDto.success('OTP re-sent successfully', result);
   }
 }

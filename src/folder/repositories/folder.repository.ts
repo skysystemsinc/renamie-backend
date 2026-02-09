@@ -83,7 +83,7 @@ export class FolderRepository {
   // update file data
   async updateFileData(
     fileId: string,
-    updates: { newName?: string; url?: string; rename_at?: Date },
+    updates: { newName?: string; url?: string; rename_at?: Date, status?: FileStatus; },
   ): Promise<void> {
     await this.folderModel.updateOne(
       { 'files._id': new Types.ObjectId(fileId) },
@@ -92,6 +92,7 @@ export class FolderRepository {
           ...(updates.newName && { 'files.$.newName': updates.newName }),
           ...(updates.url && { 'files.$.url': updates.url }),
           ...(updates.rename_at && { 'files.$.rename_at': updates.rename_at }),
+          ...(updates.status && { 'files.$.status': updates.status }),
         },
       },
     );
@@ -679,6 +680,80 @@ export class FolderRepository {
     );
     return folder?.files[0] ?? null;
   }
+
+
+  // async getALLFilesByDateFilter(
+  //   userId: string,
+  //   folderId: string,
+  //   date: string,
+  //   timezoneOffset?: string,
+  // ) {
+  //   // Parse date from YYYY-MM-DD string
+  //   const offsetMinutes = timezoneOffset ? parseInt(timezoneOffset, 10) : 0;
+
+  //   // Start and end of day in user's local time
+  //   const localStart = new Date(`${date}T00:00:00`);
+  //   const localEnd = new Date(`${date}T23:59:59.999`);
+
+  //   const startDateUTC = new Date(localStart.getTime() - offsetMinutes * 60000);
+  //   const endDateUTC = new Date(localEnd.getTime() - offsetMinutes * 60000);
+
+  //   const result = await this.folderModel.aggregate([
+  //     {
+  //       $match: {
+  //         _id: new Types.ObjectId(folderId),
+  //         parentUser: new Types.ObjectId(userId),
+  //       },
+  //     },
+  //     { $unwind: '$files' },
+  //     {
+  //       $match: {
+  //         'files.createdAt': {
+  //           $gte: startDateUTC,
+  //           $lte: endDateUTC,
+  //         },
+  //       },
+  //     },
+  //     { $project: { _id: 0, file: '$files' } },
+  //   ]);
+
+  //   console.log('Filtered files result:', result);
+
+  //   return { files: result.map(r => r.file) };
+  // }
+
+  async getALLFilesByDateFilter(
+    userId: string,
+    folderId: string,
+    date: string, // format: "YYYY-MM-DD"
+  ) {
+    const result = await this.folderModel.aggregate([
+      {
+        $match: {
+          _id: new Types.ObjectId(folderId),
+          parentUser: new Types.ObjectId(userId),
+        },
+      },
+      { $unwind: "$files" },
+      {
+        $match: {
+          $expr: {
+            $eq: [
+              { $dateToString: { format: "%Y-%m-%d", date: "$files.createdAt" } },
+              date, // match the date string exactly
+            ],
+          },
+        },
+      },
+      { $project: { _id: 0, file: "$files" } },
+    ]);
+
+    console.log("Filtered files result:", result);
+
+    // Keep the same structure as getAllUploadedFiles
+    return { files: result.map((r) => r.file) };
+  }
+
 
   // Add this method to copy folders to deleted_folders collection:
   async moveToDeletedFolders(
