@@ -12,7 +12,7 @@ export class FolderRepository {
   constructor(
     @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
     @InjectModel(DeletedFolder.name) private deletedFolderModel: Model<DeletedFolderDocument>,
-  ) {}
+  ) { }
 
   async create(FolderDocument: Partial<Folder>): Promise<FolderDocument> {
     const createdFolder = new this.folderModel(FolderDocument);
@@ -633,7 +633,7 @@ export class FolderRepository {
   async findFilesHasStatusDeleted() {
     const now = new Date();
     const cutoff = new Date(now);
-    cutoff.setDate(now.getDate() - 30);
+    cutoff.setDate(now.getDate() - 15);
 
     const filesToDelete = await this.folderModel.aggregate([
       { $unwind: '$files' },
@@ -653,7 +653,7 @@ export class FolderRepository {
   async deleteFilesPermanently() {
     const now = new Date();
     const cutoff = new Date(now);
-    cutoff.setDate(now.getDate() - 30);
+    cutoff.setDate(now.getDate() - 15);
 
     await this.folderModel.updateMany(
       {},
