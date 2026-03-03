@@ -88,12 +88,12 @@ export class User {
   @Prop({ required: true, default: false })
   privacyPolicy: boolean;
 
-  @Prop({ default: false})
+  @Prop({ default: false })
   selectedForDowngrade?: boolean;
 
   // OTP for login verification
   @Prop()
-  otp?: number;
+  otp?: string;
 
   @Prop()
   otpExpires?: Date;

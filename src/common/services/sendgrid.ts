@@ -23,7 +23,7 @@ interface DynamicDataType {
   email?: string;
   message?: string;
   currentYear?: string
-  otp?: number
+  otp?: string
 
 }
 
@@ -383,7 +383,7 @@ export class SendgridService {
 
   // send otp email
   async sendOtpEmail(to: string,
-    firstName: string, otp: number) {
+    firstName: string, otp: string) {
     try {
       await this.sendTemplateMail(
         to,

@@ -32,15 +32,15 @@ export class UpdateUserDto {
   role?: string;
 
   @IsOptional()
-  @IsString()
+  @IsNumber()
   folderCount?: number;
 
   @IsOptional()
-  @IsString()
+  @IsNumber()
   fileCount?: number;
 
   @IsOptional()
-  @IsString()
+  @IsNumber()
   userCount?: number;
 
   //
@@ -54,10 +54,8 @@ export class UpdateUserDto {
 
   // 
   @IsOptional()
-  @IsNumber()
-  @Min(1000, { message: 'OTP must be a 4-digit number' })
-  @Max(9999, { message: 'OTP must be a 4-digit number' })
-  otp?: number;
+  @IsString()
+  otp?: string;
 
   @IsOptional()
   otpExpires?: Date;

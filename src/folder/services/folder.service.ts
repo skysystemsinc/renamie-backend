@@ -589,7 +589,7 @@ export class FolderService {
       manualFields['Customer/Project'] = bookData.customerName ?? 'NA';
       manualFields['Class'] = bookData.product ?? 'NA';
       manualFields['Type'] = bookData.transactionType ?? 'NA';
-      manualFields['Vendor Net Type'] = bookData.vendorNetTerm ?? 'NA';
+      manualFields['Vendor Net Term'] = bookData.vendorNetTerm ?? 'NA';
       manualFields['Description'] = bookData.description ?? 'NA';
     }
 

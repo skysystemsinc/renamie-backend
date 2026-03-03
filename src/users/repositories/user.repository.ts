@@ -169,7 +169,7 @@ export class UserRepository {
       .exec();
   }
 
-  async updateOtp(userId: string, otp: number, otpExpires: Date): Promise<User | null> {
+  async updateOtp(userId: string, otp: string, otpExpires: Date): Promise<User | null> {
     return this.userModel
       .findByIdAndUpdate(userId, { otp, otpExpires }, { new: true })
       .exec();

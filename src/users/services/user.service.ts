@@ -180,7 +180,7 @@ export class UserService {
   ): Promise<void> {
     // Fetch users to be deleted
     const usersToDelete = await this.userRepository.findUsersByIds(userIds);
-    
+
     if (usersToDelete.length > 0) {
       // Move to deleted users collection
       await this.deletedUserRepository.createManyDeletedUsers(
@@ -210,7 +210,7 @@ export class UserService {
 
 
 
-  async updateOtp(userId: string, otp: number, otpExpires: Date): Promise<User | null> {
+  async updateOtp(userId: string, otp: string, otpExpires: Date): Promise<User | null> {
     return this.userRepository.updateOtp(userId, otp, otpExpires);
   }
 
@@ -219,7 +219,5 @@ export class UserService {
   async findAllCollaborators(ownerId: string) {
     return this.userRepository.findCollaborators(ownerId)
   }
-
-
 
 }
