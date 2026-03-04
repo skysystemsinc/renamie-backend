@@ -15,6 +15,7 @@ import { UsersModule } from 'src/users/users.module';
 import { PlansModule } from 'src/plans/plans.module';
 import { SSEService } from 'src/sse/services/sse.service';
 import { FoldersModule } from 'src/folder/folders.module';
+import { RedisPubSubModule } from 'src/redis-pubsub/redis-pubsub.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { FoldersModule } from 'src/folder/folders.module';
      FirebaseModule,
      UsersModule,
      PlansModule,
+     RedisPubSubModule,
      forwardRef(() => FoldersModule),
   ],
   providers: [StripeService, SubscriptionRepository, SendgridService, SSEService],

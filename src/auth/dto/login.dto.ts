@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsNumber, IsString, Max, Min } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsNumber, IsString, Matches, Max, Min } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({ description: 'Email', example: 'test@test.com' })
@@ -18,12 +18,12 @@ export class LoginDto {
 export class VerifyOtpDto {
   @IsEmail()
   email: string;
-
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1000)
-  @Max(9999)
-  otp: number;
+  
+  @IsNotEmpty()
+  @Matches(/^\d{4}$/, {
+    message: 'OTP must be exactly 4 digits',
+  })
+  otp: string;
 }
 
 export class ResendOtpDto {

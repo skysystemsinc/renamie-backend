@@ -49,8 +49,9 @@ export class AuthService {
 
   ) { }
 
-  private generateOtp(): number {
-    return Math.floor(1000 + Math.random() * 9000);
+
+  private generateOtp(): string {
+    return Math.floor(1000 + Math.random() * 9000).toString();
   }
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userService.findByEmail(email);
@@ -467,25 +468,22 @@ export class AuthService {
   }
 
   // 
-  async verifyOtp(dto: { email: string; otp: number }) {
+  async verifyOtp(dto: { email: string; otp: string }) {
     const user = await this.userService.findByEmail(dto.email);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    // if (dto.otp !== user.otp && dto.otp !== 1234) {
-    //   throw new UnauthorizedException('Invalid OTP');
-    // }
     if (!user.otp || !user.otpExpires) {
       throw new UnauthorizedException('OTP not found');
-    }
-
-    if (dto.otp !== user.otp && dto.otp !== 1234) {
-      throw new UnauthorizedException('Invalid OTP');
     }
 
     const now = new Date();
     if (now > user.otpExpires) {
       throw new UnauthorizedException('OTP has expired');
+    }
+
+    if (dto.otp !== user.otp) {
+      throw new UnauthorizedException('Invalid OTP');
     }
 
     await this.userService.updateLastLogin((user as any)._id);

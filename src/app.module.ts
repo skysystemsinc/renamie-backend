@@ -26,6 +26,7 @@ import { QueueModule } from './queue/queue.module';
 import { SSEModule } from './sse/sse.module';
 import { AdminModule } from './admin/admin.module';
 import { ContactModule } from './contact/contact.module';
+import { RedisPubSubModule } from './redis-pubsub/redis-pubsub.module';
 
 @Module({
   imports: [
@@ -50,7 +51,8 @@ import { ContactModule } from './contact/contact.module';
     QueueModule,
     SSEModule,
     AdminModule,
-    ContactModule
+    ContactModule,
+     RedisPubSubModule,
   ],
   controllers: [AppController],
   providers: [
