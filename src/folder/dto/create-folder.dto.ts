@@ -93,7 +93,6 @@ export class QuickBookFormatDto {
 
   @ApiProperty({ required: false, description: 'Alphanumeric payment account' })
   @IsString()
-  @Matches(/^[a-zA-Z0-9]*$/, { message: 'paymentAccount must be alphanumeric' })
   @IsOptional()
   paymentAccount?: string;
 

@@ -24,6 +24,7 @@ import { formatDate } from 'src/utils/helper';
 import { tryCatch } from 'bullmq';
 import { SSEService } from 'src/sse/services/sse.service';
 import { FolderService } from 'src/folder/services/folder.service';
+import { LogoutPubSubService } from 'src/redis-pubsub/service/logout-pubsub.service';
 
 const mapStripeStatus = (status: string): SubscriptionStatus => {
   switch (status) {
@@ -55,6 +56,7 @@ export class StripeService {
     private readonly sseService: SSEService,
     @Inject(forwardRef(() => FolderService))
     private readonly folderService: FolderService,
+    private readonly logoutPubSubService: LogoutPubSubService,
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -308,7 +310,6 @@ export class StripeService {
     );
     console.log('subsription ins create', subscription);
     const metadata = subscription.metadata;
-    console.log('metaddat', metadata);
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
     if (!existingSubscription && metadata?.subscriptionId) {
@@ -506,11 +507,10 @@ export class StripeService {
     // TODO: Update subscription details in database
     // TODO: Handle plan changes (upgrade/downgrade)
     // TODO: Update user access permissions
-    // console.log('update');
     console.log('subs at stripe update', subscription);
     const stripePriceId = subscription.items?.data?.[0]?.price?.id;
-    console.log('stripePriceId', stripePriceId);
-    console.log('plan', subscription?.metadata?.priceId);
+    // console.log('stripePriceId', stripePriceId);
+    // console.log('plan', subscription?.metadata?.priceId);
     await this.stripe.subscriptions.update(subscription.id, {
       metadata: {
         ...subscription.metadata,
@@ -526,13 +526,12 @@ export class StripeService {
       ? now < subscription.trial_end * 1000
       : false;
     const metadata = subscription.metadata;
-    console.log('metadta', metadata);
     // console.log('trialActive', trialActive);
     // console.log('trialEnded', trialEnded);
 
     let existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
-    console.log('existig subs', existingSubscription);
+    // console.log('existig subs', existingSubscription);
     if (!existingSubscription) return;
 
     // Handle scheduled downgrade execution
@@ -548,8 +547,6 @@ export class StripeService {
     );
     if (!getplan) return;
 
-    console.log('get plan outeside', getplan);
-
     //
     const startedAt = subscription.start_date
       ? new Date(subscription.start_date * 1000)
@@ -563,9 +560,6 @@ export class StripeService {
       ? new Date(subscription.trial_end * 1000)
       : undefined;
 
-    // console.log('startedAt', startedAt);
-    console.log('trialStartedAt', trialStartedAt);
-    console.log('trialExpiresAt', trialExpiresAt);
     //
     // subscription updated after cancellation request
     if (
@@ -574,14 +568,10 @@ export class StripeService {
       existingSubscription?.cancelAtPeriodEnd
     ) {
       console.log('subscription updated after cancellation request');
-      console.log('subscriotion', subscription);
-      console.log('stripe Price Id', stripePriceId);
       // Optional: update Stripe subscription metadata with current plan
 
       const plan = await this.planService.findByStripePriceId(stripePriceId);
       if (!plan) return;
-      console.log('plan', plan);
-
       const subsStartAt = new Date(subscription.start_date * 1000);
       const subsEndAt = new Date(subsStartAt);
       subsEndAt.setMonth(subsEndAt.getMonth() + 1);
@@ -666,7 +656,6 @@ export class StripeService {
       subscription.cancellation_details?.reason === 'cancellation_requested'
     ) {
       console.log('subscription cancellation request');
-      console.log('get user', getUser);
       // Optional: update Stripe subscription metadata with current plan
 
       const cancelAtDate: Date | undefined = subscription.cancel_at
@@ -676,8 +665,8 @@ export class StripeService {
         ? new Date(subscription.canceled_at * 1000)
         : undefined;
 
-      console.log('canlcelAT', cancelAtDate);
-      console.log('canceledAtDate', canceledAtDate);
+      // console.log('canlcelAT', cancelAtDate);
+      // console.log('canceledAtDate', canceledAtDate);
 
       await this.subscriptionRepository.update(existingSubscription.id, {
         status: mapStripeStatus(subscription?.status),
@@ -708,7 +697,6 @@ export class StripeService {
       trialEnded
     ) {
       console.log('subscription update after one active plan');
-      console.log('subs', subscription);
       // Optional: update Stripe subscription metadata with current plan
 
       const plan = await this.planService.findByStripePriceId(stripePriceId);
@@ -716,8 +704,6 @@ export class StripeService {
       const subsStartAt = new Date(subscription.start_date * 1000);
       const subsEndAt = new Date(subsStartAt);
       subsEndAt.setMonth(subsEndAt.getMonth() + 1);
-      console.log('Stripe Start Date: second', startedAt);
-      console.log('Ends At: second', subsEndAt);
       //
       //  Update the subscription record in  DB
       const updatedSubscription = await this.subscriptionRepository.update(
@@ -730,20 +716,19 @@ export class StripeService {
           features: plan?.features,
         },
       );
-      console.log('updatedSubscription ', updatedSubscription);
       if (updatedSubscription) {
         // Check if it's a downgrade (new plan order < current plan order)
         const isDowngrade = plan.order && getplan.order && plan.order < getplan.order;
-        
+
         if (isDowngrade) {
           await this.updateUserCountsAfterDowngrade(userId, plan.features);
         }
-        
+
         const getupdatedplan = await this.planService.findById(
           updatedSubscription?.plan.toString(),
         );
         if (!getupdatedplan) return;
-        console.log('getupdatedplan', getupdatedplan);
+        // console.log('getupdatedplan', getupdatedplan);
 
         // send subsc Updated email
         try {
@@ -803,7 +788,6 @@ export class StripeService {
     ) {
       // console.log('getplan?.stripePriceId', getplan?.stripePriceId);
       // console.log('subs.price id', subscription.items?.data?.[0]?.price);
-      console.log('subs', subscription);
       console.log('when updating subs in trial period');
       // Create a copy for end date
       const subsStartAt = new Date(subscription.start_date * 1000);
@@ -811,16 +795,12 @@ export class StripeService {
       subsEndAt.setMonth(subsEndAt.getMonth() + 1);
       const stripePrice = subscription.items?.data?.[0]?.price;
       if (!stripePrice) return;
-      console.log('stripePriceId ', stripePriceId);
+      // console.log('stripePriceId ', stripePriceId);
 
       const newPlan = await this.planService.findByStripePriceId(
         stripePrice.id,
       );
       if (!newPlan) return;
-
-      console.log('Stripe Start Date:', startedAt);
-      console.log('Ends At:', subsEndAt);
-
       const updatedSubscription = await this.subscriptionRepository.update(
         existingSubscription.id,
         {
@@ -832,12 +812,12 @@ export class StripeService {
           // activationEmailSent: false,
         },
       );
-      console.log('updated subs', updatedSubscription);
+      // console.log('updated subs', updatedSubscription);
 
       if (updatedSubscription) {
         // Check if it's a downgrade
         const isDowngrade = newPlan.order && getplan.order && newPlan.order < getplan.order;
-        
+
         if (isDowngrade) {
           await this.updateUserCountsAfterDowngrade(userId, newPlan.features);
         }
@@ -851,8 +831,7 @@ export class StripeService {
           freshSub.user.toString(),
         );
         if (!getUser) return;
-        console.log(' freshSub', freshSub);
-        console.log('getUser', getUser);
+
         // Send correct email with correct plan name
         await this.sendgridService.sendSubsActivationEmail(
           getUser.email,
@@ -900,9 +879,9 @@ export class StripeService {
   private async handleSubscriptionDeleted(
     subscription: Stripe.Subscription,
   ): Promise<void> {
-    console.log('in delete');
-    console.log('subscription cancelled');
-    console.log('subs', subscription);
+    // console.log('in delete');
+    // console.log('subscription cancelled');
+    // console.log('subs', subscription);
     // TODO: Revoke premium access
     // TODO: Update user subscription status to inactive
     // TODO: Send cancellation confirmation email
@@ -912,7 +891,7 @@ export class StripeService {
       await this.subscriptionRepository.findById(metadata.subscriptionId);
     if (!existingSubscription) return;
 
-    console.log('existing', existingSubscription);
+    // console.log('existing', existingSubscription);
     const updatedSubscription = await this.subscriptionRepository.update(
       existingSubscription.id,
       {
@@ -1068,7 +1047,6 @@ export class StripeService {
       );
 
       this.logger.log(`Created billing portal session: ${session.id}`);
-      console.log('session', session);
       return session;
     } catch (error) {
       console.log('error', error);
@@ -1117,7 +1095,7 @@ export class StripeService {
   ): Promise<void> {
     // Check if there's a scheduled downgrade in metadata
     const metadata = existingSubscription.metadata || {};
-    
+
     if (
       metadata.downgradeScheduled === true &&
       metadata.pendingDowngradePlanId &&
@@ -1168,15 +1146,20 @@ export class StripeService {
           const nonSelectedUsers = allCollaborators.filter(
             (user: any) => !selectedUserObjectIds.some((id: Types.ObjectId) => id.equals(user._id))
           );
+          console.log("nonselcted user", nonSelectedUsers);
 
           if (nonSelectedUsers.length > 0) {
             const nonSelectedUserIds = nonSelectedUsers.map((u: any) => u._id.toString());
+            console.log("nonselcted user ids", nonSelectedUserIds);
 
             // Move non-selected users to deleted_users
             await this.userService.moveToDeletedUsers(nonSelectedUserIds, userId, 'downgrade');
 
             // Delete non-selected users from main collection
             await this.userService.removeCollaborators(nonSelectedUserIds);
+            for (const removedUserId of nonSelectedUserIds) {
+              this.logoutPubSubService.publishLogout(removedUserId);
+            }
           }
 
           // Reset selectedForDowngrade flag on kept users
@@ -1203,9 +1186,9 @@ export class StripeService {
           // Recalculate actual counts after downgrade
           const remainingFolders = await this.folderService.findAllByUserId(userId);
           const actualFolderCount = remainingFolders.length;
-          
+
           const actualFileCount = await this.folderService.countAllFiles(userId);
-          
+
           const collaborators = await this.userService.findCollaboratorsByParentId(userId);
           const actualUserCount = Math.min(
             collaborators.length,
