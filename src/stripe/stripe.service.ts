@@ -1152,14 +1152,15 @@ export class StripeService {
             const nonSelectedUserIds = nonSelectedUsers.map((u: any) => u._id.toString());
             console.log("nonselcted user ids", nonSelectedUserIds);
 
+            for (const removedUserId of nonSelectedUserIds) {
+              this.logoutPubSubService.publishLogout(removedUserId);
+            }
             // Move non-selected users to deleted_users
             await this.userService.moveToDeletedUsers(nonSelectedUserIds, userId, 'downgrade');
 
             // Delete non-selected users from main collection
             await this.userService.removeCollaborators(nonSelectedUserIds);
-            for (const removedUserId of nonSelectedUserIds) {
-              this.logoutPubSubService.publishLogout(removedUserId);
-            }
+
           }
 
           // Reset selectedForDowngrade flag on kept users
