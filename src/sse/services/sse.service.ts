@@ -27,18 +27,7 @@ export class SSEService {
     }
   }
 
-  sendSubscriptionCancelled(userId: string) {
-    const client = this.clients.get(userId);
-    if (client) {
-      client.write(`event: subscription_cancelled\n`);
-      client.write(
-        `data: ${JSON.stringify({ message: 'subscription_cancelled' })}\n\n`,
-      );
-      // console.log(`SE event sent to collaborator ${userId}`);
-    } else {
-      console.warn(`[SSEService] No SSE client found for user: ${userId}`);
-    }
-  }
+ 
 }
 
 
