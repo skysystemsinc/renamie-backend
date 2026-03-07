@@ -15,7 +15,7 @@ import { UsersModule } from 'src/users/users.module';
 import { PlansModule } from 'src/plans/plans.module';
 import { SSEService } from 'src/sse/services/sse.service';
 import { FoldersModule } from 'src/folder/folders.module';
-import { RedisPubSubModule } from 'src/redis-pubsub/redis-pubsub.module';
+import { LogoutWsModule } from 'src/websocket/logout-ws.module';
 
 @Module({
   imports: [
@@ -26,7 +26,7 @@ import { RedisPubSubModule } from 'src/redis-pubsub/redis-pubsub.module';
      FirebaseModule,
      UsersModule,
      PlansModule,
-     RedisPubSubModule,
+     LogoutWsModule,
      forwardRef(() => FoldersModule),
   ],
   providers: [StripeService, SubscriptionRepository, SendgridService, SSEService],

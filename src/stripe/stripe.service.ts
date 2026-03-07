@@ -24,7 +24,7 @@ import { formatDate } from 'src/utils/helper';
 import { tryCatch } from 'bullmq';
 import { SSEService } from 'src/sse/services/sse.service';
 import { FolderService } from 'src/folder/services/folder.service';
-import { LogoutPubSubService } from 'src/redis-pubsub/service/logout-pubsub.service';
+import { LogoutWsService } from 'src/websocket/logout-ws.service';
 
 const mapStripeStatus = (status: string): SubscriptionStatus => {
   switch (status) {
@@ -56,7 +56,8 @@ export class StripeService {
     private readonly sseService: SSEService,
     @Inject(forwardRef(() => FolderService))
     private readonly folderService: FolderService,
-    private readonly logoutPubSubService: LogoutPubSubService,
+    private readonly logoutWsService: LogoutWsService,
+
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -921,8 +922,7 @@ export class StripeService {
           isSubscriptionCancelled: true,
         });
         // console.log(`Collaborator ${colId} flagged as subscription cancelled.`);
-        // Send SSE event
-        this.sseService.sendSubscriptionCancelled(colId);
+        await this.logoutWsService.logoutUser(colId);
       }
     }
     // send subsc Cancel email
@@ -1152,8 +1152,11 @@ export class StripeService {
             const nonSelectedUserIds = nonSelectedUsers.map((u: any) => u._id.toString());
             console.log("nonselcted user ids", nonSelectedUserIds);
 
+            // for (const removedUserId of nonSelectedUserIds) {
+            //   this.logoutPubSubService.publishLogout(removedUserId);
+            // }
             for (const removedUserId of nonSelectedUserIds) {
-              this.logoutPubSubService.publishLogout(removedUserId);
+              await this.logoutWsService.logoutUser(removedUserId);
             }
             // Move non-selected users to deleted_users
             await this.userService.moveToDeletedUsers(nonSelectedUserIds, userId, 'downgrade');
