@@ -37,7 +37,7 @@ export class SendgridService {
       throw new InternalServerErrorException('SENDGRID_API_KEY is missing');
     }
     this.fromEmail =
-      process.env.SENDGRID_EMAIL_FROM || 'allie.renamie@gmail.com';
+      process.env.SENDGRID_EMAIL_FROM || 'contact@renamie.com';
     SendGrid.setApiKey(apiKey);
   }
 
@@ -390,7 +390,7 @@ export class SendgridService {
         emailConstant.otpTempId,
         {
           userName: firstName,
-          otp:otp
+          otp: otp
         },
         true,
       );

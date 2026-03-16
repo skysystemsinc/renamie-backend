@@ -595,6 +595,7 @@ export class FolderService {
 
     const metadataRows = allFiles?.files?.map((file) => {
       const metadataObj: Record<string, any> = { ...manualFields };
+      metadataObj['Rename File Name'] = file.newName;
       if (Array.isArray(file.metadata)) {
         file.metadata.forEach((meta: any) => {
           Object.keys(meta).forEach((k) => {
