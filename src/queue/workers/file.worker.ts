@@ -99,27 +99,27 @@ export class FileProcessor extends WorkerHost {
       const results = await this.textractService.getInvoiceAnalysis(jobId);
       const mappedMetadata = Array.isArray(results)
         ? results.map((r) => ({
-            address: r.ADDRESS ?? '',
-            street: r.STREET ?? '',
-            city: r.CITY ?? '',
-            state: r.STATE ?? '',
-            zipCode: r.ZIP_CODE ?? '',
-            addressBlock: r.ADDRESS_BLOCK ?? '',
-            name: r.NAME ?? '',
-            customerNumber: r.CUSTOMER_NUMBER ?? '',
-            invoiceReceiptDate: r.INVOICE_RECEIPT_DATE ?? '',
-            invoiceReceiptId: r.INVOICE_RECEIPT_ID ?? '',
-            orderDate: r.ORDER_DATE ?? '',
-            paymentTerms: r.PAYMENT_TERMS ?? '',
-            receiverName: r.RECEIVER_NAME ?? '',
-            subtotal: r.SUBTOTAL ?? '',
-            total: r.TOTAL ?? '',
-            vendorAddress: r.VENDOR_ADDRESS ?? '',
-            vendorName: r.VENDOR_NAME ?? '',
-            vendorPhone: r.VENDOR_PHONE ?? '',
-            vendorUrl: r.VENDOR_URL ?? '',
-            other: r.OTHER ?? '',
-          }))
+          address: r.ADDRESS ?? '',
+          street: r.STREET ?? '',
+          city: r.CITY ?? '',
+          state: r.STATE ?? '',
+          zipCode: r.ZIP_CODE ?? '',
+          addressBlock: r.ADDRESS_BLOCK ?? '',
+          name: r.NAME ?? '',
+          customerNumber: r.CUSTOMER_NUMBER ?? '',
+          invoiceReceiptDate: r.INVOICE_RECEIPT_DATE ?? '',
+          invoiceReceiptId: r.INVOICE_RECEIPT_ID ?? '',
+          orderDate: r.ORDER_DATE ?? '',
+          paymentTerms: r.PAYMENT_TERMS ?? '',
+          receiverName: r.RECEIVER_NAME ?? '',
+          subtotal: r.SUBTOTAL ?? '',
+          total: r.TOTAL ?? '',
+          vendorAddress: r.VENDOR_ADDRESS ?? '',
+          vendorName: r.VENDOR_NAME ?? '',
+          vendorPhone: r.VENDOR_PHONE ?? '',
+          vendorUrl: r.VENDOR_URL ?? '',
+          other: r.OTHER ?? '',
+        }))
         : [];
       const db = this.firebaseService.getDb();
       db.ref(`folders/${folderId}/files/${fileId}`).set({

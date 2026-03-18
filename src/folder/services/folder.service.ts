@@ -597,16 +597,17 @@ export class FolderService {
       const metadataObj: Record<string, any> = { ...manualFields };
       metadataObj['Rename File Name'] = file.newName;
       if (Array.isArray(file.metadata)) {
-        file.metadata.forEach((meta: any) => {
-          Object.keys(meta).forEach((k) => {
-            if (!['_id', '__v'].includes(k)) {
-              metadataObj[k] =
-                meta[k] !== undefined && meta[k] !== null && meta[k] !== ''
-                  ? meta[k]
-                  : 'NA';
-            }
-          });
+        const meta = file.metadata[0];
+        // file.metadata.forEach((meta: any) => {
+        Object.keys(meta).forEach((k) => {
+          if (!['_id', '__v'].includes(k)) {
+            metadataObj[k] =
+              meta[k] !== undefined && meta[k] !== null && meta[k] !== ''
+                ? meta[k]
+                : 'NA';
+          }
         });
+        // });
       }
       metadataObj['Billable'] = 'False';
       if (metadataObj['vendorName']) {
