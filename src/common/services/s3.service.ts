@@ -450,11 +450,9 @@ export class S3Service {
     files: Array<Express.Multer.File>,
   ) {
     const user = await this.userService.findById(id);
-    console.log('user', user);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    console.log('user', user);
     let parentId = id;
     if (user?.isCollaborator && user?.inviteAccepted) {
       parentId = user?.userId.toString();

@@ -53,7 +53,6 @@ export class FolderController {
   }
 
 
-
   // get all files from folder module
   @Get('files')
   @UseGuards(JwtAuthGuard)
