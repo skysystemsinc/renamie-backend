@@ -566,9 +566,6 @@ export class FolderService {
         folderId,
         date,
       );
-      if(!allFiles || allFiles.files.length === 0) {
-        throw new NotFoundException('No files found for the given date in the folder');
-      }
     } else {
       allFiles = await this.folderRepository.getAllUploadedFiles(
         parentId,
