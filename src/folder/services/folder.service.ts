@@ -542,7 +542,7 @@ export class FolderService {
 
   // get Export files
 
-  async getExportFiles(userId: string, folderId: string, date?: string,
+  async getExportFiles(userId: string, folderId: string, date?: string, timezone?: string,
   ) {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -558,13 +558,38 @@ export class FolderService {
     const parentUser = await this.userService.findById(parentId);
     if (!parentUser) throw new NotFoundException('User not found');
 
+    // convert date from user's timezone to UTC
+    let utcStart: Date | undefined;
+    let utcEnd: Date | undefined;
+    if (date && timezone) {
+      const { DateTime } = await import('luxon');
+      const userDate = DateTime.fromISO(date, { zone: timezone });
+      utcStart = userDate.startOf('day').toUTC().toJSDate();
+      utcEnd = userDate.endOf('day').toUTC().toJSDate();
+    }
+    console.log("start data", utcStart);
+    console.log("utsend", utcEnd);
     const bookData = folder?.book;
+
     let allFiles;
-    if (date) {
+    // if (date) {
+    //   allFiles = await this.folderRepository.getALLFilesByDateFilter(
+    //     parentId,
+    //     folderId,
+    //     date,
+    //   );
+    // } else {
+    //   allFiles = await this.folderRepository.getAllUploadedFiles(
+    //     parentId,
+    //     folderId,
+    //   );
+    // }
+    if (utcStart && utcEnd) {
       allFiles = await this.folderRepository.getALLFilesByDateFilter(
         parentId,
         folderId,
-        date,
+        utcStart,
+        utcEnd,
       );
     } else {
       allFiles = await this.folderRepository.getAllUploadedFiles(

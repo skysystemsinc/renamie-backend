@@ -142,12 +142,15 @@ export class FolderController {
     @CurrentUser('id') userId: string,
     @Param('id') folderId: string,
     @Query('date') date: string,
+    @Query('timezone') timezone: string,
     @Res() res: Response,
   ) {
+    console.log("time zone", timezone);
     const streamFile = await this.folderService.getExportFiles(
       userId,
       folderId,
       date,
+      timezone,
     );
 
     res.setHeader('Content-Type', 'text/csv');
