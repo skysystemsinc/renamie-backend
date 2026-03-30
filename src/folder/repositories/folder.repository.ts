@@ -724,35 +724,69 @@ export class FolderRepository {
   //   return { files: result.map(r => r.file) };
   // }
 
+
+  // date: string, // format: "YYYY-MM-DD"
+
+  // async getALLFilesByDateFilter(
+  //   userId: string,
+  //   folderId: string,
+  //   startDate: Date,
+  //   endDate: Date,
+  // ) {
+  //   const result = await this.folderModel.aggregate([
+  //     {
+  //       $match: {
+  //         _id: new Types.ObjectId(folderId),
+  //         parentUser: new Types.ObjectId(userId),
+  //       },
+  //     },
+  //     { $unwind: "$files" },
+  //     {
+  //       $match: {
+  //         $expr: {
+  //           $eq: [
+  //             { $dateToString: { format: "%Y-%m-%d", date: "$files.createdAt" } },
+
+  //             // date, // match the date string exactly
+  //           ],
+  //         },
+  //       },
+  //     },
+  //     { $project: { _id: 0, file: "$files" } },
+  //   ]);
+
+  //   console.log("Filtered files result:", result);
+
+  //   // Keep the same structure as getAllUploadedFiles
+  //   return { files: result.map((r) => r.file) };
+  // }
+
   async getALLFilesByDateFilter(
     userId: string,
     folderId: string,
-    date: string, // format: "YYYY-MM-DD"
+    startDate: Date,
+    endDate: Date,
   ) {
+    console.log("start dtA",startDate);
+    console.log("enddata",endDate);
     const result = await this.folderModel.aggregate([
       {
         $match: {
           _id: new Types.ObjectId(folderId),
           parentUser: new Types.ObjectId(userId),
-        },
+        }
       },
       { $unwind: "$files" },
       {
         $match: {
-          $expr: {
-            $eq: [
-              { $dateToString: { format: "%Y-%m-%d", date: "$files.createdAt" } },
-              date, // match the date string exactly
-            ],
-          },
-        },
+          "files.createdAt": { $gte: startDate, $lte: endDate }
+        }
       },
       { $project: { _id: 0, file: "$files" } },
     ]);
 
     console.log("Filtered files result:", result);
 
-    // Keep the same structure as getAllUploadedFiles
     return { files: result.map((r) => r.file) };
   }
 

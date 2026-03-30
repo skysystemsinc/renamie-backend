@@ -293,12 +293,14 @@ export class AdminController {
     @Param('id') folderId: string,
     @Query('userId') userId: string,
     @Query('date') date: string,
+    @Query('timezone') timezone: string,
     @Res() res: Response,
   ) {
     const streamFile = await this.folderService.getExportFiles(
       userId,
       folderId,
       date,
+      timezone,
     );
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="export.csv"`);
