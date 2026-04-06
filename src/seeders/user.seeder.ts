@@ -15,7 +15,7 @@ export class UserSeeder extends BaseSeeder {
 
   async seed(): Promise<SeederResult> {
     try {
-      const adminEmail = 'admin@renamie.com';
+      const adminEmail = 'allie.renamie@gmail.com';
       const existingAdmin = await this.userModel.findOne({ email: adminEmail });
 
       if (existingAdmin) {
@@ -25,7 +25,7 @@ export class UserSeeder extends BaseSeeder {
         };
       }
 
-      const hashedPassword = await bcrypt.hash('Admin123!', 10);
+      const hashedPassword = await bcrypt.hash('cozgX5ivdo', 10);
 
       const adminUser = new this.userModel({
         email: adminEmail,

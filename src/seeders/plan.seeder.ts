@@ -60,7 +60,7 @@ export class PlanSeeder extends BaseSeeder {
   private getSamplePlans(): Partial<Plan>[] {
     return [
       {
-        stripePriceId: 'price_1S3yvfK3yHefXURkF4qWyaxp',
+        stripePriceId: 'price_1TAFSkBIW74O6bIv2MJIbPYo',
         name: 'Starter',
         description: 'Perfect for getting started with basic file management',
         amount: 1900, // 19 dollars in cents
@@ -75,12 +75,12 @@ export class PlanSeeder extends BaseSeeder {
           users: 1,
         },
         isActive: true,
-        stripeProductId: 'prod_SzytG4V6VMEKyJ',
+        stripeProductId: 'prod_U8WVQnE6dAC3fv',
         order: 1,
         metadata: {},
       },
       {
-        stripePriceId: 'price_1S3yvyK3yHefXURkVsDEHVfR',
+        stripePriceId: 'price_1TAFSYBIW74O6bIvy07gnbY4',
         name: 'Growth',
         description: 'Ideal for individuals and small teams',
         amount: 3900, // $39 in cents
@@ -95,12 +95,12 @@ export class PlanSeeder extends BaseSeeder {
           users: 3,
         },
         isActive: true,
-        stripeProductId: 'prod_SzytQljL2zn3vV',
+        stripeProductId: 'prod_U8WV6hnCtHx547',
         order: 2,
         metadata: {},
       },
       {
-        stripePriceId: 'price_1S3ywHK3yHefXURkprJ8rbKi',
+        stripePriceId: 'price_1TAFSIBIW74O6bIvhv10VPUD',
         name: 'Business',
         description: 'Ideal for individuals and small teams',
         amount: 6900, // $69 in cents
@@ -115,7 +115,7 @@ export class PlanSeeder extends BaseSeeder {
           users: 5,
         },
         isActive: true,
-        stripeProductId: 'prod_SzyuEAafTXW0Dj',
+        stripeProductId: 'prod_U8WV8AqudRjEHa',
         order: 3,
         metadata: {},
       },
