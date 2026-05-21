@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsArray, IsObject, ValidateNested } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsArray,
+  IsObject,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class LineItemDto {
@@ -21,7 +27,7 @@ export class ExtractedInvoiceDataDto {
   @IsString()
   invoiceDate: string;
 
-  @ApiProperty({ example: 1250.50 })
+  @ApiProperty({ example: 1250.5 })
   @IsNumber()
   totalAmount: number;
 

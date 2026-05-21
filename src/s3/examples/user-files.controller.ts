@@ -47,7 +47,7 @@ export class UserFilesController {
     }
 
     const key = `users/${userId}/avatar.jpg`;
-    
+
     try {
       const result = await this.s3Service.uploadFile(key, file.buffer, {
         acl: 'public-read',
@@ -67,7 +67,9 @@ export class UserFilesController {
         },
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to upload avatar: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to upload avatar: ${error.message}`,
+      );
     }
   }
 
@@ -85,19 +87,23 @@ export class UserFilesController {
     // Validate file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!allowedTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Only PDF, JPEG, and PNG files are allowed');
+      throw new BadRequestException(
+        'Only PDF, JPEG, and PNG files are allowed',
+      );
     }
 
     // Validate file size (10MB limit for documents)
     if (file.size > 10 * 1024 * 1024) {
-      throw new BadRequestException('Document file size must be less than 10MB');
+      throw new BadRequestException(
+        'Document file size must be less than 10MB',
+      );
     }
 
     const key = this.s3Service.generateUniqueKey(
       file.originalname,
-      `users/${userId}/documents/`
+      `users/${userId}/documents/`,
     );
-    
+
     try {
       const result = await this.s3Service.uploadFile(key, file.buffer, {
         acl: 'private',
@@ -115,7 +121,9 @@ export class UserFilesController {
         data: result,
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to upload document: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to upload document: ${error.message}`,
+      );
     }
   }
 
@@ -127,12 +135,12 @@ export class UserFilesController {
   ) {
     const fileName = req.query.fileName || 'document';
     const contentType = req.query.contentType || 'application/pdf';
-    
+
     const key = this.s3Service.generateUniqueKey(
       fileName,
-      `users/${userId}/documents/`
+      `users/${userId}/documents/`,
     );
-    
+
     try {
       const url = await this.s3Service.getPresignedUploadUrl(key, {
         expiresIn: 3600, // 1 hour
@@ -149,7 +157,9 @@ export class UserFilesController {
         },
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to generate upload URL: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to generate upload URL: ${error.message}`,
+      );
     }
   }
 
@@ -157,7 +167,7 @@ export class UserFilesController {
   @ApiOperation({ summary: 'Get user avatar URL' })
   async getAvatar(@Param('userId') userId: string) {
     const key = `users/${userId}/avatar.jpg`;
-    
+
     try {
       const exists = await this.s3Service.fileExists(key);
       if (!exists) {
@@ -165,7 +175,7 @@ export class UserFilesController {
       }
 
       const publicUrl = this.s3Service.getPublicUrl(key);
-      
+
       return {
         message: 'Avatar URL retrieved',
         data: {
@@ -188,7 +198,7 @@ export class UserFilesController {
     @Param('key') key: string,
   ) {
     const fullKey = `users/${userId}/documents/${key}`;
-    
+
     try {
       const exists = await this.s3Service.fileExists(fullKey);
       if (!exists) {
@@ -211,7 +221,9 @@ export class UserFilesController {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      throw new BadRequestException(`Failed to generate download URL: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to generate download URL: ${error.message}`,
+      );
     }
   }
 
@@ -219,7 +231,7 @@ export class UserFilesController {
   @ApiOperation({ summary: 'List user documents' })
   async listDocuments(@Param('userId') userId: string) {
     const prefix = `users/${userId}/documents/`;
-    
+
     try {
       const result = await this.s3Service.listFiles(prefix);
 
@@ -231,7 +243,9 @@ export class UserFilesController {
         },
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to list documents: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to list documents: ${error.message}`,
+      );
     }
   }
 
@@ -239,7 +253,7 @@ export class UserFilesController {
   @ApiOperation({ summary: 'Delete user avatar' })
   async deleteAvatar(@Param('userId') userId: string) {
     const key = `users/${userId}/avatar.jpg`;
-    
+
     try {
       const exists = await this.s3Service.fileExists(key);
       if (!exists) {
@@ -256,7 +270,9 @@ export class UserFilesController {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      throw new BadRequestException(`Failed to delete avatar: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to delete avatar: ${error.message}`,
+      );
     }
   }
 
@@ -267,7 +283,7 @@ export class UserFilesController {
     @Param('key') key: string,
   ) {
     const fullKey = `users/${userId}/documents/${key}`;
-    
+
     try {
       const exists = await this.s3Service.fileExists(fullKey);
       if (!exists) {
@@ -284,7 +300,9 @@ export class UserFilesController {
       if (error instanceof NotFoundException) {
         throw error;
       }
-      throw new BadRequestException(`Failed to delete document: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to delete document: ${error.message}`,
+      );
     }
   }
 
@@ -292,7 +310,7 @@ export class UserFilesController {
   @ApiOperation({ summary: 'Delete all user files' })
   async deleteAllUserFiles(@Param('userId') userId: string) {
     const prefix = `users/${userId}/`;
-    
+
     try {
       // List all user files
       const { files } = await this.s3Service.listFiles(prefix);
@@ -305,8 +323,8 @@ export class UserFilesController {
       }
 
       // Delete all files
-      const deletePromises = files.map(file => 
-        this.s3Service.deleteFile(file.key || '')
+      const deletePromises = files.map((file) =>
+        this.s3Service.deleteFile(file.key || ''),
       );
 
       await Promise.all(deletePromises);
@@ -316,7 +334,9 @@ export class UserFilesController {
         data: { deletedCount: files.length },
       };
     } catch (error) {
-      throw new BadRequestException(`Failed to delete user files: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to delete user files: ${error.message}`,
+      );
     }
   }
 }

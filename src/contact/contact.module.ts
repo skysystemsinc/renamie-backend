@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
@@ -10,11 +9,11 @@ import { ContactRepository } from './repositories/contact.repository';
 import { SendgridService } from 'src/common/services/sendgrid';
 
 @Module({
-    imports: [
-        MongooseModule.forFeature([{ name: Contact.name, schema: ContactSchema }]),
-    ],
-    controllers: [ContactController],
-    providers: [ContactService, ContactRepository,  SendgridService],
-    exports: [ContactService],
+  imports: [
+    MongooseModule.forFeature([{ name: Contact.name, schema: ContactSchema }]),
+  ],
+  controllers: [ContactController],
+  providers: [ContactService, ContactRepository, SendgridService],
+  exports: [ContactService],
 })
-export class ContactModule { }
+export class ContactModule {}

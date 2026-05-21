@@ -606,7 +606,7 @@ export class S3Service {
           await this.fileQueueService.addFileToQueue(
             file.url,
             folderId,
-            (file as any)._id.toString(),
+            file._id.toString(),
             batchId,
             user?.email,
             user?.firstName,

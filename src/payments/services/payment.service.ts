@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { PaymentRepository } from '../repositories/payment.repository';
@@ -6,7 +11,12 @@ import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { UpdatePaymentDto } from '../dto/update-payment.dto';
 import { ProcessPaymentDto } from '../dto/process-payment.dto';
 import { RefundPaymentDto } from '../dto/refund-payment.dto';
-import { Payment, PaymentStatus, PaymentDocument, PaymentMethod } from '../schemas/payment.schema';
+import {
+  Payment,
+  PaymentStatus,
+  PaymentDocument,
+  PaymentMethod,
+} from '../schemas/payment.schema';
 import { UserService } from '../../users/services/user.service';
 import { PlanService } from '../../plans/services/plan/plan.service';
 
@@ -25,13 +35,16 @@ export class PaymentService {
     if (!stripeSecretKey) {
       throw new Error('STRIPE_SECRET_KEY is not configured');
     }
-    
+
     this.stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2025-08-27.basil',
     });
   }
 
-  async createPayment(createPaymentDto: CreatePaymentDto, userId: string): Promise<PaymentDocument> {
+  async createPayment(
+    createPaymentDto: CreatePaymentDto,
+    userId: string,
+  ): Promise<PaymentDocument> {
     try {
       this.logger.log(`Creating payment for user ${userId}`);
       return await this.paymentRepository.create(createPaymentDto);
@@ -41,17 +54,20 @@ export class PaymentService {
     }
   }
 
-  async processPayment(processPaymentDto: ProcessPaymentDto, userId: string): Promise<{ payment: PaymentDocument; clientSecret: string }> {
+  async processPayment(
+    processPaymentDto: ProcessPaymentDto,
+    userId: string,
+  ): Promise<{ payment: PaymentDocument; clientSecret: string }> {
     try {
       this.logger.log(`Processing payment for user ${userId}`);
 
       const user = await this.userService.findById(userId);
-      if(!user) {
+      if (!user) {
         throw new NotFoundException('User not found');
       }
 
       const plan = await this.planService.findById(processPaymentDto.planId);
-      if(!plan) {
+      if (!plan) {
         throw new NotFoundException('Plan not found');
       }
 
@@ -100,17 +116,21 @@ export class PaymentService {
       this.logger.log(`Confirming payment intent: ${paymentIntentId}`);
 
       // Retrieve payment intent from Stripe
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent =
+        await this.stripe.paymentIntents.retrieve(paymentIntentId);
 
       // Find payment in database
-      const payment: PaymentDocument | null = await this.paymentRepository.findByStripePaymentIntentId(paymentIntentId);
+      const payment: PaymentDocument | null =
+        await this.paymentRepository.findByStripePaymentIntentId(
+          paymentIntentId,
+        );
       if (!payment) {
         throw new NotFoundException('Payment not found');
       }
 
       // Update payment status based on Stripe status
       let status: PaymentStatus;
-      let additionalData: Partial<UpdatePaymentDto> = {};
+      const additionalData: Partial<UpdatePaymentDto> = {};
 
       switch (paymentIntent.status) {
         case 'succeeded':
@@ -130,7 +150,8 @@ export class PaymentService {
           break;
         default:
           status = PaymentStatus.FAILED;
-          additionalData.failureReason = paymentIntent.last_payment_error?.message || 'Payment failed';
+          additionalData.failureReason =
+            paymentIntent.last_payment_error?.message || 'Payment failed';
       }
 
       const updatedPayment = await this.paymentRepository.updateStatus(
@@ -149,22 +170,31 @@ export class PaymentService {
     }
   }
 
-  async refundPayment(refundPaymentDto: RefundPaymentDto): Promise<PaymentDocument> {
+  async refundPayment(
+    refundPaymentDto: RefundPaymentDto,
+  ): Promise<PaymentDocument> {
     try {
-      this.logger.log(`Processing refund for payment ${refundPaymentDto.paymentId}`);
+      this.logger.log(
+        `Processing refund for payment ${refundPaymentDto.paymentId}`,
+      );
 
       // Find payment in database
-      const payment: PaymentDocument | null = await this.paymentRepository.findById(refundPaymentDto.paymentId);
+      const payment: PaymentDocument | null =
+        await this.paymentRepository.findById(refundPaymentDto.paymentId);
       if (!payment) {
         throw new NotFoundException('Payment not found');
       }
 
       if (payment.status !== PaymentStatus.SUCCEEDED) {
-        throw new BadRequestException('Only successful payments can be refunded');
+        throw new BadRequestException(
+          'Only successful payments can be refunded',
+        );
       }
 
       if (payment.refundedAmount && payment.refundedAmount >= payment.amount) {
-        throw new BadRequestException('Payment has already been fully refunded');
+        throw new BadRequestException(
+          'Payment has already been fully refunded',
+        );
       }
 
       const refundAmount = refundPaymentDto.amount || payment.amount;
@@ -189,7 +219,10 @@ export class PaymentService {
       const updateData: UpdatePaymentDto = {
         refundedAmount: newRefundedAmount,
         refundedAt: new Date(),
-        status: newRefundedAmount >= payment.amount ? PaymentStatus.REFUNDED : PaymentStatus.SUCCEEDED,
+        status:
+          newRefundedAmount >= payment.amount
+            ? PaymentStatus.REFUNDED
+            : PaymentStatus.SUCCEEDED,
       };
 
       const updatedPayment = await this.paymentRepository.update(
@@ -236,7 +269,10 @@ export class PaymentService {
     return this.paymentRepository.getPaymentStats(userId);
   }
 
-  async updatePayment(id: string, updatePaymentDto: UpdatePaymentDto): Promise<PaymentDocument> {
+  async updatePayment(
+    id: string,
+    updatePaymentDto: UpdatePaymentDto,
+  ): Promise<PaymentDocument> {
     const payment = await this.paymentRepository.update(id, updatePaymentDto);
     if (!payment) {
       throw new NotFoundException('Payment not found');

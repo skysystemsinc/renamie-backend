@@ -143,4 +143,3 @@ export class QuickBookFormatDto {
   @IsOptional()
   vendorNetTerm?: number;
 }
-

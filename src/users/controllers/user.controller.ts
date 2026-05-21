@@ -29,7 +29,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 @Controller('users')
 // @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({ status: 201, description: 'User created successfully' })
@@ -81,11 +81,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   async remove(@Param('id') id: string) {
-    console.log('user id')
+    console.log('user id');
     await this.userService.delete(id);
 
     return ApiResponseDto.success('User deleted successfully');
   }
-
-
 }

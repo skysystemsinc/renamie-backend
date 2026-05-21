@@ -63,8 +63,6 @@ export class Subscription {
 
   @Prop({ default: null })
   activationEmailSent?: boolean;
-
-
 }
 
 export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);

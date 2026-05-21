@@ -52,7 +52,7 @@ export class UpdateUserDto {
   @IsBoolean()
   isSubscriptionCancelled?: boolean;
 
-  // 
+  //
   @IsOptional()
   @IsString()
   otp?: string;
@@ -60,4 +60,3 @@ export class UpdateUserDto {
   @IsOptional()
   otpExpires?: Date;
 }
-

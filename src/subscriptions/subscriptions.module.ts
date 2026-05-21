@@ -7,12 +7,17 @@ import { PaymentsModule } from '../payments/payments.module';
 import { PlansModule } from '../plans/plans.module';
 import { UsersModule } from '../users/users.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Subscription, SubscriptionSchema } from './schemas/subscription.schema';
+import {
+  Subscription,
+  SubscriptionSchema,
+} from './schemas/subscription.schema';
 import { FoldersModule } from 'src/folder/folders.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Subscription.name, schema: SubscriptionSchema }]),
+    MongooseModule.forFeature([
+      { name: Subscription.name, schema: SubscriptionSchema },
+    ]),
     StripeModule,
     PaymentsModule,
     PlansModule,
@@ -23,4 +28,4 @@ import { FoldersModule } from 'src/folder/folders.module';
   providers: [SubscriptionService, SubscriptionRepository],
   exports: [SubscriptionService],
 })
-export class SubscriptionsModule { }
+export class SubscriptionsModule {}

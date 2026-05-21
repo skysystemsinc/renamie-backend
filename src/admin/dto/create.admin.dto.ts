@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateIf,
+} from 'class-validator';
 
 export class CreateFoldersDto {
   @IsString()
@@ -18,13 +25,12 @@ export class CreateFoldersDto {
   userId: string;
 }
 
-
 export class FormatDto {
   @ApiProperty({ example: 'PDF', description: 'The file format to save' })
   @IsString()
   format: string;
 
-   @IsString()
+  @IsString()
   @IsNotEmpty()
   @ApiProperty({
     description: 'ID of the user creating the folder',
@@ -33,7 +39,7 @@ export class FormatDto {
 }
 
 export class adminRenameFileDto {
-      @IsString()
+  @IsString()
   @IsNotEmpty()
   @ApiProperty({
     description: 'ID of the user creating the folder',
@@ -48,9 +54,7 @@ export class adminRenameFileDto {
   newName: string;
 }
 
-
 export class CreateInvitedUserDto {
-  
   @ApiProperty({ description: 'Email', example: 'test@test.com' })
   @IsEmail()
   @IsNotEmpty()

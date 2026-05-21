@@ -33,7 +33,6 @@ import {
 import { randomGenerator } from 'src/utils/helper';
 import { SSEService } from 'src/sse/services/sse.service';
 
-
 @Injectable()
 export class AuthService {
   constructor(
@@ -46,9 +45,7 @@ export class AuthService {
     private firebaseService: FirebaseService,
     private readonly stripeService: StripeService,
     private readonly sseService: SSEService,
-
-  ) { }
-
+  ) {}
 
   private generateOtp(): string {
     return Math.floor(1000 + Math.random() * 9000).toString();
@@ -116,7 +113,6 @@ export class AuthService {
       message: 'OTP sent to your email',
       otpExpires,
     };
-
   }
 
   async register(registerDto: RegisterDto) {
@@ -233,7 +229,7 @@ export class AuthService {
       throw new UnauthorizedException('Email not registered');
     }
     const id = (user as UserDocument)._id as string;
-    let userId = id.toString();
+    const userId = id.toString();
     const appUrl = process.env.FRONTEND_URL;
     const verifyUrl = `${appUrl}/renamie.com/resetPassword/${userId}`;
     try {
@@ -302,7 +298,7 @@ export class AuthService {
       updateUserDto,
     );
     if (updatedUser?.stripeCustomerId) {
-      let customerId = updatedUser?.stripeCustomerId;
+      const customerId = updatedUser?.stripeCustomerId;
       await this.stripeService.updateStripeCustomer(customerId, {
         email: updatedUser?.email,
         name: `${updatedUser.firstName} ${updatedUser.lastName}`,
@@ -441,24 +437,24 @@ export class AuthService {
     return user;
   }
 
-
-  // 
+  //
   async getUserWithSubs(userId: string, page: number, limit: number) {
     const userDetail = await this.userService.findAllByPagination(
       userId,
       page,
       limit,
     );
-    console.log("user detail", userDetail);
+    console.log('user detail', userDetail);
     const usersWithSubscriptions = await Promise.all(
       userDetail?.users?.map(async (usr) => {
-        const subscription = await this.subscriptionService.getUserSubscriptionWithPlan(
-          (usr as any)._id.toString()
-        );
+        const subscription =
+          await this.subscriptionService.getUserSubscriptionWithPlan(
+            (usr as any)._id.toString(),
+          );
         return { ...usr, subscription };
       }),
     );
-    console.log("user with subscriptin", usersWithSubscriptions);
+    console.log('user with subscriptin', usersWithSubscriptions);
     return {
       users: usersWithSubscriptions,
       total: userDetail.total,
@@ -467,7 +463,7 @@ export class AuthService {
     };
   }
 
-  // 
+  //
   async verifyOtp(dto: { email: string; otp: string }) {
     const user = await this.userService.findByEmail(dto.email);
     if (!user) {
@@ -487,9 +483,15 @@ export class AuthService {
     }
 
     await this.userService.updateLastLogin((user as any)._id);
-    const subscription = await this.subscriptionService.findUserActiveOrTrialingSubs((user as any)._id);
+    const subscription =
+      await this.subscriptionService.findUserActiveOrTrialingSubs(
+        (user as any)._id,
+      );
     const tokens = await this.generateTokens(user);
-    await this.userService.updateRefreshToken((user as any)._id, tokens.refreshToken);
+    await this.userService.updateRefreshToken(
+      (user as any)._id,
+      tokens.refreshToken,
+    );
     await this.userService.clearOtp((user as any)._id);
 
     return {
@@ -506,7 +508,7 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    console.log("user", user);
+    console.log('user', user);
 
     const otp = this.generateOtp();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
@@ -518,5 +520,4 @@ export class AuthService {
       otpExpires,
     };
   }
-
 }

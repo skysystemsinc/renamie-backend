@@ -57,7 +57,6 @@ export class StripeService {
     @Inject(forwardRef(() => FolderService))
     private readonly folderService: FolderService,
     private readonly logoutWsService: LogoutWsService,
-
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -222,55 +221,37 @@ export class StripeService {
     switch (event.type) {
       // Checkout session events
       case 'checkout.session.completed':
-        await this.handleCheckoutSessionCompleted(
-          event.data.object as Stripe.Checkout.Session,
-        );
+        await this.handleCheckoutSessionCompleted(event.data.object);
         break;
 
       // Subscription events
       case 'customer.subscription.created':
-        await this.handleSubscriptionCreated(
-          event.data.object as Stripe.Subscription,
-        );
+        await this.handleSubscriptionCreated(event.data.object);
         break;
       case 'customer.subscription.updated':
-        await this.handleSubscriptionUpdated(
-          event.data.object as Stripe.Subscription,
-        );
+        await this.handleSubscriptionUpdated(event.data.object);
         break;
       case 'customer.subscription.deleted':
-        await this.handleSubscriptionDeleted(
-          event.data.object as Stripe.Subscription,
-        );
+        await this.handleSubscriptionDeleted(event.data.object);
         break;
 
       // Invoice events
       case 'invoice.payment_succeeded':
-        await this.handleInvoicePaymentSucceeded(
-          event.data.object as Stripe.Invoice,
-        );
+        await this.handleInvoicePaymentSucceeded(event.data.object);
         break;
       case 'invoice.payment_failed':
-        await this.handleInvoicePaymentFailed(
-          event.data.object as Stripe.Invoice,
-        );
+        await this.handleInvoicePaymentFailed(event.data.object);
         break;
 
       // Payment intent events (keeping existing ones)
       case 'payment_intent.succeeded':
-        await this.handlePaymentIntentSucceeded(
-          event.data.object as Stripe.PaymentIntent,
-        );
+        await this.handlePaymentIntentSucceeded(event.data.object);
         break;
       case 'payment_intent.payment_failed':
-        await this.handlePaymentIntentFailed(
-          event.data.object as Stripe.PaymentIntent,
-        );
+        await this.handlePaymentIntentFailed(event.data.object);
         break;
       case 'payment_intent.canceled':
-        await this.handlePaymentIntentCanceled(
-          event.data.object as Stripe.PaymentIntent,
-        );
+        await this.handlePaymentIntentCanceled(event.data.object);
         break;
 
       default:
@@ -415,7 +396,7 @@ export class StripeService {
     ) {
       console.log('when first time user subscribed to a plan trialing starts');
       const subsStartAt = new Date(subscription.start_date * 1000);
-      let subsEndAt = new Date();
+      const subsEndAt = new Date();
       if (subscription.items.data[0].plan.interval === 'month') {
         subsEndAt.setDate(subsStartAt.getDate() + 30);
       }
@@ -530,7 +511,7 @@ export class StripeService {
     // console.log('trialActive', trialActive);
     // console.log('trialEnded', trialEnded);
 
-    let existingSubscription: SubscriptionDocument | null =
+    const existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
     // console.log('existig subs', existingSubscription);
     if (!existingSubscription) return;
@@ -719,7 +700,8 @@ export class StripeService {
       );
       if (updatedSubscription) {
         // Check if it's a downgrade (new plan order < current plan order)
-        const isDowngrade = plan.order && getplan.order && plan.order < getplan.order;
+        const isDowngrade =
+          plan.order && getplan.order && plan.order < getplan.order;
 
         if (isDowngrade) {
           await this.updateUserCountsAfterDowngrade(userId, plan.features);
@@ -817,7 +799,8 @@ export class StripeService {
 
       if (updatedSubscription) {
         // Check if it's a downgrade
-        const isDowngrade = newPlan.order && getplan.order && newPlan.order < getplan.order;
+        const isDowngrade =
+          newPlan.order && getplan.order && newPlan.order < getplan.order;
 
         if (isDowngrade) {
           await this.updateUserCountsAfterDowngrade(userId, newPlan.features);
@@ -888,7 +871,7 @@ export class StripeService {
     // TODO: Send cancellation confirmation email
     // TODO: Schedule data retention period
     const metadata = subscription.metadata;
-    let existingSubscription: SubscriptionDocument | null =
+    const existingSubscription: SubscriptionDocument | null =
       await this.subscriptionRepository.findById(metadata.subscriptionId);
     if (!existingSubscription) return;
 
@@ -1073,11 +1056,9 @@ export class StripeService {
     const actualFileCount = await this.folderService.countAllFiles(userId);
 
     // Get actual collaborator count and cap at new plan limit
-    const collaborators = await this.userService.findCollaboratorsByParentId(userId);
-    const actualUserCount = Math.min(
-      collaborators.length,
-      planFeatures.users,
-    );
+    const collaborators =
+      await this.userService.findCollaboratorsByParentId(userId);
+    const actualUserCount = Math.min(collaborators.length, planFeatures.users);
 
     // Update user with actual counts (capped at plan limits)
     await this.userService.updateUser(userId, {
@@ -1106,7 +1087,8 @@ export class StripeService {
       );
 
       try {
-        const selectedFolderIds = (metadata.selectedFolderIds as string[]) || [];
+        const selectedFolderIds =
+          (metadata.selectedFolderIds as string[]) || [];
         const selectedUserIds = (metadata.selectedUserIds as string[]) || [];
         const userId = existingSubscription.user.toString();
         const targetPlanId = metadata.pendingDowngradePlanId as string;
@@ -1115,18 +1097,26 @@ export class StripeService {
         if (selectedFolderIds.length > 0) {
           // Get all user folders
           const allFolders = await this.folderService.findAllByUserId(userId);
-          const selectedIds = selectedFolderIds.map((id: string) => new Types.ObjectId(id));
+          const selectedIds = selectedFolderIds.map(
+            (id: string) => new Types.ObjectId(id),
+          );
 
           // Find non-selected folders
           const nonSelectedFolders = allFolders.filter(
-            (folder: any) => !selectedIds.some((id: Types.ObjectId) => id.equals(folder._id))
+            (folder: any) =>
+              !selectedIds.some((id: Types.ObjectId) => id.equals(folder._id)),
           );
 
           if (nonSelectedFolders.length > 0) {
-            const nonSelectedIds = nonSelectedFolders.map((f: any) => f._id.toString());
+            const nonSelectedIds = nonSelectedFolders.map((f: any) =>
+              f._id.toString(),
+            );
 
             // Move non-selected folders to deleted_folders
-            await this.folderService.moveToDeletedFolders(nonSelectedIds, 'downgrade');
+            await this.folderService.moveToDeletedFolders(
+              nonSelectedIds,
+              'downgrade',
+            );
 
             // Delete non-selected folders from main collection
             await this.folderService.deleteFoldersByIds(nonSelectedIds);
@@ -1139,18 +1129,26 @@ export class StripeService {
         // Handle user deletion if users were selected
         if (selectedUserIds.length > 0) {
           // Get all collaborators
-          const allCollaborators = await this.userService.findCollaboratorsByParentId(userId);
-          const selectedUserObjectIds = selectedUserIds.map((id: string) => new Types.ObjectId(id));
+          const allCollaborators =
+            await this.userService.findCollaboratorsByParentId(userId);
+          const selectedUserObjectIds = selectedUserIds.map(
+            (id: string) => new Types.ObjectId(id),
+          );
 
           // Find non-selected users
           const nonSelectedUsers = allCollaborators.filter(
-            (user: any) => !selectedUserObjectIds.some((id: Types.ObjectId) => id.equals(user._id))
+            (user: any) =>
+              !selectedUserObjectIds.some((id: Types.ObjectId) =>
+                id.equals(user._id),
+              ),
           );
-          console.log("nonselcted user", nonSelectedUsers);
+          console.log('nonselcted user', nonSelectedUsers);
 
           if (nonSelectedUsers.length > 0) {
-            const nonSelectedUserIds = nonSelectedUsers.map((u: any) => u._id.toString());
-            console.log("nonselcted user ids", nonSelectedUserIds);
+            const nonSelectedUserIds = nonSelectedUsers.map((u: any) =>
+              u._id.toString(),
+            );
+            console.log('nonselcted user ids', nonSelectedUserIds);
 
             // for (const removedUserId of nonSelectedUserIds) {
             //   this.logoutPubSubService.publishLogout(removedUserId);
@@ -1159,11 +1157,14 @@ export class StripeService {
               await this.logoutWsService.logoutUser(removedUserId);
             }
             // Move non-selected users to deleted_users
-            await this.userService.moveToDeletedUsers(nonSelectedUserIds, userId, 'downgrade');
+            await this.userService.moveToDeletedUsers(
+              nonSelectedUserIds,
+              userId,
+              'downgrade',
+            );
 
             // Delete non-selected users from main collection
             await this.userService.removeCollaborators(nonSelectedUserIds);
-
           }
 
           // Reset selectedForDowngrade flag on kept users
@@ -1188,20 +1189,26 @@ export class StripeService {
           });
 
           // Recalculate actual counts after downgrade
-          const remainingFolders = await this.folderService.findAllByUserId(userId);
+          const remainingFolders =
+            await this.folderService.findAllByUserId(userId);
           const actualFolderCount = remainingFolders.length;
 
-          const actualFileCount = await this.folderService.countAllFiles(userId);
+          const actualFileCount =
+            await this.folderService.countAllFiles(userId);
 
-          const collaborators = await this.userService.findCollaboratorsByParentId(userId);
+          const collaborators =
+            await this.userService.findCollaboratorsByParentId(userId);
           const actualUserCount = Math.min(
             collaborators.length,
-            targetPlan.features.users
+            targetPlan.features.users,
           );
 
           // Update user with actual counts (capped at plan limits)
           await this.userService.updateUser(userId, {
-            folderCount: Math.min(actualFolderCount, targetPlan.features.folders),
+            folderCount: Math.min(
+              actualFolderCount,
+              targetPlan.features.folders,
+            ),
             fileCount: Math.min(actualFileCount, targetPlan.features.storage),
             userCount: actualUserCount,
           });

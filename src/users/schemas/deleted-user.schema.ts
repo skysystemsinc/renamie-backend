@@ -88,7 +88,7 @@ export class DeletedUser {
   @Prop({ required: true, default: false })
   privacyPolicy: boolean;
 
-  @Prop({ default: false})
+  @Prop({ default: false })
   selectedForDowngrade?: boolean;
 
   // Deletion tracking fields

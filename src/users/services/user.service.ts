@@ -18,7 +18,7 @@ export class UserService {
     private readonly userRepository: UserRepository,
     private readonly deletedUserRepository: DeletedUserRepository,
     private readonly sseService: SSEService,
-  ) { }
+  ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.userRepository.findByEmail(
@@ -201,23 +201,23 @@ export class UserService {
     await this.userRepository.resetDowngradeFlags(userIds);
   }
 
-
-  // 
+  //
 
   async clearOtp(userId: string) {
     return this.userRepository.clearOtp(userId);
   }
 
-
-
-  async updateOtp(userId: string, otp: string, otpExpires: Date): Promise<User | null> {
+  async updateOtp(
+    userId: string,
+    otp: string,
+    otpExpires: Date,
+  ): Promise<User | null> {
     return this.userRepository.updateOtp(userId, otp, otpExpires);
   }
 
   //
 
   async findAllCollaborators(ownerId: string) {
-    return this.userRepository.findCollaborators(ownerId)
+    return this.userRepository.findCollaborators(ownerId);
   }
-
 }

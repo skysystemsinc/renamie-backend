@@ -67,17 +67,16 @@ export class PlanService {
   }
 
   //   find all plans with
- async findAllPriceAndProduct(): Promise<
-  { stripePriceId: string; stripeProductId: string }[]
-> {
-  const plans = await this.planRepository.findAll();
+  async findAllPriceAndProduct(): Promise<
+    { stripePriceId: string; stripeProductId: string }[]
+  > {
+    const plans = await this.planRepository.findAll();
 
-  return plans
-    .filter(plan => plan?.stripePriceId && plan?.stripeProductId)
-    .map(plan => ({
-      stripePriceId: plan.stripePriceId as string,
-      stripeProductId: plan.stripeProductId as string,
-    }));
-}
-
+    return plans
+      .filter((plan) => plan?.stripePriceId && plan?.stripeProductId)
+      .map((plan) => ({
+        stripePriceId: plan.stripePriceId,
+        stripeProductId: plan.stripeProductId as string,
+      }));
+  }
 }

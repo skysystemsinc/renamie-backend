@@ -5,14 +5,18 @@ import { Folder, FolderDocument } from '../schema/folder.schema';
 import { format } from 'path';
 import { QuickBookFormatDto } from '../dto/create-folder.dto';
 import { FileStatus } from '../schema/files.schema';
-import { DeletedFolder, DeletedFolderDocument } from '../schema/deleted-folder.schema';
+import {
+  DeletedFolder,
+  DeletedFolderDocument,
+} from '../schema/deleted-folder.schema';
 
 @Injectable()
 export class FolderRepository {
   constructor(
     @InjectModel(Folder.name) private folderModel: Model<FolderDocument>,
-    @InjectModel(DeletedFolder.name) private deletedFolderModel: Model<DeletedFolderDocument>,
-  ) { }
+    @InjectModel(DeletedFolder.name)
+    private deletedFolderModel: Model<DeletedFolderDocument>,
+  ) {}
 
   async create(FolderDocument: Partial<Folder>): Promise<FolderDocument> {
     const createdFolder = new this.folderModel(FolderDocument);
@@ -44,10 +48,10 @@ export class FolderRepository {
   }
 
   async findAllByUserId(userId: string): Promise<FolderDocument[]> {
-    return this.folderModel.find({ parentUser: new Types.ObjectId(userId) }).exec();
+    return this.folderModel
+      .find({ parentUser: new Types.ObjectId(userId) })
+      .exec();
   }
-
-
 
   // find folder by folder id and  parent id
   async findByFolderIdAndParentId(
@@ -85,7 +89,12 @@ export class FolderRepository {
   // update file data
   async updateFileData(
     fileId: string,
-    updates: { newName?: string; url?: string; rename_at?: Date, status?: FileStatus; },
+    updates: {
+      newName?: string;
+      url?: string;
+      rename_at?: Date;
+      status?: FileStatus;
+    },
   ): Promise<void> {
     await this.folderModel.updateOne(
       { 'files._id': new Types.ObjectId(fileId) },
@@ -683,7 +692,6 @@ export class FolderRepository {
     return folder?.files[0] ?? null;
   }
 
-
   // async getALLFilesByDateFilter(
   //   userId: string,
   //   folderId: string,
@@ -723,7 +731,6 @@ export class FolderRepository {
 
   //   return { files: result.map(r => r.file) };
   // }
-
 
   // date: string, // format: "YYYY-MM-DD"
 
@@ -767,29 +774,28 @@ export class FolderRepository {
     startDate: Date,
     endDate: Date,
   ) {
-    console.log("start dtA",startDate);
-    console.log("enddata",endDate);
+    console.log('start dtA', startDate);
+    console.log('enddata', endDate);
     const result = await this.folderModel.aggregate([
       {
         $match: {
           _id: new Types.ObjectId(folderId),
           parentUser: new Types.ObjectId(userId),
-        }
+        },
       },
-      { $unwind: "$files" },
+      { $unwind: '$files' },
       {
         $match: {
-          "files.createdAt": { $gte: startDate, $lte: endDate }
-        }
+          'files.createdAt': { $gte: startDate, $lte: endDate },
+        },
       },
-      { $project: { _id: 0, file: "$files" } },
+      { $project: { _id: 0, file: '$files' } },
     ]);
 
-    console.log("Filtered files result:", result);
+    console.log('Filtered files result:', result);
 
     return { files: result.map((r) => r.file) };
   }
-
 
   // Add this method to copy folders to deleted_folders collection:
   async moveToDeletedFolders(
@@ -820,21 +826,21 @@ export class FolderRepository {
 
   async markFoldersForDowngrade(folderIds: string[]): Promise<void> {
     await this.folderModel.updateMany(
-      { _id: { $in: folderIds.map(id => new Types.ObjectId(id)) } },
-      { $set: { selectedForDowngrade: true } }
+      { _id: { $in: folderIds.map((id) => new Types.ObjectId(id)) } },
+      { $set: { selectedForDowngrade: true } },
     );
   }
 
   async deleteFoldersByIds(folderIds: string[]): Promise<void> {
     await this.folderModel.deleteMany({
-      _id: { $in: folderIds.map(id => new Types.ObjectId(id)) },
+      _id: { $in: folderIds.map((id) => new Types.ObjectId(id)) },
     });
   }
 
   async resetDowngradeFlags(folderIds: string[]): Promise<void> {
     await this.folderModel.updateMany(
-      { _id: { $in: folderIds.map(id => new Types.ObjectId(id)) } },
-      { $set: { selectedForDowngrade: false } }
+      { _id: { $in: folderIds.map((id) => new Types.ObjectId(id)) } },
+      { $set: { selectedForDowngrade: false } },
     );
   }
 }

@@ -3,9 +3,9 @@ import { LogoutGateway } from './logout.gateway';
 
 @Injectable()
 export class LogoutWsService {
-    constructor(private readonly logoutGateway: LogoutGateway) { }
+  constructor(private readonly logoutGateway: LogoutGateway) {}
 
-    async logoutUser(userId: string) {
-        this.logoutGateway.forceLogout(userId);
-    }
+  async logoutUser(userId: string) {
+    this.logoutGateway.forceLogout(userId);
+  }
 }

@@ -51,7 +51,9 @@ export class DeletedUserRepository {
     }
   }
 
-  async findDeletedUsersByParentId(parentUserId: string): Promise<DeletedUser[]> {
+  async findDeletedUsersByParentId(
+    parentUserId: string,
+  ): Promise<DeletedUser[]> {
     return this.deletedUserModel
       .find({
         parentUserId: new Types.ObjectId(parentUserId),
@@ -60,7 +62,9 @@ export class DeletedUserRepository {
       .exec();
   }
 
-  async restoreDeletedUser(originalUserId: string): Promise<DeletedUser | null> {
+  async restoreDeletedUser(
+    originalUserId: string,
+  ): Promise<DeletedUser | null> {
     return this.deletedUserModel
       .findOneAndDelete({
         originalUserId: new Types.ObjectId(originalUserId),
@@ -78,4 +82,3 @@ export class DeletedUserRepository {
       .exec();
   }
 }
-

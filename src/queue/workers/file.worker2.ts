@@ -168,7 +168,7 @@ export class FileProcessor2 extends WorkerHost {
             mappedMetadata ?? [],
           );
         } else {
-          let newName = `${invoiceId}`;
+          const newName = `${invoiceId}`;
           await this.handleSuccessRename(
             folderId,
             fileId,
@@ -189,7 +189,7 @@ export class FileProcessor2 extends WorkerHost {
             mappedMetadata ?? [],
           );
         } else {
-          let newName = `${invoiceDate}`;
+          const newName = `${invoiceDate}`;
           await this.handleSuccessRename(
             folderId,
             fileId,

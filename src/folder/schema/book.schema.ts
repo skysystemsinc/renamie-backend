@@ -36,7 +36,6 @@ import { Types } from 'mongoose';
 //   @Prop()
 //   vendorNetTerm: number;
 // }
-
 export class Book {
   @Prop({ required: false })
   vendorName?: string;
@@ -74,6 +73,5 @@ export class Book {
   @Prop({ required: false, type: Number })
   vendorNetTerm?: number;
 }
-
 
 export const BookSchema = SchemaFactory.createForClass(Book);

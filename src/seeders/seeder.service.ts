@@ -15,7 +15,7 @@ export class SeederService {
   constructor(
     private readonly planSeeder: PlanSeeder,
     private readonly userSeeder: UserSeeder,
-  ) { }
+  ) {}
 
   async runSeeders(options: SeederOptions = {}): Promise<SeederResult[]> {
     const { clearFirst = false, seeders = ['plans', 'user'] } = options;

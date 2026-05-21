@@ -19,7 +19,7 @@ export class FileQueueService implements OnModuleInit {
     private readonly firebaseService: FirebaseService,
     private readonly sendgridService: SendgridService,
     private readonly userService: UserService,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     console.log('start');

@@ -1,73 +1,264 @@
-name: Deploy to Server
+name: Production CI/CD
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: production-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_BASE: /var/www/renamie-api
+  RELEASES_DIR: /var/www/renamie-api/releases
+  SHARED_DIR: /var/www/renamie-api/shared
+  CURRENT_LINK: /var/www/renamie-api/current
+  PM2_APP_NAME: api
+  DEPLOY_BRANCH: main
+  KEEP_RELEASES: 5
+  HEALTH_RETRIES: 24
+  HEALTH_INTERVAL_SEC: 5
+  HEALTH_CURL_TIMEOUT_SEC: 10
 
 jobs:
-  deploy:
-    name: Deploy to Production Server
+  ci:
+    name: CI
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Deploy to server via SSH
-        uses: appleboy/ssh-action@v0.1.6
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.PASSWORD }}
-          port: ${{ secrets.SSH_PORT || 22 }}
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test -- --passWithNoTests
+
+  deploy:
+    name: Deploy to Production
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Deploy via SSH (release-directory)
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_DEPLOY_TOKEN: ${{ secrets.GITHUB_DEPLOY_TOKEN }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          command_timeout: 25m
           script_stop: true
+          envs: GITHUB_REPOSITORY,GITHUB_DEPLOY_TOKEN
           script: |
-            set -e
-            echo "🚀 Starting deployment..."
-            
-            # Navigate to project directory
-            echo "📂 Navigating to project directory..."
-            cd /var/www/vhosts/demoprojects.co/renamie.demoprojects.co
+            set -euo pipefail
 
-            # Source environment and nvm (ensure Node and Yarn are available)
-            echo "🔄 Loading NVM and environment..."
-            source ~/.bashrc || true
-            source ~/.profile || true
-            source ~/.nvm/nvm.sh || true
+            APP_BASE="${{ env.APP_BASE }}"
+            RELEASES_DIR="${{ env.RELEASES_DIR }}"
+            SHARED_DIR="${{ env.SHARED_DIR }}"
+            CURRENT_LINK="${{ env.CURRENT_LINK }}"
+            PM2_APP_NAME="${{ env.PM2_APP_NAME }}"
+            DEPLOY_BRANCH="${{ env.DEPLOY_BRANCH }}"
+            KEEP_RELEASES="${{ env.KEEP_RELEASES }}"
+            HEALTH_RETRIES="${{ env.HEALTH_RETRIES }}"
+            HEALTH_INTERVAL_SEC="${{ env.HEALTH_INTERVAL_SEC }}"
+            HEALTH_CURL_TIMEOUT_SEC="${{ env.HEALTH_CURL_TIMEOUT_SEC }}"
+            GITHUB_REPOSITORY="${GITHUB_REPOSITORY:?GITHUB_REPOSITORY is required}"
 
-            # Use Node.js v22 (fallback to default if not available)
-            echo "🔢 Using Node.js v22 (fallback to default if not found)..."
-            nvm use 22 || nvm use node
+            RELEASE_ID="$(date -u +%Y%m%d%H%M%S)"
+            RELEASE_DIR="${RELEASES_DIR}/${RELEASE_ID}"
+            SHARED_ENV="${SHARED_DIR}/.env"
+            HEALTH_PATH="/api/v1/health"
 
-            echo "🧩 Versions:"
-            echo "Node.js version: $(node --version)"
-            echo "NVM version: $(nvm --version)"
-            echo "----------------------------------------------"
-            
-            # Pull latest changes
-            echo "📥 Pulling latest changes from main branch..."
-            git pull origin main
-            
-            # Install dependencies
-            echo "📦 Installing dependencies..."
-            npm install
-            
-            # Build the project
-            echo "🔨 Building the project..."
-            npm run build
+            log() {
+              printf '[%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
+            }
 
-            echo "🧾 Current PM2 list:"
-            pm2 list
-            
-            # Restart PM2 services
-            echo "🔄 Restarting PM2 services..."
-            pm2 restart renamie-backend --update-env
-            pm2 restart renamie-worker --update-env
-            
-            # Save PM2 process list
-            echo "💾 Saving PM2 process list..."
-            pm2 save
-            
-            echo "✅ Deployment completed!"
+            fail() {
+              log "ERROR: $*"
+              exit 1
+            }
 
+            require_cmd() {
+              command -v "$1" >/dev/null 2>&1 || fail "Required command not found: $1"
+            }
+
+            load_nvm() {
+              export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+              if [ -s "${NVM_DIR}/nvm.sh" ]; then
+                # shellcheck source=/dev/null
+                . "${NVM_DIR}/nvm.sh"
+                return 0
+              fi
+              return 1
+            }
+
+            use_node_version() {
+              if load_nvm; then
+                if [ -f "${RELEASE_DIR}/.nvmrc" ]; then
+                  log "Using Node.js version from .nvmrc"
+                  nvm install
+                  nvm use
+                else
+                  log "No .nvmrc found; using default Node.js from nvm"
+                  nvm use default || nvm use node
+                fi
+              else
+                log "nvm not found; using system Node.js"
+              fi
+              node --version
+              npm --version
+            }
+
+            resolve_health_url() {
+              local port="8081"
+              if [ -f "${SHARED_ENV}" ]; then
+                # shellcheck disable=SC1090
+                set -a
+                # shellcheck source=/dev/null
+                . "${SHARED_ENV}"
+                set +a
+              fi
+              if [ -n "${PORT:-}" ]; then
+                port="${PORT}"
+              fi
+              printf 'http://127.0.0.1:%s%s' "${port}" "${HEALTH_PATH}"
+            }
+
+            wait_for_health() {
+              local url="$1"
+              local attempt=1
+              log "Health check: ${url} (${HEALTH_RETRIES} attempts, ${HEALTH_INTERVAL_SEC}s interval)"
+              while [ "${attempt}" -le "${HEALTH_RETRIES}" ]; do
+                if curl -fsS --max-time "${HEALTH_CURL_TIMEOUT_SEC}" "${url}" >/dev/null; then
+                  log "Health check passed on attempt ${attempt}"
+                  return 0
+                fi
+                log "Health check attempt ${attempt}/${HEALTH_RETRIES} failed; retrying in ${HEALTH_INTERVAL_SEC}s"
+                sleep "${HEALTH_INTERVAL_SEC}"
+                attempt=$((attempt + 1))
+              done
+              return 1
+            }
+
+            assert_pm2_process_exists() {
+              if ! pm2 describe "${PM2_APP_NAME}" >/dev/null 2>&1; then
+                fail "PM2 process '${PM2_APP_NAME}' does not exist. Create it to run from ${CURRENT_LINK} before deploying."
+              fi
+            }
+
+            clone_release() {
+              mkdir -p "${RELEASES_DIR}"
+              if [ -n "${GITHUB_DEPLOY_TOKEN:-}" ]; then
+                log "Cloning ${GITHUB_REPOSITORY} (${DEPLOY_BRANCH}) via HTTPS"
+                timeout 10m git clone --depth 1 --branch "${DEPLOY_BRANCH}" \
+                  "https://x-access-token:${GITHUB_DEPLOY_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+                  "${RELEASE_DIR}"
+              else
+                log "Cloning ${GITHUB_REPOSITORY} (${DEPLOY_BRANCH}) via SSH (requires deploy key on VPS)"
+                timeout 10m git clone --depth 1 --branch "${DEPLOY_BRANCH}" \
+                  "git@github.com:${GITHUB_REPOSITORY}.git" \
+                  "${RELEASE_DIR}"
+              fi
+            }
+
+            prune_old_releases() {
+              log "Pruning old releases (keeping latest ${KEEP_RELEASES})"
+              local old_releases
+              old_releases="$(ls -1dt "${RELEASES_DIR}"/*/ 2>/dev/null | tail -n +"$((KEEP_RELEASES + 1))" || true)"
+              if [ -z "${old_releases}" ]; then
+                log "Nothing to prune"
+                return 0
+              fi
+              while IFS= read -r dir; do
+                [ -n "${dir}" ] || continue
+                log "Removing old release: ${dir%/}"
+                rm -rf "${dir%/}"
+              done <<< "${old_releases}"
+            }
+
+            rollback() {
+              local old_release="$1"
+              if [ -z "${old_release}" ] || [ ! -d "${old_release}" ]; then
+                fail "Health check failed and no valid previous release is available for rollback"
+              fi
+              log "Rolling back symlink to ${old_release}"
+              ln -sfn "${old_release}" "${CURRENT_LINK}.next"
+              mv -Tf "${CURRENT_LINK}.next" "${CURRENT_LINK}"
+              pm2 reload "${PM2_APP_NAME}" --update-env
+              if wait_for_health "$(resolve_health_url)"; then
+                pm2 save
+                fail "Deployment failed; rolled back to previous release successfully"
+              fi
+              fail "Deployment failed and rollback health check also failed"
+            }
+
+            require_cmd git
+            require_cmd curl
+            require_cmd timeout
+            require_cmd pm2
+            require_cmd npm
+            require_cmd node
+
+            [ -f "${SHARED_ENV}" ] || fail "Missing shared env file: ${SHARED_ENV}"
+
+            assert_pm2_process_exists
+
+            OLD_RELEASE=""
+            if [ -L "${CURRENT_LINK}" ]; then
+              OLD_RELEASE="$(readlink -f "${CURRENT_LINK}" || true)"
+              log "Current release: ${OLD_RELEASE:-<unresolved>}"
+            else
+              log "No current release symlink yet (first deploy)"
+            fi
+
+            log "Creating release ${RELEASE_ID}"
+            clone_release
+
+            log "Linking shared env into release"
+            ln -sfn "${SHARED_ENV}" "${RELEASE_DIR}/.env"
+
+            cd "${RELEASE_DIR}"
+            use_node_version
+
+            log "Installing dependencies (npm ci)"
+            timeout 15m npm ci
+
+            log "Building application (npm run build)"
+            timeout 15m npm run build
+
+            log "Switching current symlink to ${RELEASE_DIR}"
+            ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}.next"
+            mv -Tf "${CURRENT_LINK}.next" "${CURRENT_LINK}"
+
+            log "Reloading PM2 process '${PM2_APP_NAME}' from ${CURRENT_LINK}"
+            pm2 reload "${PM2_APP_NAME}" --update-env
+
+            HEALTH_URL="$(resolve_health_url)"
+            if wait_for_health "${HEALTH_URL}"; then
+              pm2 save
+              prune_old_releases
+              log "Deployment ${RELEASE_ID} completed successfully"
+              exit 0
+            fi
+
+            log "Health check failed after deploy; initiating rollback"
+            rollback "${OLD_RELEASE}"

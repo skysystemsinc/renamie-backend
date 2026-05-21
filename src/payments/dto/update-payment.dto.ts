@@ -1,4 +1,13 @@
-import { IsOptional, IsString, IsNumber, IsEnum, IsEmail, Min, IsObject, IsDateString } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsEmail,
+  Min,
+  IsObject,
+  IsDateString,
+} from 'class-validator';
 import { PaymentStatus, PaymentMethod } from '../schemas/payment.schema';
 
 export class UpdatePaymentDto {

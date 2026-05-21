@@ -24,8 +24,14 @@ export class ProductService {
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto): Promise<Product> {
-    const updatedProduct = await this.productRepository.update(id, updateProductDto);
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+  ): Promise<Product> {
+    const updatedProduct = await this.productRepository.update(
+      id,
+      updateProductDto,
+    );
     if (!updatedProduct) {
       throw new NotFoundException('Product not found');
     }

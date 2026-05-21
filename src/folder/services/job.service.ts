@@ -8,9 +8,7 @@ import { FolderService } from './folder.service';
 export class JobService {
   private readonly logger = new Logger(JobService.name);
 
-  constructor(
-    private readonly folderService: FolderService,
-  ) {}
+  constructor(private readonly folderService: FolderService) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async softDeleteOldFiles() {

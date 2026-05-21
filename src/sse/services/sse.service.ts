@@ -26,8 +26,4 @@ export class SSEService {
       client.write(`event: logout\ndata: "USER_LOGOUT"\n\n`);
     }
   }
-
- 
 }
-
-

@@ -11,9 +11,9 @@ export class PresignedUrlDto {
   @IsString()
   key: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'URL expiration time in seconds',
-    default: 3600
+    default: 3600,
   })
   @IsOptional()
   expiresIn?: number;
@@ -23,10 +23,10 @@ export class PresignedUrlDto {
   @IsString()
   contentType?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Access control list',
     enum: ['public-read', 'private'],
-    default: 'private'
+    default: 'private',
   })
   @IsOptional()
   @IsEnum(['public-read', 'private'])

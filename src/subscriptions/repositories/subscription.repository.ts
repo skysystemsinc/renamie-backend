@@ -12,7 +12,7 @@ export class SubscriptionRepository {
   constructor(
     @InjectModel(Subscription.name)
     private subscriptionModel: Model<SubscriptionDocument>,
-  ) { }
+  ) {}
 
   async create(
     SubscriptionDocument: Partial<Subscription>,
@@ -108,7 +108,9 @@ export class SubscriptionRepository {
     const activeSub = await this.subscriptionModel
       .findOne({
         user: new Types.ObjectId(userId),
-        status: { $in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING] },
+        status: {
+          $in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING],
+        },
       })
       .sort({ createdAt: -1 })
       .select('status plan')
@@ -126,5 +128,4 @@ export class SubscriptionRepository {
       .lean()
       .exec();
   }
-
 }

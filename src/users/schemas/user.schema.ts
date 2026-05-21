@@ -97,7 +97,6 @@ export class User {
 
   @Prop()
   otpExpires?: Date;
-
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

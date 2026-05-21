@@ -28,5 +28,4 @@ export class StripeController {
       return { received: false, error: error.message };
     }
   }
-
 }

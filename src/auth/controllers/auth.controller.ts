@@ -22,7 +22,7 @@ interface AuthenticatedRequest extends ExpressRequest {
   user: User & { _id: string };
 }
 import { RegisterDto } from '../dto/register.dto';
-import { RefreshTokenDto, } from '../dto/refresh-token.dto';
+import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { ApiResponseDto } from '../../common/dto/api-response.dto';
@@ -42,7 +42,7 @@ import {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
@@ -196,16 +196,14 @@ export class AuthController {
     );
   }
 
-
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-    console.log("test")
+    console.log('test');
     const result = await this.authService.verifyOtp(verifyOtpDto);
-    console.log("res verify", result);
+    console.log('res verify', result);
     return ApiResponseDto.success('Login successful', result);
   }
-
 
   @Post('resend-otp')
   @HttpCode(HttpStatus.OK)

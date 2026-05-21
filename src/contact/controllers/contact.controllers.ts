@@ -7,16 +7,16 @@ import { CreateContactDto } from '../dto/contact-dto';
 @ApiTags('contact')
 @Controller('contact')
 export class ContactController {
-    constructor(private readonly contactService: ContactService) { }
+  constructor(private readonly contactService: ContactService) {}
 
-    @Post()
-    @ApiBody({ type: CreateContactDto })
-    @ApiOperation({ summary: 'Create a contact message' })
-    async createContact(@Body() createContactDto: CreateContactDto) {
-        const contact = await this.contactService.createContact(createContactDto);
-        return ApiResponseDto.success(
-            'Contact form submitted successfully',
-            contact,
-        );
-    }
+  @Post()
+  @ApiBody({ type: CreateContactDto })
+  @ApiOperation({ summary: 'Create a contact message' })
+  async createContact(@Body() createContactDto: CreateContactDto) {
+    const contact = await this.contactService.createContact(createContactDto);
+    return ApiResponseDto.success(
+      'Contact form submitted successfully',
+      contact,
+    );
+  }
 }

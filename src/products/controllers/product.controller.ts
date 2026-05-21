@@ -51,7 +51,10 @@ export class ProductController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
     const product = await this.productService.update(id, updateProductDto);
     return ApiResponseDto.success('Product updated successfully', product);
   }

@@ -28,7 +28,7 @@ export class Folder {
   @Prop({ type: BookSchema })
   book: Book;
 
-  @Prop({type: Boolean, default: false})
+  @Prop({ type: Boolean, default: false })
   selectedForDowngrade: boolean;
 }
 

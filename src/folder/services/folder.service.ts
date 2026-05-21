@@ -26,7 +26,7 @@ export class FolderService {
     private readonly folderRepository: FolderRepository,
     @Inject(forwardRef(() => SubscriptionService))
     private readonly subscriptionService: SubscriptionService,
-  ) { }
+  ) {}
 
   async createFolder(createFoldersDto: CreateFoldersDto, userId: string) {
     const user = await this.userService.findById(userId);
@@ -542,7 +542,11 @@ export class FolderService {
 
   // get Export files
 
-  async getExportFiles(userId: string, folderId: string, date?: string, timezone?: string,
+  async getExportFiles(
+    userId: string,
+    folderId: string,
+    date?: string,
+    timezone?: string,
   ) {
     const user = await this.userService.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -567,8 +571,8 @@ export class FolderService {
       utcStart = userDate.startOf('day').toUTC().toJSDate();
       utcEnd = userDate.endOf('day').toUTC().toJSDate();
     }
-    console.log("start data", utcStart);
-    console.log("utsend", utcEnd);
+    console.log('start data', utcStart);
+    console.log('utsend', utcEnd);
     const bookData = folder?.book;
 
     let allFiles;
@@ -602,10 +606,10 @@ export class FolderService {
       'Payment Account': 'NA',
       'Payment Method': 'NA',
       'Customer/Project': 'NA',
-      'Class': 'NA',
-      'Type': 'NA',
+      Class: 'NA',
+      Type: 'NA',
       'Vendor Net Term': 'NA',
-      'Description': 'NA',
+      Description: 'NA',
     };
     if (bookData) {
       manualFields['Vendor Name'] = bookData.vendorName ?? 'NA';
@@ -687,8 +691,7 @@ export class FolderService {
     await this.folderRepository.deleteFilesPermanently();
   }
 
-
-  // 
+  //
   async getBookDetails(userId: string, folderId: string) {
     const user = await this.userService.findById(userId);
     if (!user) {
@@ -707,7 +710,6 @@ export class FolderService {
       throw new NotFoundException('Folder not found');
     }
     return folder.book ?? null;
-
   }
 
   async findAllByUserId(userId: string) {
@@ -718,7 +720,10 @@ export class FolderService {
     await this.folderRepository.markFoldersForDowngrade(folderIds);
   }
 
-  async moveToDeletedFolders(folderIds: string[], reason?: string): Promise<void> {
+  async moveToDeletedFolders(
+    folderIds: string[],
+    reason?: string,
+  ): Promise<void> {
     await this.folderRepository.moveToDeletedFolders(folderIds, reason);
   }
 

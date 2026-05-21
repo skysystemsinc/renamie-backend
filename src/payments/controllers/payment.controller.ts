@@ -31,7 +31,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentController {
-  constructor(private readonly paymentService: PaymentService) { }
+  constructor(private readonly paymentService: PaymentService) {}
 
   @ApiOperation({ summary: 'Process a payment' })
   @Post('process')
@@ -40,7 +40,10 @@ export class PaymentController {
     @Body() processPaymentDto: ProcessPaymentDto,
     @CurrentUser('id') userId: string,
   ) {
-    const result = await this.paymentService.processPayment(processPaymentDto, userId);
+    const result = await this.paymentService.processPayment(
+      processPaymentDto,
+      userId,
+    );
     return ApiResponseDto.success('Payment processed successfully', result);
   }
 
@@ -74,21 +77,30 @@ export class PaymentController {
     @Query() paginationDto: PaginationDto,
   ) {
     const payments = await this.paymentService.findByUserId(userId);
-    return ApiResponseDto.success('User payments retrieved successfully', payments);
+    return ApiResponseDto.success(
+      'User payments retrieved successfully',
+      payments,
+    );
   }
 
   @Get('order/:orderId')
   @UseGuards(JwtAuthGuard)
   async findByOrderId(@Param('orderId') orderId: string) {
     const payments = await this.paymentService.findByOrderId(orderId);
-    return ApiResponseDto.success('Order payments retrieved successfully', payments);
+    return ApiResponseDto.success(
+      'Order payments retrieved successfully',
+      payments,
+    );
   }
 
   @Get('stats')
   @UseGuards(JwtAuthGuard)
   async getPaymentStats(@Query('userId') userId?: string) {
     const stats = await this.paymentService.getPaymentStats(userId);
-    return ApiResponseDto.success('Payment stats retrieved successfully', stats);
+    return ApiResponseDto.success(
+      'Payment stats retrieved successfully',
+      stats,
+    );
   }
 
   @Get(':id')
@@ -101,8 +113,14 @@ export class PaymentController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.ADMIN)
-  async update(@Param('id') id: string, @Body() updatePaymentDto: UpdatePaymentDto) {
-    const payment = await this.paymentService.updatePayment(id, updatePaymentDto);
+  async update(
+    @Param('id') id: string,
+    @Body() updatePaymentDto: UpdatePaymentDto,
+  ) {
+    const payment = await this.paymentService.updatePayment(
+      id,
+      updatePaymentDto,
+    );
     return ApiResponseDto.success('Payment updated successfully', payment);
   }
 

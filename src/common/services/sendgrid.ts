@@ -22,9 +22,8 @@ interface DynamicDataType {
   lastName?: string;
   email?: string;
   message?: string;
-  currentYear?: string
-  otp?: string
-
+  currentYear?: string;
+  otp?: string;
 }
 
 @Injectable()
@@ -36,8 +35,7 @@ export class SendgridService {
     if (!apiKey) {
       throw new InternalServerErrorException('SENDGRID_API_KEY is missing');
     }
-    this.fromEmail =
-      process.env.SENDGRID_EMAIL_FROM || 'contact@renamie.com';
+    this.fromEmail = process.env.SENDGRID_EMAIL_FROM || 'contact@renamie.com';
     SendGrid.setApiKey(apiKey);
   }
 
@@ -46,7 +44,7 @@ export class SendgridService {
     templateId: string,
     dynamicData: DynamicDataType,
     emailNotification?: boolean,
-    from?: string
+    from?: string,
   ): Promise<void> {
     try {
       const msg: SendGrid.MailDataRequired = {
@@ -55,10 +53,10 @@ export class SendgridService {
         templateId,
         dynamicTemplateData: dynamicData,
       };
-      console.log("from", from);
+      console.log('from', from);
       if (!emailNotification) return;
       const result = await SendGrid.send(msg);
-      console.log("result", result);
+      console.log('result', result);
       // const response = result[0];
       console.log(
         `Email accepted by SendGrid recipient ${to} using template ${templateId}.`,
@@ -74,7 +72,6 @@ export class SendgridService {
       );
     }
   }
-
 
   async sendVerificationEmail(
     to: string,
@@ -262,7 +259,6 @@ export class SendgridService {
         },
         true,
       );
-
     } catch (error) {
       console.error(`Failed to send Collaboration email to ${to}.`);
       throw error;
@@ -276,7 +272,6 @@ export class SendgridService {
     expiresAt: string,
     plan: string,
   ) {
-
     try {
       await this.sendTemplateMail(
         to,
@@ -358,7 +353,7 @@ export class SendgridService {
     lastName: string,
     email: string,
     message: string,
-    currentYear: string
+    currentYear: string,
   ) {
     try {
       await this.sendTemplateMail(
@@ -369,12 +364,11 @@ export class SendgridService {
           lastName: lastName,
           email: email,
           message: message,
-          currentYear: currentYear
+          currentYear: currentYear,
         },
         true,
-        email
+        email,
       );
-
     } catch (error) {
       console.error(`Failed to send Contact email to ${to}.`);
       throw error;
@@ -382,19 +376,17 @@ export class SendgridService {
   }
 
   // send otp email
-  async sendOtpEmail(to: string,
-    firstName: string, otp: string) {
+  async sendOtpEmail(to: string, firstName: string, otp: string) {
     try {
       await this.sendTemplateMail(
         to,
         emailConstant.otpTempId,
         {
           userName: firstName,
-          otp: otp
+          otp: otp,
         },
         true,
       );
-
     } catch (error) {
       console.error(`Failed to send Contact email to ${to}.`);
       throw error;

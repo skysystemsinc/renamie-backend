@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Payment, PaymentDocument, PaymentStatus } from '../schemas/payment.schema';
+import {
+  Payment,
+  PaymentDocument,
+  PaymentStatus,
+} from '../schemas/payment.schema';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { UpdatePaymentDto } from '../dto/update-payment.dto';
 
@@ -24,7 +28,9 @@ export class PaymentRepository {
     return this.paymentModel.findById(id).exec();
   }
 
-  async findByStripePaymentIntentId(stripePaymentIntentId: string): Promise<PaymentDocument | null> {
+  async findByStripePaymentIntentId(
+    stripePaymentIntentId: string,
+  ): Promise<PaymentDocument | null> {
     return this.paymentModel.findOne({ stripePaymentIntentId }).exec();
   }
 
@@ -43,7 +49,10 @@ export class PaymentRepository {
     return this.paymentModel.find({ orderId }).sort({ createdAt: -1 }).exec();
   }
 
-  async update(id: string, updatePaymentDto: UpdatePaymentDto): Promise<PaymentDocument | null> {
+  async update(
+    id: string,
+    updatePaymentDto: UpdatePaymentDto,
+  ): Promise<PaymentDocument | null> {
     return this.paymentModel
       .findByIdAndUpdate(id, updatePaymentDto, { new: true })
       .exec();
@@ -54,21 +63,23 @@ export class PaymentRepository {
     updatePaymentDto: UpdatePaymentDto,
   ): Promise<PaymentDocument | null> {
     return this.paymentModel
-      .findOneAndUpdate(
-        { stripePaymentIntentId },
-        updatePaymentDto,
-        { new: true }
-      )
+      .findOneAndUpdate({ stripePaymentIntentId }, updatePaymentDto, {
+        new: true,
+      })
       .exec();
   }
 
-  async updateStatus(id: string, status: PaymentStatus, additionalData?: Partial<UpdatePaymentDto>): Promise<PaymentDocument | null> {
+  async updateStatus(
+    id: string,
+    status: PaymentStatus,
+    additionalData?: Partial<UpdatePaymentDto>,
+  ): Promise<PaymentDocument | null> {
     const updateData: any = { status };
-    
+
     if (status === PaymentStatus.SUCCEEDED) {
       updateData.processedAt = new Date();
     }
-    
+
     if (additionalData) {
       Object.assign(updateData, additionalData);
     }
@@ -102,23 +113,25 @@ export class PaymentRepository {
           totalAmount: { $sum: '$amount' },
           successfulPayments: {
             $sum: {
-              $cond: [{ $eq: ['$status', PaymentStatus.SUCCEEDED] }, 1, 0]
-            }
+              $cond: [{ $eq: ['$status', PaymentStatus.SUCCEEDED] }, 1, 0],
+            },
           },
           failedPayments: {
             $sum: {
-              $cond: [{ $eq: ['$status', PaymentStatus.FAILED] }, 1, 0]
-            }
-          }
-        }
-      }
+              $cond: [{ $eq: ['$status', PaymentStatus.FAILED] }, 1, 0],
+            },
+          },
+        },
+      },
     ]);
 
-    return stats[0] || {
-      totalPayments: 0,
-      totalAmount: 0,
-      successfulPayments: 0,
-      failedPayments: 0,
-    };
+    return (
+      stats[0] || {
+        totalPayments: 0,
+        totalAmount: 0,
+        successfulPayments: 0,
+        failedPayments: 0,
+      }
+    );
   }
 }

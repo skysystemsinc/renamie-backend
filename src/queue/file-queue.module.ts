@@ -10,15 +10,28 @@ import { Folder, FolderSchema } from 'src/folder/schema/folder.schema';
 import { UsersModule } from 'src/users/users.module';
 import { SendgridService } from 'src/common/services/sendgrid';
 import { FolderRepository } from 'src/folder/repositories/folder.repository';
-import { DeletedFolder, DeletedFolderSchema } from 'src/folder/schema/deleted-folder.schema';
+import {
+  DeletedFolder,
+  DeletedFolderSchema,
+} from 'src/folder/schema/deleted-folder.schema';
 
 @Module({
   imports: [
     BullModule.registerQueue({ name: 'file' }),
-    MongooseModule.forFeature([{ name: Folder.name, schema: FolderSchema }, { name: DeletedFolder.name, schema: DeletedFolderSchema }]),
+    MongooseModule.forFeature([
+      { name: Folder.name, schema: FolderSchema },
+      { name: DeletedFolder.name, schema: DeletedFolderSchema },
+    ]),
     UsersModule,
   ],
-  providers: [FileQueueService, FileProcessor, FileProcessor2, TextractService, SendgridService, FolderRepository],
+  providers: [
+    FileQueueService,
+    FileProcessor,
+    FileProcessor2,
+    TextractService,
+    SendgridService,
+    FolderRepository,
+  ],
   exports: [FileQueueService],
 })
 export class FileQueueModule {}

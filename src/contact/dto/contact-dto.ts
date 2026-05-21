@@ -1,4 +1,10 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateContactDto {
@@ -21,7 +27,10 @@ export class CreateContactDto {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ description: 'Message', example: 'Hello, I have a question...' })
+  @ApiProperty({
+    description: 'Message',
+    example: 'Hello, I have a question...',
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(5)

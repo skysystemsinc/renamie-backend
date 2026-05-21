@@ -9,13 +9,16 @@ import { Folder, FolderSchema } from './schema/folder.schema';
 import { S3Service } from 'src/common/services/s3.service';
 import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 import { JobService } from './services/job.service';
-import { DeletedFolder, DeletedFolderSchema } from './schema/deleted-folder.schema';
+import {
+  DeletedFolder,
+  DeletedFolderSchema,
+} from './schema/deleted-folder.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Folder.name, schema: FolderSchema },
-      { name: DeletedFolder.name, schema: DeletedFolderSchema }
+      { name: DeletedFolder.name, schema: DeletedFolderSchema },
     ]),
     UsersModule,
     FileQueueModule,

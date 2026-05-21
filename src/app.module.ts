@@ -52,7 +52,7 @@ import { LogoutWsModule } from './websocket/logout-ws.module';
     SSEModule,
     AdminModule,
     ContactModule,
-    LogoutWsModule
+    LogoutWsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -69,4 +69,4 @@ import { LogoutWsModule } from './websocket/logout-ws.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

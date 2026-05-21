@@ -12,7 +12,13 @@ import { SubscriptionsModule } from 'src/subscriptions/subscriptions.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule, FoldersModule, FileQueueModule, UsersModule, SubscriptionsModule],
+  imports: [
+    ConfigModule,
+    FoldersModule,
+    FileQueueModule,
+    UsersModule,
+    SubscriptionsModule,
+  ],
   controllers: [S3Controller],
   providers: [S3Service, TextractService, LLMService, FirebaseService],
   exports: [S3Service, TextractService, LLMService, FirebaseService],
