@@ -57,7 +57,6 @@ export class StripeService {
     @Inject(forwardRef(() => FolderService))
     private readonly folderService: FolderService,
     private readonly logoutWsService: LogoutWsService,
-
   ) {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (!stripeSecretKey) {
@@ -656,7 +655,6 @@ export class StripeService {
       subscription.cancel_at_period_end &&
       subscription.cancellation_details?.reason === 'cancellation_requested'
     ) {
-      console.log('subscription cancellation request');
       // Optional: update Stripe subscription metadata with current plan
 
       const cancelAtDate: Date | undefined = subscription.cancel_at
@@ -697,11 +695,26 @@ export class StripeService {
       stripePriceId !== getplan?.stripePriceId &&
       trialEnded
     ) {
-      console.log('subscription update after one active plan');
       // Optional: update Stripe subscription metadata with current plan
 
       const plan = await this.planService.findByStripePriceId(stripePriceId);
       if (!plan) return;
+
+      const isUpgrade = plan.order > getplan.order;
+      if (isUpgrade) {
+        await this.subscriptionRepository.update(existingSubscription.id, {
+          metadata: {
+            ...(existingSubscription.metadata || {}),
+            pendingPlanId: plan.id,
+            planChangeScheduled: true,
+          },
+        });
+        this.logger.log(
+          `Scheduled plan ${plan.name} for subscription ${existingSubscription.id}; it will become active on the next billing cycle`,
+        );
+        return;
+      }
+
       const subsStartAt = new Date(subscription.start_date * 1000);
       const subsEndAt = new Date(subsStartAt);
       subsEndAt.setMonth(subsEndAt.getMonth() + 1);
@@ -719,7 +732,8 @@ export class StripeService {
       );
       if (updatedSubscription) {
         // Check if it's a downgrade (new plan order < current plan order)
-        const isDowngrade = plan.order && getplan.order && plan.order < getplan.order;
+        const isDowngrade =
+          plan.order && getplan.order && plan.order < getplan.order;
 
         if (isDowngrade) {
           await this.updateUserCountsAfterDowngrade(userId, plan.features);
@@ -817,7 +831,8 @@ export class StripeService {
 
       if (updatedSubscription) {
         // Check if it's a downgrade
-        const isDowngrade = newPlan.order && getplan.order && newPlan.order < getplan.order;
+        const isDowngrade =
+          newPlan.order && getplan.order && newPlan.order < getplan.order;
 
         if (isDowngrade) {
           await this.updateUserCountsAfterDowngrade(userId, newPlan.features);
@@ -967,7 +982,7 @@ export class StripeService {
     }
   }
 
-  // Invoice event handlers
+   // Invoice event handlers
   private async handleInvoicePaymentSucceeded(
     invoice: Stripe.Invoice,
   ): Promise<void> {
@@ -975,11 +990,191 @@ export class StripeService {
       `Invoice payment succeeded: ${invoice.id} for customer ${invoice.customer}`,
     );
 
-    // TODO: Update subscription renewal date
-    // TODO: Send payment confirmation email
-    // TODO: Extend subscription period
-    // TODO: Log successful payment for analytics
+    // Reset the monthly PDF allowance only when a new billing cycle starts.
+    // Everything else is skipped, which also covers the trial converting to the
+    // first paid subscription: Stripe bills that one as 'subscription_create',
+    // so the trial usage carries into the first paid month. Mid-cycle plan
+    // changes ('subscription_update') keep the usage until the month ends.
+    if (invoice.billing_reason !== 'subscription_cycle') {
+      this.logger.log(
+        `Skipping fileCount reset for invoice ${invoice.id}: billing_reason is '${invoice.billing_reason}', not 'subscription_cycle'`,
+      );
+      return;
+    }
+
+    const stripeSubscriptionId =
+      this.getStripeSubscriptionIdFromInvoice(invoice);
+    if (!stripeSubscriptionId) {
+      this.logger.warn(
+        `No subscription ID found on invoice ${invoice.id}; skipping fileCount reset`,
+      );
+      return;
+    }
+
+    console.log("invoice",invoice);
+
+    let existingSubscription =
+      await this.subscriptionRepository.findByStripeSubscriptionId(
+        stripeSubscriptionId,
+      );
+
+    if (!existingSubscription) {
+      this.logger.warn(
+        `Subscription not found for Stripe subscription ${stripeSubscriptionId}; skipping fileCount reset`,
+      );
+      return;
+    }
+
+    // The cycle that starts exactly at the trial end is the trial converting to
+    // the first paid month, so the trial usage carries over. Every later renewal
+    // starts a full billing interval after the trial end and resets as normal.
+    if (this.isTrialConversionInvoice(invoice, existingSubscription)) {
+      this.logger.log(
+        `Skipping fileCount reset for subscription ${stripeSubscriptionId}: trial converting to first paid month (invoice ${invoice.id})`,
+      );
+      return;
+    }
+
+    const pendingPlanId = existingSubscription.metadata?.pendingPlanId;
+    if (pendingPlanId) {
+      const pendingPlan = await this.planService.findById(
+        String(pendingPlanId),
+      );
+      if (!pendingPlan) {
+        this.logger.warn(
+          `Pending plan ${pendingPlanId} not found for subscription ${stripeSubscriptionId}; leaving the current plan active`,
+        );
+      } else {
+        const activatedSubscription =
+          await this.subscriptionRepository.update(existingSubscription.id, {
+            plan: new Types.ObjectId(pendingPlan.id),
+            features: pendingPlan.features,
+            metadata: {
+              ...(existingSubscription.metadata || {}),
+              pendingPlanId: undefined,
+              planChangeScheduled: false,
+            },
+          });
+
+        if (!activatedSubscription) {
+          this.logger.warn(
+            `Could not activate pending plan ${pendingPlan.id} for subscription ${stripeSubscriptionId}`,
+          );
+        } else {
+          existingSubscription = activatedSubscription;
+          this.logger.log(
+            `Activated plan ${pendingPlan.name} for subscription ${stripeSubscriptionId} on billing-cycle renewal`,
+          );
+
+          try {
+            const db = this.firebaseService.getDb();
+            await db
+              .ref(`users/${existingSubscription.user.toString()}/subscription`)
+              .update({ plan: pendingPlan.id });
+          } catch (error) {
+            this.logger.error(
+              `Failed to update renewed plan in Firebase: ${error.message}`,
+            );
+          }
+        }
+      }
+    }
+
+    const userId =
+      existingSubscription.user instanceof Types.ObjectId
+        ? existingSubscription.user.toString()
+        : String(existingSubscription.user);
+
+    await this.userService.updateUser(userId, { fileCount: 0 });
+    this.logger.log(
+      `Reset fileCount to 0 for user ${userId} on subscription renewal (invoice ${invoice.id})`,
+    );
   }
+
+  /**
+   * True only for the invoice that bills the first paid month straight after a
+   * trial. That cycle starts at the trial end, so it is anchored to
+   * `trialExpiresAt` rather than to "the first cycle seen" — a counter-style
+   * check would swallow a later month if the conversion arrived as a
+   * `subscription_update` (which happens when the user converts through the
+   * billing portal instead of letting the trial expire).
+   */
+  private isTrialConversionInvoice(
+    invoice: Stripe.Invoice,
+    existingSubscription: SubscriptionDocument,
+  ): boolean {
+    const trialExpiresAt = existingSubscription.trialExpiresAt;
+    if (!trialExpiresAt) {
+      return false;
+    }
+
+    const periodStartSeconds =
+      invoice.lines?.data?.[0]?.period?.start ?? invoice.period_start;
+    if (!periodStartSeconds) {
+      return false;
+    }
+
+    const periodStartMs = periodStartSeconds * 1000;
+    const toleranceMs = 60 * 60 * 1000; // absorbs timestamp rounding only
+
+    const isConversion =
+      periodStartMs <= trialExpiresAt.getTime() + toleranceMs;
+
+    this.logger.log(
+      `Trial conversion check for invoice ${invoice.id}: periodStart=${new Date(
+        periodStartMs,
+      ).toISOString()} trialExpiresAt=${trialExpiresAt.toISOString()} isConversion=${isConversion}`,
+    );
+
+    return isConversion;
+  }
+
+  private getStripeSubscriptionIdFromInvoice(
+    invoice: Stripe.Invoice,
+  ): string | null {
+    const legacySubscription = (
+      invoice as Stripe.Invoice & {
+        subscription?: string | Stripe.Subscription | null;
+      }
+    ).subscription;
+
+    if (typeof legacySubscription === 'string' && legacySubscription) {
+      return legacySubscription;
+    }
+    if (
+      legacySubscription &&
+      typeof legacySubscription === 'object' &&
+      'id' in legacySubscription &&
+      typeof legacySubscription.id === 'string'
+    ) {
+      return legacySubscription.id;
+    }
+
+    const parentSubscription = (
+      invoice as Stripe.Invoice & {
+        parent?: {
+          subscription_details?: {
+            subscription?: string | Stripe.Subscription | null;
+          };
+        };
+      }
+    ).parent?.subscription_details?.subscription;
+
+    if (typeof parentSubscription === 'string' && parentSubscription) {
+      return parentSubscription;
+    }
+    if (
+      parentSubscription &&
+      typeof parentSubscription === 'object' &&
+      'id' in parentSubscription &&
+      typeof parentSubscription.id === 'string'
+    ) {
+      return parentSubscription.id;
+    }
+
+    return null;
+  }
+  //
 
   private async handleInvoicePaymentFailed(
     invoice: Stripe.Invoice,
@@ -1076,8 +1271,7 @@ export class StripeService {
     const collaborators = await this.userService.findCollaboratorsByParentId(userId);
     const actualUserCount = Math.min(
       collaborators.length,
-      planFeatures.users,
-    );
+     planFeatures.users);
 
     // Update user with actual counts (capped at plan limits)
     await this.userService.updateUser(userId, {
@@ -1106,7 +1300,8 @@ export class StripeService {
       );
 
       try {
-        const selectedFolderIds = (metadata.selectedFolderIds as string[]) || [];
+        const selectedFolderIds =
+          (metadata.selectedFolderIds as string[]) || [];
         const selectedUserIds = (metadata.selectedUserIds as string[]) || [];
         const userId = existingSubscription.user.toString();
         const targetPlanId = metadata.pendingDowngradePlanId as string;
@@ -1115,18 +1310,25 @@ export class StripeService {
         if (selectedFolderIds.length > 0) {
           // Get all user folders
           const allFolders = await this.folderService.findAllByUserId(userId);
-          const selectedIds = selectedFolderIds.map((id: string) => new Types.ObjectId(id));
+          const selectedIds = selectedFolderIds.map(
+            (id: string) => new Types.ObjectId(id),
+          );
 
           // Find non-selected folders
           const nonSelectedFolders = allFolders.filter(
-            (folder: any) => !selectedIds.some((id: Types.ObjectId) => id.equals(folder._id))
+            (folder: any) => !selectedIds.some((id: Types.ObjectId) => id.equals(folder._id)),
           );
 
           if (nonSelectedFolders.length > 0) {
-            const nonSelectedIds = nonSelectedFolders.map((f: any) => f._id.toString());
+            const nonSelectedIds = nonSelectedFolders.map((f: any) =>
+              f._id.toString(),
+            );
 
             // Move non-selected folders to deleted_folders
-            await this.folderService.moveToDeletedFolders(nonSelectedIds, 'downgrade');
+            await this.folderService.moveToDeletedFolders(
+              nonSelectedIds,
+              'downgrade',
+            );
 
             // Delete non-selected folders from main collection
             await this.folderService.deleteFoldersByIds(nonSelectedIds);
@@ -1140,17 +1342,24 @@ export class StripeService {
         if (selectedUserIds.length > 0) {
           // Get all collaborators
           const allCollaborators = await this.userService.findCollaboratorsByParentId(userId);
-          const selectedUserObjectIds = selectedUserIds.map((id: string) => new Types.ObjectId(id));
+          const selectedUserObjectIds = selectedUserIds.map(
+            (id: string) => new Types.ObjectId(id),
+          );
 
           // Find non-selected users
           const nonSelectedUsers = allCollaborators.filter(
-            (user: any) => !selectedUserObjectIds.some((id: Types.ObjectId) => id.equals(user._id))
+            (user: any) =>
+              !selectedUserObjectIds.some((id: Types.ObjectId) =>
+                id.equals(user._id),
+              ),
           );
-          console.log("nonselcted user", nonSelectedUsers);
+          console.log('nonselcted user', nonSelectedUsers);
 
           if (nonSelectedUsers.length > 0) {
-            const nonSelectedUserIds = nonSelectedUsers.map((u: any) => u._id.toString());
-            console.log("nonselcted user ids", nonSelectedUserIds);
+            const nonSelectedUserIds = nonSelectedUsers.map((u: any) =>
+              u._id.toString(),
+            );
+            console.log('nonselcted user ids', nonSelectedUserIds);
 
             // for (const removedUserId of nonSelectedUserIds) {
             //   this.logoutPubSubService.publishLogout(removedUserId);
@@ -1159,11 +1368,14 @@ export class StripeService {
               await this.logoutWsService.logoutUser(removedUserId);
             }
             // Move non-selected users to deleted_users
-            await this.userService.moveToDeletedUsers(nonSelectedUserIds, userId, 'downgrade');
+            await this.userService.moveToDeletedUsers(
+              nonSelectedUserIds,
+              userId,
+              'downgrade',
+            );
 
             // Delete non-selected users from main collection
             await this.userService.removeCollaborators(nonSelectedUserIds);
-
           }
 
           // Reset selectedForDowngrade flag on kept users
@@ -1196,12 +1408,15 @@ export class StripeService {
           const collaborators = await this.userService.findCollaboratorsByParentId(userId);
           const actualUserCount = Math.min(
             collaborators.length,
-            targetPlan.features.users
+            targetPlan.features.users,
           );
 
           // Update user with actual counts (capped at plan limits)
           await this.userService.updateUser(userId, {
-            folderCount: Math.min(actualFolderCount, targetPlan.features.folders),
+            folderCount: Math.min(
+              actualFolderCount,
+              targetPlan.features.folders,
+            ),
             fileCount: Math.min(actualFileCount, targetPlan.features.storage),
             userCount: actualUserCount,
           });
