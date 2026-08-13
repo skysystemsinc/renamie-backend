@@ -74,7 +74,6 @@ export class TextractService {
       } else if (response.JobStatus === 'FAILED') {
         throw new Error(`Textract job failed for JobId=${jobId}`);
       } else {
-        console.log('Job in progress');
         await new Promise((r) => setTimeout(r, 5000));
       }
     }
