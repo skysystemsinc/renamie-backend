@@ -82,8 +82,16 @@ jobs:
           HEALTH_CURL_TIMEOUT_SEC="${{ env.HEALTH_CURL_TIMEOUT_SEC }}"
 
           mkdir -p ~/.ssh
-          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key
+          # Normalize Windows/CRLF secrets and ensure trailing newline (OpenSSH requires it)
+          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null 2>&1; then
+            echo "Error: VPS_SSH_KEY is not a valid private key (check secret formatting / PEM contents)."
+            exit 1
+          fi
+
+          echo "Deploy target: ${VPS_USER}@${VPS_HOST}:${VPS_PORT}"
 
           retry() {
             local attempts=3
@@ -92,19 +100,24 @@ jobs:
 
             until "$@"; do
               if [ "$count" -ge "$attempts" ]; then
-                echo "Command failed after $attempts attempts."
+                echo "Command failed after $attempts attempts: $*"
                 return 1
               fi
 
-              echo "Attempt $count failed. Retrying in ${delay}s..."
+              echo "Attempt $count failed ($*). Retrying in ${delay}s..."
               sleep "$delay"
               count=$((count + 1))
             done
           }
 
-          retry ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          echo "Scanning host keys for ${VPS_HOST}:${VPS_PORT}..."
+          if ! retry ssh-keyscan -p "$VPS_PORT" -T 10 -H "$VPS_HOST" >> ~/.ssh/known_hosts; then
+            echo "Error: ssh-keyscan failed. VPS_HOST may be unreachable from GitHub Actions (DNS, firewall, or wrong host/port)."
+            exit 1
+          fi
 
-          retry ssh -i ~/.ssh/deploy_key \
+          echo "Connecting over SSH and running remote deploy script..."
+          if retry ssh -i ~/.ssh/deploy_key \
             -p "$VPS_PORT" \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
@@ -420,3 +433,10 @@ jobs:
           fi
           fail "Deployment failed and rollback health check also failed"
           REMOTE_SCRIPT
+          then
+            echo "Remote deploy finished successfully."
+          else
+            echo "Error: SSH session or remote deploy script failed."
+            echo "Check: VPS reachable on port ${VPS_PORT}, VPS_SSH_KEY authorized for ${VPS_USER}, and remote script logs above."
+            exit 1
+          fi
