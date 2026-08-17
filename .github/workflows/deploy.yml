@@ -190,6 +190,24 @@ jobs:
             return 1
           }
 
+          # Non-interactive SSH often skips ~/.bashrc, so nvm/node/pm2 are missing from PATH
+          # until nvm is sourced. Load it before require_cmd checks for node tooling.
+          bootstrap_node_path() {
+            if load_nvm; then
+              log "Loading nvm for non-interactive deploy shell"
+              if [ -L "${CURRENT_LINK}" ] && [ -f "${CURRENT_LINK}/.nvmrc" ]; then
+                local current_nvmrc
+                current_nvmrc="$(tr -d '[:space:]' < "${CURRENT_LINK}/.nvmrc")"
+                nvm install "${current_nvmrc}" >/dev/null
+                nvm use "${current_nvmrc}" || nvm use default || nvm use node
+              else
+                nvm use default || nvm use node
+              fi
+            else
+              log "nvm not found; relying on system PATH for node/npm/pm2"
+            fi
+          }
+
           use_node_version() {
             if load_nvm; then
               if [ -f "${RELEASE_DIR}/.nvmrc" ]; then
@@ -329,9 +347,12 @@ jobs:
           require_cmd git
           require_cmd curl
           require_cmd timeout
-          require_cmd pm2
-          require_cmd npm
+
+          bootstrap_node_path
+
           require_cmd node
+          require_cmd npm
+          require_cmd pm2
 
           [ -f "${SHARED_ENV}" ] || fail "Missing shared env file: ${SHARED_ENV}"
 
